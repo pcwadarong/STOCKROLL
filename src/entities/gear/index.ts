@@ -18,3 +18,12 @@ export {
   matchGear,
   type Ownership,
 } from './model/gear';
+export {
+  ANY,
+  arrangeGear,
+  FAVORITES_ONLY,
+  FILM_FILTERS,
+  GEAR_FILTERS,
+  type GearFilter,
+  isCurrent,
+} from './model/views';

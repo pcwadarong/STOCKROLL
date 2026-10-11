@@ -2,12 +2,19 @@ import { useState } from 'react';
 import { Link, Navigate, NavLink, useNavigate, useParams } from 'react-router';
 
 import {
+  ANY,
+  arrangeGear,
   CAMERA_DEFAULTS,
   CAMERA_FIELDS,
   cameraCollection,
+  FAVORITES_ONLY,
   FILM_DEFAULTS,
   FILM_FIELDS,
+  FILM_FILTERS,
   filmCollection,
+  GEAR_FILTERS,
+  type GearFilter,
+  isCurrent,
   LENS_DEFAULTS,
   LENS_FIELDS,
   lensCollection,
@@ -27,6 +34,7 @@ import { Button } from '@/shared/ui/Button';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorText } from '@/shared/ui/ErrorText';
+import { FilterChips } from '@/shared/ui/FilterChips';
 import { labelText } from '@/shared/ui/label.css';
 import { formatCount, MetaList } from '@/shared/ui/MetaList';
 import { PageHeader } from '@/shared/ui/PageHeader';
@@ -46,6 +54,12 @@ type Section = {
   defaults: RecordValues;
   /** Short second line shown under the name in the list. */
   summary: (item: GearRow, label: (key: string) => string) => string;
+  /** Facts this section's list can be narrowed by, one row of chips each. */
+  filters: readonly GearFilter[];
+  /** Field whose label is shown at the end of a row that is not part of current shooting. */
+  standingField: string;
+  /** Items carry a favorite star, toggled from the list and usable as a filter. */
+  starred?: boolean;
 };
 
 const SECTIONS: Record<string, Section> = {
@@ -55,7 +69,10 @@ const SECTIONS: Record<string, Section> = {
     collection: cameraCollection as unknown as Collection<GearRow>,
     fields: CAMERA_FIELDS,
     defaults: CAMERA_DEFAULTS,
-    summary: (_item, label) => [label('kind'), label('ownership'), label('status')].join(' · '),
+    summary: (item, label) =>
+      [label('kind'), item.filmFormat, item.mount].filter(Boolean).join(' · '),
+    filters: GEAR_FILTERS,
+    standingField: 'status',
   },
   lenses: {
     title: 'Lenses',
@@ -63,8 +80,9 @@ const SECTIONS: Record<string, Section> = {
     collection: lensCollection as unknown as Collection<GearRow>,
     fields: LENS_FIELDS,
     defaults: LENS_DEFAULTS,
-    summary: (item, label) =>
-      [item.mount, label('ownership'), label('status')].filter(Boolean).join(' · '),
+    summary: item => (item.mount ? `${item.mount} mount` : ''),
+    filters: GEAR_FILTERS,
+    standingField: 'status',
   },
   films: {
     title: 'Films',
@@ -73,9 +91,10 @@ const SECTIONS: Record<string, Section> = {
     fields: FILM_FIELDS,
     defaults: FILM_DEFAULTS,
     summary: (item, label) =>
-      [item.format, item.iso ? `ISO ${item.iso}` : '', label('kind'), label('usage')]
-        .filter(Boolean)
-        .join(' · '),
+      [item.format, item.iso ? `ISO ${item.iso}` : '', label('kind')].filter(Boolean).join(' · '),
+    filters: FILM_FILTERS,
+    standingField: 'usage',
+    starred: true,
   },
 };
 
@@ -180,6 +199,26 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
   const section = SECTIONS[kind]!;
   const { items, status, save, remove } = useCollection(section.collection);
   const navigate = useNavigate();
+  // Picked chips belong to the section they were picked in; another section starts unfiltered.
+  const [picked, setPicked] = useState<{ kind: string; values: Record<string, string> }>({
+    kind,
+    values: {},
+  });
+  const picks = picked.kind === kind ? picked.values : {};
+  const favoritesOnly = picks.isFavorite === FAVORITES_ONLY.isFavorite;
+  const shown = arrangeGear(items, picks);
+  const [listError, setListError] = useState('');
+
+  const pick = (key: string, value: string) =>
+    setPicked(previous => ({
+      kind,
+      values: { ...(previous.kind === kind ? previous.values : {}), [key]: value },
+    }));
+
+  const toggleFavorite = (item: GearRow) => {
+    setListError('');
+    save({ ...item, isFavorite: !item.isFavorite }).catch(() => setListError(MESSAGES.saveFailed));
+  };
 
   // `/library/:kind/:id` shows an item read-only; the form is `/new` or `/:id/edit`.
   const editing = id === 'new' || (id !== undefined && editRoute);
@@ -308,18 +347,97 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
             )}
 
             {items.length > 0 && (
-              <ul className={css.list}>
-                {items.map(item => (
-                  <li key={item.id}>
-                    <Link to={`/library/${kind}/${item.id}`} className={css.row}>
-                      <span className={css.rowTitle}>{item.name}</span>
-                      <span className={labelText}>
-                        {section.summary(item, optionLabel(section.fields, item))}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <div className={css.filterBar}>
+                  <div className={css.filters}>
+                    {section.filters.map(filter => (
+                      <FilterChips
+                        key={filter.key}
+                        label={filter.label}
+                        showLabel
+                        options={filter.options}
+                        value={picks[filter.key] ?? ANY}
+                        onChange={value => pick(filter.key, value)}
+                      />
+                    ))}
+                  </div>
+                  {section.starred && (
+                    <button
+                      type="button"
+                      className={css.star}
+                      aria-pressed={favoritesOnly}
+                      aria-label="Show favorites only"
+                      onClick={() =>
+                        pick('isFavorite', favoritesOnly ? ANY : FAVORITES_ONLY.isFavorite)
+                      }
+                    >
+                      {favoritesOnly ? '★' : '☆'}
+                    </button>
+                  )}
+                </div>
+
+                {listError && <ErrorText>{listError}</ErrorText>}
+
+                {shown.length === 0 && (
+                  <EmptyState title="Nothing here">
+                    No {section.singular} matches this view.
+                  </EmptyState>
+                )}
+
+                {shown.length > 0 && (
+                  <ul className={css.list}>
+                    {shown.map(item => {
+                      const label = optionLabel(section.fields, item);
+                      // Rows outside current shooting are dimmed and say why at the end of the line.
+                      const current = isCurrent(item);
+                      // Ownership is a separate fact, so it gets its own tag whatever the status.
+                      const tags = [
+                        current ? '' : label(section.standingField),
+                        item.ownership && item.ownership !== 'owned' ? label('ownership') : '',
+                      ].filter(Boolean);
+                      return (
+                        <li
+                          key={item.id}
+                          className={section.starred ? css.rowWithAction : undefined}
+                        >
+                          {section.starred && (
+                            <button
+                              type="button"
+                              className={css.star}
+                              aria-pressed={item.isFavorite === true}
+                              aria-label={`Favorite ${item.name}`}
+                              onClick={() => toggleFavorite(item)}
+                            >
+                              {item.isFavorite === true ? '★' : '☆'}
+                            </button>
+                          )}
+                          <Link
+                            to={`/library/${kind}/${item.id}`}
+                            className={[
+                              section.starred ? css.rowLink : css.row,
+                              current ? '' : css.rowDimmed,
+                            ].join(' ')}
+                          >
+                            <span className={css.rowHead}>
+                              <span className={css.rowTitle}>{item.name}</span>
+                              {tags.length > 0 && (
+                                <span className={css.rowTags}>
+                                  {tags.map(tag => (
+                                    <span key={tag} className={`${labelText} ${css.rowTag}`}>
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </span>
+                              )}
+                            </span>
+                            <span className={labelText}>{section.summary(item, label)}</span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </>
             )}
           </Panel>
         )}

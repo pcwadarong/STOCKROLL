@@ -36,14 +36,34 @@ export const list = style({ display: 'grid', margin: 0, padding: 0, listStyle: '
 
 export const row = style({
   display: 'grid',
-  gap: vars.$dimension.x0_5,
-  paddingBlock: vars.$dimension.x3,
+  gap: vars.$dimension.x1_5,
+  paddingBlock: vars.$dimension.x4,
   borderBottom: `1px solid ${vars.$color.stroke.neutralSubtle}`,
   color: 'inherit',
   textDecoration: 'none',
   overflowWrap: 'anywhere',
   selectors: { '&:hover, &:focus-visible': { color: vars.$color.fg.positive } },
 });
+
+// Name on the left, standing tag pushed to the right.
+export const rowHead = style({
+  display: 'flex',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: vars.$dimension.x3,
+});
+
+export const rowTags = style({ display: 'flex', flexShrink: 0, gap: vars.$dimension.x1_5 });
+
+export const rowTag = style({
+  flexShrink: 0,
+  paddingInline: vars.$dimension.x2,
+  border: `1px solid ${vars.$color.stroke.neutralWeak}`,
+  borderRadius: vars.$radius.r1,
+});
+
+// Not hidden, just quieter: the record stays, the eye goes to what is in use.
+export const rowDimmed = style({ color: vars.$color.fg.neutralSubtle });
 
 export const rowTitle = style({ fontSize: vars.$fontSize.t5, fontWeight: vars.$fontWeight.bold });
 
@@ -57,21 +77,16 @@ export const actions = style({
   gap: vars.$dimension.x3,
 });
 
-// Filter chips share the tab look; they are buttons, so the pressed state marks the active one.
-export const filter = style([
-  tab,
-  {
-    background: 'none',
-    cursor: 'pointer',
-    selectors: {
-      '&[aria-pressed="true"]': {
-        background: vars.$color.bg.positiveSolid,
-        borderColor: vars.$color.bg.positiveSolid,
-        color: beige,
-      },
-    },
-  },
-]);
+// Stacked rows of filter chips, one per fact.
+export const filters = style({ display: 'grid', gap: vars.$dimension.x2 });
+
+// Chips on the left, the favorites star at the far end of the same line.
+export const filterBar = style({
+  display: 'flex',
+  alignItems: 'start',
+  justifyContent: 'space-between',
+  gap: vars.$dimension.x3,
+});
 
 // A list row with a control beside the link (the favorite star).
 export const rowWithAction = style({
@@ -97,7 +112,8 @@ export const star = style({
   lineHeight: 1,
   cursor: 'pointer',
   selectors: {
-    '&[aria-pressed="true"]': { color: vars.$color.fg.brand },
+    // A filled star is green, like every other control that is switched on.
+    '&[aria-pressed="true"]': { color: vars.$color.fg.positive },
     '&:hover, &:focus-visible': { color: vars.$color.fg.positive },
   },
 });
