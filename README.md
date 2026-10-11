@@ -23,3 +23,4 @@ pnpm dev
 
 - [AGENTS.md](AGENTS.md) — single source of truth for architecture, styling and domain rules
 - [docs/architecture.md](docs/architecture.md) — technical design and the reasoning behind it
+- [docs/verification.md](docs/verification.md) — how to check what unit tests cannot reach (signed-in screens, migrations, devices)
