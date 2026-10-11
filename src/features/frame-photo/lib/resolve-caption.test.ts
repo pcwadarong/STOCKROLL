@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Camera, Film, Lens } from '@/entities/gear';
 import type { Recipe } from '@/entities/recipe';
 
-import { FROM_EXIF, resolveCaption } from './resolve-caption';
+import { focalModeFor, FROM_EXIF, resolveCaption } from './resolve-caption';
 
 const gear = { ownership: 'owned', status: 'active', mount: null, note: null } as const;
 const XT50: Camera = {
@@ -164,5 +164,20 @@ describe('resolveCaption', () => {
       '1/60s',
     );
     expect(resolveCaption({ shutter: '2' }, {}, 'actual', library).caption.rightPrimary).toBe('2s');
+  });
+});
+
+describe('focalModeFor', () => {
+  it('when 35mm is chosen and the photo records the equivalent, it must stay 35mm', () => {
+    expect(focalModeFor('35mm', { focalLength: 23, focalLength35: 35 })).toBe('35mm');
+  });
+
+  it('when 35mm is chosen but the photo has no recorded equivalent, it must fall back to actual', () => {
+    expect(focalModeFor('35mm', { focalLength: 23 })).toBe('actual');
+    expect(focalModeFor('35mm', {})).toBe('actual');
+  });
+
+  it('when actual is chosen, it must stay actual even if the photo records an equivalent', () => {
+    expect(focalModeFor('actual', { focalLength: 23, focalLength35: 35 })).toBe('actual');
   });
 });

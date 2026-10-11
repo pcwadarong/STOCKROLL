@@ -4,7 +4,7 @@ import { style } from '@vanilla-extract/css';
 import { tertiary } from '@/shared/config/accent.css';
 import { SHADE } from '@/shared/config/palette';
 import { COMPACT_MEDIA_QUERY } from '@/shared/config/responsive';
-import { labelTitle } from '@/shared/ui/label.css';
+import { labelText, labelTitle } from '@/shared/ui/label.css';
 
 export const root = style({
   display: 'grid',
@@ -25,6 +25,9 @@ export const stage = style({
   placeItems: 'center',
   // Definite tracks give the canvas' max-width/max-height percentages something to resolve against.
   gridTemplate: 'minmax(0, 1fr) / minmax(0, 1fr)',
+  // The status line and the thumbnail strip sit under the preview and take only their own height.
+  gridAutoRows: 'auto',
+  gap: vars.$dimension.x2,
   minWidth: 0,
   minHeight: 0,
   overflow: 'hidden',
@@ -42,6 +45,15 @@ export const preview = style({
   // The one soft shadow in the UI: the print resting on the desk.
   boxShadow: SHADE.shadow,
 });
+
+// Decoding the next photo, or lent to "Save all": the last frame stays, visibly not current.
+export const previewBusy = style({ opacity: 0.5 });
+
+// One line is always reserved, so a message appearing does not resize the preview.
+export const status = style([
+  labelText,
+  { minHeight: '1lh', margin: 0, textAlign: 'center', color: vars.$color.fg.neutralMuted },
+]);
 
 export const empty = style({
   display: 'grid',
@@ -66,6 +78,13 @@ export const panel = style({
       borderTop: `1px solid ${vars.$color.stroke.neutralWeak}`,
     },
   },
+});
+
+// Wraps every settings group so one `inert` freezes them all; spaced like the panel itself.
+export const settings = style({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: vars.$dimension.x8,
 });
 
 export const group = style({
@@ -102,12 +121,26 @@ export const exposure = style({
 
 export const fieldAction = style({ alignSelf: 'flex-end' });
 
+// Long camera file names wrap anywhere rather than widen the panel.
+export const fileName = style({ overflowWrap: 'anywhere' });
+
+export const queueActions = style({
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: vars.$dimension.x2,
+});
+
 export const actions = style({
-  display: 'grid',
-  gridAutoFlow: 'column',
-  gridAutoColumns: 'minmax(0, 1fr)',
+  display: 'flex',
+  flexWrap: 'wrap',
   gap: vars.$dimension.x2,
   marginTop: 'auto',
 });
+
+// Actions share a row evenly and wrap when the panel is too narrow for them.
+export const action = style({ flex: '1 1 7rem' });
+
+// "Save all" takes a row of its own under the single-photo actions.
+export const actionWide = style({ flex: '1 1 100%' });
 
 export const hiddenInput = style({ display: 'none' });
