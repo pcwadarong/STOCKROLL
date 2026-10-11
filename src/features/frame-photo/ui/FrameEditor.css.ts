@@ -39,7 +39,8 @@ export const stage = style({
       top: 0,
       zIndex: 1,
       // `svh`, not `dvh`: the height must not jump when the browser toolbar collapses on scroll.
-      height: '46svh',
+      // Over half the screen: the photo is the point, and the settings scroll under it anyway.
+      height: '58svh',
       paddingInline: vars.$dimension.x3,
       paddingBottom: vars.$dimension.x3,
       // Once the app bar has scrolled away the preview sits at the very top, under the notch.
