@@ -57,28 +57,24 @@ export const actions = style({
   gap: vars.$dimension.x3,
 });
 
-// Dropdowns share the line evenly and wrap on narrow screens; the favorites star ends the line.
-export const filters = style({
-  display: 'grid',
-  flex: 1,
-  gridTemplateColumns: 'repeat(auto-fit, minmax(8.5rem, 1fr))',
-  gap: vars.$dimension.x3,
-  minWidth: 0,
-});
-
+// Dropdowns and the favorites toggle share one grid: a single line where there is room, and
+// as few lines as fit on a phone. 6.5rem is the narrowest a dropdown can be and still show its name.
 export const filterBar = style({
-  display: 'flex',
-  alignItems: 'end',
-  gap: vars.$dimension.x3,
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(6.5rem, 1fr))',
+  gap: vars.$dimension.x2,
 });
 
 // As tall as the dropdowns it sits beside (SEED's medium select is x10).
-export const favoritesToggle = style({ flex: 'none', minHeight: vars.$dimension.x10 });
+export const favoritesToggle = style({ gap: vars.$dimension.x1_5, minHeight: vars.$dimension.x10 });
+
+// The glyph is drawn small in the label face; sized up so it reads as the star in the rows.
+export const toggleStar = style({ fontSize: vars.$fontSize.t6, lineHeight: 1 });
 
 // A list row with a control beside the link (the favorite star).
 export const rowWithAction = style({
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
   alignItems: 'center',
   columnGap: vars.$dimension.x3,
   borderBottom: `1px solid ${vars.$color.stroke.neutralSubtle}`,
@@ -103,7 +99,7 @@ export const star = style({
   borderRadius: vars.$radius.r1,
   background: 'none',
   color: vars.$color.fg.neutralSubtle,
-  fontSize: vars.$fontSize.t6,
+  fontSize: vars.$fontSize.t8,
   lineHeight: 1,
   cursor: 'pointer',
   selectors: {

@@ -6,8 +6,6 @@ import {
   SelectTrigger,
 } from 'seed-design/ui/select';
 
-import * as css from './PickField.css';
-
 export type PickOption = { value: string; label: string };
 
 type PickFieldProps = {
@@ -51,18 +49,14 @@ export const PickField = ({
     onValueChange: ([next]: string[]) => onChange(next ?? ''),
   };
 
-  // Compact: the label is drawn here in the label voice, and names the trigger for assistive tech.
+  // Compact has no label line: the placeholder names the control until something is picked,
+  // which keeps a row of filters one line tall. The label still names it for assistive tech.
   if (density === 'compact')
     return (
-      <div className={css.compact}>
-        <span className={css.compactLabel} aria-hidden="true">
-          {label}
-        </span>
-        <SelectRoot {...select}>
-          <SelectTrigger placeholder={placeholder} size="medium" aria-label={label} />
-          {items}
-        </SelectRoot>
-      </div>
+      <SelectRoot {...select}>
+        <SelectTrigger placeholder={placeholder} size="medium" aria-label={label} />
+        {items}
+      </SelectRoot>
     );
 
   return (
