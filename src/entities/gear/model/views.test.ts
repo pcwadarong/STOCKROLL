@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ANY, arrangeGear, isCurrent } from './views';
+import { ANY, arrangeGear, FAVORITES_ONLY, isCurrent } from './views';
 
 const GEAR = [
   { name: 'display', ownership: 'owned', status: 'display' },
@@ -53,8 +53,8 @@ describe('arrangeGear', () => {
     expect(names(arrangeGear(FILMS, {}))).toEqual(['favorite', 'used', 'planned', 'interested']);
   });
 
-  it('when Favorites is picked, it must list only films marked as favorite', () => {
-    expect(names(arrangeGear(FILMS, { isFavorite: 'true' }))).toEqual(['favorite']);
+  it('when the favorites star is on, it must list only films marked as favorite', () => {
+    expect(names(arrangeGear(FILMS, { usage: ANY, ...FAVORITES_ONLY }))).toEqual(['favorite']);
   });
 });
 

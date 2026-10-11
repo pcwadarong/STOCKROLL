@@ -25,15 +25,16 @@ export const GEAR_FILTERS: readonly GearFilter[] = [
   { key: 'ownership', label: 'Ownership', options: withAny(OWNERSHIP) },
 ];
 
-/** Filters for films, which have no owner or condition: only whether they were shot, and favorites. */
+/**
+ * Filters for films, which have no owner or condition: only whether they were shot.
+ * Favorites are narrowed by a star toggle beside the chips, through the `isFavorite` pick.
+ */
 export const FILM_FILTERS: readonly GearFilter[] = [
   { key: 'usage', label: 'Usage', options: withAny(USAGE) },
-  {
-    key: 'isFavorite',
-    label: 'Favorite',
-    options: withAny([{ value: 'true', label: 'Favorites' }]),
-  },
 ];
+
+/** Pick that keeps only favorites, for sections whose items can be starred. */
+export const FAVORITES_ONLY = { isFavorite: 'true' } as const;
 
 /**
  * Any record carrying `status` (cameras, lenses) or `usage`/`isFavorite` (films).

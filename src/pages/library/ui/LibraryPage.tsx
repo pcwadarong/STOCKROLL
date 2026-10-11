@@ -7,6 +7,7 @@ import {
   CAMERA_DEFAULTS,
   CAMERA_FIELDS,
   cameraCollection,
+  FAVORITES_ONLY,
   FILM_DEFAULTS,
   FILM_FIELDS,
   FILM_FILTERS,
@@ -57,6 +58,8 @@ type Section = {
   filters: readonly GearFilter[];
   /** Field whose label is shown at the end of a row that is not part of current shooting. */
   standingField: string;
+  /** Items carry a favorite star, toggled from the list and usable as a filter. */
+  starred?: boolean;
 };
 
 const SECTIONS: Record<string, Section> = {
@@ -91,6 +94,7 @@ const SECTIONS: Record<string, Section> = {
       [item.format, item.iso ? `ISO ${item.iso}` : '', label('kind')].filter(Boolean).join(' · '),
     filters: FILM_FILTERS,
     standingField: 'usage',
+    starred: true,
   },
 };
 
@@ -201,7 +205,20 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
     values: {},
   });
   const picks = picked.kind === kind ? picked.values : {};
+  const favoritesOnly = picks.isFavorite === FAVORITES_ONLY.isFavorite;
   const shown = arrangeGear(items, picks);
+  const [listError, setListError] = useState('');
+
+  const pick = (key: string, value: string) =>
+    setPicked(previous => ({
+      kind,
+      values: { ...(previous.kind === kind ? previous.values : {}), [key]: value },
+    }));
+
+  const toggleFavorite = (item: GearRow) => {
+    setListError('');
+    save({ ...item, isFavorite: !item.isFavorite }).catch(() => setListError(MESSAGES.saveFailed));
+  };
 
   // `/library/:kind/:id` shows an item read-only; the form is `/new` or `/:id/edit`.
   const editing = id === 'new' || (id !== undefined && editRoute);
@@ -331,26 +348,35 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
 
             {items.length > 0 && (
               <>
-                <div className={css.filters}>
-                  {section.filters.map(filter => (
-                    <FilterChips
-                      key={filter.key}
-                      label={filter.label}
-                      showLabel
-                      options={filter.options}
-                      value={picks[filter.key] ?? ANY}
-                      onChange={value =>
-                        setPicked(previous => ({
-                          kind,
-                          values: {
-                            ...(previous.kind === kind ? previous.values : {}),
-                            [filter.key]: value,
-                          },
-                        }))
+                <div className={css.filterBar}>
+                  <div className={css.filters}>
+                    {section.filters.map(filter => (
+                      <FilterChips
+                        key={filter.key}
+                        label={filter.label}
+                        showLabel
+                        options={filter.options}
+                        value={picks[filter.key] ?? ANY}
+                        onChange={value => pick(filter.key, value)}
+                      />
+                    ))}
+                  </div>
+                  {section.starred && (
+                    <button
+                      type="button"
+                      className={css.star}
+                      aria-pressed={favoritesOnly}
+                      aria-label="Show favorites only"
+                      onClick={() =>
+                        pick('isFavorite', favoritesOnly ? ANY : FAVORITES_ONLY.isFavorite)
                       }
-                    />
-                  ))}
+                    >
+                      {favoritesOnly ? '★' : '☆'}
+                    </button>
+                  )}
                 </div>
+
+                {listError && <ErrorText>{listError}</ErrorText>}
 
                 {shown.length === 0 && (
                   <EmptyState title="Nothing here">
@@ -370,10 +396,27 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
                         item.ownership && item.ownership !== 'owned' ? label('ownership') : '',
                       ].filter(Boolean);
                       return (
-                        <li key={item.id}>
+                        <li
+                          key={item.id}
+                          className={section.starred ? css.rowWithAction : undefined}
+                        >
+                          {section.starred && (
+                            <button
+                              type="button"
+                              className={css.star}
+                              aria-pressed={item.isFavorite === true}
+                              aria-label={`Favorite ${item.name}`}
+                              onClick={() => toggleFavorite(item)}
+                            >
+                              {item.isFavorite === true ? '★' : '☆'}
+                            </button>
+                          )}
                           <Link
                             to={`/library/${kind}/${item.id}`}
-                            className={current ? css.row : `${css.row} ${css.rowDimmed}`}
+                            className={[
+                              section.starred ? css.rowLink : css.row,
+                              current ? '' : css.rowDimmed,
+                            ].join(' ')}
                           >
                             <span className={css.rowHead}>
                               <span className={css.rowTitle}>{item.name}</span>

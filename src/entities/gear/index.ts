@@ -21,6 +21,7 @@ export {
 export {
   ANY,
   arrangeGear,
+  FAVORITES_ONLY,
   FILM_FILTERS,
   GEAR_FILTERS,
   type GearFilter,

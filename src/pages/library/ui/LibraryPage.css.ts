@@ -80,6 +80,14 @@ export const actions = style({
 // Stacked rows of filter chips, one per fact.
 export const filters = style({ display: 'grid', gap: vars.$dimension.x2 });
 
+// Chips on the left, the favorites star at the far end of the same line.
+export const filterBar = style({
+  display: 'flex',
+  alignItems: 'start',
+  justifyContent: 'space-between',
+  gap: vars.$dimension.x3,
+});
+
 // A list row with a control beside the link (the favorite star).
 export const rowWithAction = style({
   display: 'grid',
@@ -104,7 +112,8 @@ export const star = style({
   lineHeight: 1,
   cursor: 'pointer',
   selectors: {
-    '&[aria-pressed="true"]': { color: vars.$color.fg.brand },
+    // A filled star is green, like every other control that is switched on.
+    '&[aria-pressed="true"]': { color: vars.$color.fg.positive },
     '&:hover, &:focus-visible': { color: vars.$color.fg.positive },
   },
 });
