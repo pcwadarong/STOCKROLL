@@ -156,7 +156,7 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
           </SegmentedControl>
           <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
             {detail === 'full'
-              ? 'Keeps the photo at its own resolution. Larger file.'
+              ? 'Keeps the photo at its own resolution, up to the largest image a browser can draw. Larger file.'
               : 'Sized for posting. Smaller file, quick to upload.'}
           </Text>
         </fieldset>
