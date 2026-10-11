@@ -48,6 +48,7 @@ const RECIPE: Recipe = {
   baseSimulation: 'Velvia / Vivid',
   state: 'active',
   note: null,
+  isFavorite: false,
 };
 
 const library = {

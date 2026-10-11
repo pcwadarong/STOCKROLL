@@ -45,6 +45,10 @@ type SystemSpec = {
 };
 
 const LEVELS = ['Off', 'Weak', 'Strong'].map(value => ({ value, label: value }));
+/** Puts a run of fields under one heading, so a long settings list reads in sections. */
+const grouped = (group: string, fields: readonly RecordField[]): RecordField[] =>
+  fields.map(field => ({ ...field, group }));
+
 const text = (key: string, label: string, placeholder?: string): RecordField => ({
   key,
   label,
@@ -63,35 +67,50 @@ export const SYSTEMS: Record<RecipeSystem, SystemSpec> = {
     cameraPattern: /fuji/i,
     baseLooks: FUJI_SIMULATIONS,
     fields: [
-      {
-        key: 'simulation',
-        label: 'Film simulation',
-        type: 'select',
-        options: FUJI_SIMULATIONS.map(value => ({ value, label: value })),
-      },
-      { key: 'grainStrength', label: 'Grain effect — strength', type: 'select', options: LEVELS },
-      {
-        key: 'grainSize',
-        label: 'Grain effect — size',
-        type: 'select',
-        options: ['Small', 'Large'].map(value => ({ value, label: value })),
-      },
-      { key: 'colorChrome', label: 'Color Chrome Effect', type: 'select', options: LEVELS },
-      { key: 'colorChromeFxBlue', label: 'Color Chrome FX Blue', type: 'select', options: LEVELS },
-      text('whiteBalance', 'White balance', 'Auto, Daylight, 5600K…'),
-      text('wbShiftR', 'WB shift R', '-9 to +9'),
-      text('wbShiftB', 'WB shift B', '-9 to +9'),
-      text('dynamicRange', 'Dynamic range', 'Auto, DR100, DR200, DR400'),
-      text('toneCurve', 'Tone curve / D-Range Priority', 'DR-P…'),
-      text('highlight', 'Highlight tone', '-2 to +4'),
-      text('shadow', 'Shadow tone', '-2 to +4'),
-      text('color', 'Color', '-4 to +4'),
-      text('monochromeColor', 'Monochromatic color', 'WC / MG'),
-      text('sharpness', 'Sharpness', '-4 to +4'),
-      text('noiseReduction', 'High ISO NR', '-4 to +4'),
-      text('clarity', 'Clarity', '-5 to +5'),
-      text('exposureCompensation', 'Exposure compensation', '+1/3 EV'),
-      text('customSlot', 'Custom slot', 'C1–C7'),
+      ...grouped('Look', [
+        {
+          key: 'simulation',
+          label: 'Film simulation',
+          type: 'select',
+          options: FUJI_SIMULATIONS.map(value => ({ value, label: value })),
+        },
+        { key: 'grainStrength', label: 'Grain effect — strength', type: 'select', options: LEVELS },
+        {
+          key: 'grainSize',
+          label: 'Grain effect — size',
+          type: 'select',
+          options: ['Small', 'Large'].map(value => ({ value, label: value })),
+        },
+        { key: 'colorChrome', label: 'Color Chrome Effect', type: 'select', options: LEVELS },
+        {
+          key: 'colorChromeFxBlue',
+          label: 'Color Chrome FX Blue',
+          type: 'select',
+          options: LEVELS,
+        },
+      ]),
+      ...grouped('White balance', [
+        text('whiteBalance', 'White balance', 'Auto, Daylight, 5600K…'),
+        text('wbShiftR', 'WB shift R', '-9 to +9'),
+        text('wbShiftB', 'WB shift B', '-9 to +9'),
+      ]),
+      ...grouped('Tone', [
+        text('dynamicRange', 'Dynamic range', 'Auto, DR100, DR200, DR400'),
+        text('toneCurve', 'Tone curve / D-Range Priority', 'DR-P…'),
+        text('highlight', 'Highlight tone', '-2 to +4'),
+        text('shadow', 'Shadow tone', '-2 to +4'),
+      ]),
+      ...grouped('Color and detail', [
+        text('color', 'Color', '-4 to +4'),
+        text('monochromeColor', 'Monochromatic color', 'WC / MG'),
+        text('sharpness', 'Sharpness', '-4 to +4'),
+        text('noiseReduction', 'High ISO NR', '-4 to +4'),
+        text('clarity', 'Clarity', '-5 to +5'),
+      ]),
+      ...grouped('In the camera', [
+        text('exposureCompensation', 'Exposure compensation', '+1/3 EV'),
+        text('customSlot', 'Custom slot', 'C1–C7'),
+      ]),
     ],
   },
   ricoh: {

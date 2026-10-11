@@ -1,0 +1,295 @@
+import { useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
+
+import {
+  blankSettings,
+  DETAIL_FIELDS,
+  type Recipe,
+  RECIPE_FIELDS,
+  type RecipeSettings,
+  type RecipeSystem,
+  type RecipeVersion,
+  systemOf,
+  SYSTEMS,
+  toSettings,
+  versionSlots,
+  versionsOf,
+} from '@/entities/recipe';
+import { SignInGate } from '@/features/auth';
+import { MESSAGES } from '@/shared/config/messages';
+import { missingRequired, normalizeRecord, type RecordValues } from '@/shared/lib/record-field';
+import { useGoBack } from '@/shared/lib/use-go-back';
+import { Button } from '@/shared/ui/Button';
+import { EmptyState } from '@/shared/ui/EmptyState';
+import { ErrorText } from '@/shared/ui/ErrorText';
+import { PageHeader } from '@/shared/ui/PageHeader';
+import { Panel } from '@/shared/ui/Panel';
+import { PickField } from '@/shared/ui/PickField';
+import { RecordForm } from '@/shared/ui/RecordForm';
+import { PageShell } from '@/widgets/page-shell';
+
+import {
+  addVersion,
+  correctVersion,
+  createRecipe,
+  type RecipeDetails,
+} from '../model/recipe-actions';
+import { useRecipeLibrary } from '../model/use-recipe-library';
+
+import * as css from './LibraryPage.css';
+
+/**
+ * What the form is for. Chosen on the detail screen before editing, so the form never has to ask
+ * afterwards what the change was meant to be.
+ */
+type Mode = 'new' | 'details' | 'correct' | 'version';
+
+type Source = { label: string; system: RecipeSystem; settings: RecipeSettings };
+
+type FormProps = {
+  mode: Mode;
+  recipe: Recipe | undefined;
+  version: RecipeVersion | undefined;
+  nextVersion: number;
+  /** Settings the form starts from: the version being edited, or the recipe being copied. */
+  initial: RecipeSettings;
+  initialSystem: RecipeSystem;
+  initialName: string;
+  sources: readonly (Source & { value: string })[];
+  onSubmit: (
+    details: RecipeDetails,
+    system: RecipeSystem,
+    settings: RecipeSettings,
+  ) => Promise<void>;
+  onCancel: () => void;
+};
+
+const TITLES: Record<Mode, (version: number, next: number) => string> = {
+  new: () => 'New recipe',
+  details: () => 'Name and state',
+  correct: version => `Correct v${version}`,
+  version: (_version, next) => `New version — v${next}`,
+};
+
+const EXPLANATIONS: Record<Mode, (version: number, next: number) => string> = {
+  new: () => 'Pick the camera system first: it decides which settings the recipe has.',
+  details: () => 'These describe the recipe as a whole and apply to every version.',
+  correct: version =>
+    `Changes overwrite v${version}. Use this to fix a value that was entered wrong.`,
+  version: (version, next) =>
+    version > 0
+      ? `Starts from v${version}. Saving adds v${next}; v${version} stays as it is.`
+      : 'These become v1 of this recipe.',
+};
+
+const RecipeEditForm = ({
+  mode,
+  recipe,
+  version,
+  nextVersion,
+  initial,
+  initialSystem,
+  initialName,
+  sources,
+  onSubmit,
+  onCancel,
+}: FormProps) => {
+  const [values, setValues] = useState<RecordValues>({
+    name: initialName,
+    system: initialSystem,
+    state: recipe?.state ?? 'candidate',
+    note: recipe?.note ?? '',
+    ...initial,
+  });
+  const [source, setSource] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const system = systemOf({ system: values.system as RecipeSystem });
+  const editsDetails = mode === 'new' || mode === 'details';
+  const editsSettings = mode !== 'details';
+
+  const change = (key: string, value: string) =>
+    setValues(prev =>
+      // Settings belong to a system. Changing it starts the settings over, so values from the
+      // old system are not saved under the new one.
+      key === 'system' && value !== prev.system
+        ? { ...prev, ...blankSettings(), system: value }
+        : { ...prev, [key]: value },
+    );
+
+  const copyFrom = (value: string) => {
+    setSource(value);
+    const chosen = sources.find(item => item.value === value);
+    if (chosen)
+      setValues(prev => ({
+        ...prev,
+        ...blankSettings(),
+        ...chosen.settings,
+        system: chosen.system,
+      }));
+  };
+
+  const submit = async () => {
+    const details = normalizeRecord(RECIPE_FIELDS, values);
+    const missing = editsDetails ? missingRequired(RECIPE_FIELDS, details) : [];
+    if (missing.length > 0) return setError(MESSAGES.fillIn(missing));
+
+    setBusy(true);
+    setError('');
+    try {
+      await onSubmit(details as unknown as RecipeDetails, system, toSettings(system, values));
+    } catch {
+      setError(MESSAGES.saveFailed);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <p className={css.note}>{EXPLANATIONS[mode](version?.version ?? 0, nextVersion)}</p>
+      {error && <ErrorText>{error}</ErrorText>}
+
+      {editsDetails && (
+        <RecordForm
+          fields={mode === 'new' ? RECIPE_FIELDS : DETAIL_FIELDS}
+          values={values}
+          onChange={change}
+        />
+      )}
+
+      {mode === 'new' && sources.length > 0 && (
+        <PickField
+          label="Copy settings from"
+          indicator="Optional"
+          description="Fills in the settings below from another recipe so you can adjust them. The other recipe is not changed."
+          value={source}
+          options={sources}
+          onChange={copyFrom}
+        />
+      )}
+
+      {editsSettings && (
+        <RecordForm fields={SYSTEMS[system].fields} values={values} onChange={change} />
+      )}
+
+      <div className={css.actions}>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" loading={busy} onClick={() => void submit()}>
+          {mode === 'correct'
+            ? `Save v${version?.version}`
+            : mode === 'version'
+              ? `Save as v${nextVersion}`
+              : 'Save recipe'}
+        </Button>
+      </div>
+    </>
+  );
+};
+
+/**
+ * Form for creating a recipe or changing one. The route and query decide the mode:
+ * `/recipes/new` (optionally `?from=<recipe>&v=<n>` to copy), and `/recipes/:id/edit` with
+ * `?mode=details|correct|version&v=<n>`.
+ */
+export const RecipeEditPage = () => {
+  const { id } = useParams();
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const { recipes, versions, ready, saveRecipe, reload } = useRecipeLibrary();
+
+  const recipe = id ? recipes.find(item => item.id === id) : undefined;
+  const requested = params.get('mode');
+  const mode: Mode = !id
+    ? 'new'
+    : requested === 'details' || requested === 'correct'
+      ? requested
+      : 'version';
+
+  const history = recipe ? versionsOf(versions, recipe.id) : [];
+  const version = history.find(item => String(item.version) === params.get('v')) ?? history[0];
+  const nextVersion = (history[0]?.version ?? 0) + 1;
+
+  // Copying: `/recipes/new?from=<recipe id>&v=<n>`.
+  const original = recipes.find(item => item.id === params.get('from'));
+  const copied = original
+    ? (versionsOf(versions, original.id).find(item => String(item.version) === params.get('v')) ??
+      versionsOf(versions, original.id)[0])
+    : undefined;
+
+  const goBack = useGoBack(recipe ? `/recipes/${recipe.id}` : '/recipes');
+
+  const sources = recipes.flatMap(item => {
+    const latest = versionsOf(versions, item.id)[0];
+    return latest
+      ? [
+          {
+            value: item.id,
+            label: `${item.name} (${SYSTEMS[systemOf(item)].label})`,
+            system: systemOf(item),
+            settings: latest.settings,
+          },
+        ]
+      : [];
+  });
+
+  const submit: FormProps['onSubmit'] = async (details, system, settings) => {
+    if (mode === 'new') {
+      const created = await createRecipe({ ...details, system }, settings);
+      await reload();
+      return void navigate(`/recipes/${created.id}`, { replace: true });
+    }
+    if (!recipe) return;
+    if (mode === 'details') await saveRecipe({ ...recipe, ...details });
+    else if (mode === 'correct' && version)
+      await correctVersion(recipe, version, settings, version.id === history[0]?.id);
+    else await addVersion(recipe, versions, settings);
+    await reload();
+    navigate(`/recipes/${recipe.id}`, { replace: true });
+  };
+
+  const missing = mode !== 'new' && !recipe;
+  const blocked =
+    mode === 'version' && versionSlots(history.length).full
+      ? 'All version slots are used. Delete a version you no longer need, or copy to a new recipe.'
+      : mode === 'correct' && !version
+        ? 'This recipe has no version to correct yet.'
+        : '';
+
+  return (
+    <PageShell>
+      <PageHeader
+        title={recipe?.name ?? 'New recipe'}
+        lead={recipe ? SYSTEMS[systemOf(recipe)].label : undefined}
+      />
+
+      <SignInGate what="recipes">
+        <Panel title={TITLES[mode](version?.version ?? 0, nextVersion)}>
+          {!ready || missing ? (
+            <EmptyState title={ready ? 'Not found' : 'Loading'}>
+              {ready ? 'This recipe no longer exists.' : 'One moment.'}
+            </EmptyState>
+          ) : blocked ? (
+            <EmptyState title="Not available" action={<Button onClick={goBack}>Back</Button>}>
+              {blocked}
+            </EmptyState>
+          ) : (
+            <RecipeEditForm
+              key={`${mode}:${id}:${version?.id}:${copied?.id}`}
+              mode={mode}
+              recipe={recipe}
+              version={version}
+              nextVersion={nextVersion}
+              initial={mode === 'new' ? (copied?.settings ?? {}) : (version?.settings ?? {})}
+              initialSystem={recipe ? systemOf(recipe) : original ? systemOf(original) : 'fujifilm'}
+              initialName={recipe?.name ?? (original ? `${original.name} (copy)` : '')}
+              sources={sources}
+              onSubmit={submit}
+              onCancel={goBack}
+            />
+          )}
+        </Panel>
+      </SignInGate>
+    </PageShell>
+  );
+};

@@ -8,6 +8,8 @@ export type RecordField = {
   placeholder?: string;
   required?: boolean;
   hint?: string;
+  /** Heading this field is listed under. Consecutive fields with the same group form a section. */
+  group?: string;
 };
 
 export type RecordValues = Record<string, string | number | boolean | null | undefined>;
