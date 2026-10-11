@@ -5,9 +5,11 @@ import type { Recipe } from '@/entities/recipe';
 
 import { focalModeFor, FROM_EXIF, resolveCaption } from './resolve-caption';
 
-const gear = { ownership: 'owned', status: 'active', mount: null, note: null } as const;
+const gear = { isFavorite: false, status: 'active', mount: null, note: null } as const;
+const body = { bodyType: null } as const;
 const XT50: Camera = {
   ...gear,
+  ...body,
   id: 'c1',
   name: 'Fujifilm X-T50',
   displayName: 'X-T50',
@@ -16,6 +18,7 @@ const XT50: Camera = {
 };
 const CAPIOS: Camera = {
   ...gear,
+  ...body,
   id: 'c2',
   name: 'Minolta Capios 125S',
   displayName: null,
@@ -24,6 +27,7 @@ const CAPIOS: Camera = {
 };
 const CANON: Camera = {
   ...gear,
+  ...body,
   id: 'c3',
   name: 'Canon EOS 650D',
   displayName: null,
@@ -37,7 +41,6 @@ const ULTRAMAX: Film = {
   format: '135',
   iso: 400,
   kind: 'color_negative',
-  usage: 'used',
   isFavorite: true,
   note: null,
 };

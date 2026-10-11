@@ -1,27 +1,26 @@
 import { useState } from 'react';
-import { Link, Navigate, NavLink, useNavigate, useParams } from 'react-router';
+import { Navigate, NavLink, useNavigate, useParams } from 'react-router';
 
 import {
-  ANY,
   arrangeGear,
   CAMERA_DEFAULTS,
   CAMERA_FIELDS,
+  CAMERA_FILTERS,
   cameraCollection,
-  FAVORITES_ONLY,
   FILM_DEFAULTS,
   FILM_FIELDS,
   FILM_FILTERS,
   filmCollection,
-  GEAR_FILTERS,
-  type GearFilter,
-  isCurrent,
   LENS_DEFAULTS,
   LENS_FIELDS,
+  LENS_FILTERS,
   lensCollection,
+  statusNote,
 } from '@/entities/gear';
 import { SignInGate } from '@/features/auth';
 import type { Collection, Row } from '@/shared/api/collection';
 import { MESSAGES } from '@/shared/config/messages';
+import type { ListFilter } from '@/shared/lib/pick-filter';
 import {
   missingRequired,
   normalizeRecord,
@@ -34,13 +33,13 @@ import { Button } from '@/shared/ui/Button';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorText } from '@/shared/ui/ErrorText';
-import { FilterChips } from '@/shared/ui/FilterChips';
-import { labelText } from '@/shared/ui/label.css';
 import { formatCount, MetaList } from '@/shared/ui/MetaList';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Panel } from '@/shared/ui/Panel';
 import { RecordForm } from '@/shared/ui/RecordForm';
 import { PageShell } from '@/widgets/page-shell';
+
+import { ItemList, type ListFact, ListFilters } from './LibraryList';
 
 import * as css from './LibraryPage.css';
 
@@ -52,15 +51,15 @@ type Section = {
   collection: Collection<GearRow>;
   fields: readonly RecordField[];
   defaults: RecordValues;
-  /** Short second line shown under the name in the list. */
-  summary: (item: GearRow, label: (key: string) => string) => string;
-  /** Facts this section's list can be narrowed by, one row of chips each. */
-  filters: readonly GearFilter[];
-  /** Field whose label is shown at the end of a row that is not part of current shooting. */
-  standingField: string;
-  /** Items carry a favorite star, toggled from the list and usable as a filter. */
-  starred?: boolean;
+  /** Facts shown under the name in the list. */
+  facts: (item: GearRow, label: (key: string) => string) => ListFact[];
+  /** Dropdowns that narrow this section's list. */
+  filters: readonly ListFilter[];
+  /** Second line of the summary: gear counts what is in use, film counts favorites. */
+  count: { label: string; of: (item: GearRow) => boolean };
 };
+
+const IN_USE = { label: 'In use', of: (item: GearRow) => item.status === 'active' };
 
 const SECTIONS: Record<string, Section> = {
   cameras: {
@@ -69,10 +68,14 @@ const SECTIONS: Record<string, Section> = {
     collection: cameraCollection as unknown as Collection<GearRow>,
     fields: CAMERA_FIELDS,
     defaults: CAMERA_DEFAULTS,
-    summary: (item, label) =>
-      [label('kind'), item.filmFormat, item.mount].filter(Boolean).join(' · '),
-    filters: GEAR_FILTERS,
-    standingField: 'status',
+    facts: (item, label) => [
+      label('kind'),
+      label('bodyType'),
+      item.filmFormat && String(item.filmFormat),
+      item.mount && String(item.mount),
+    ],
+    filters: CAMERA_FILTERS,
+    count: IN_USE,
   },
   lenses: {
     title: 'Lenses',
@@ -80,9 +83,9 @@ const SECTIONS: Record<string, Section> = {
     collection: lensCollection as unknown as Collection<GearRow>,
     fields: LENS_FIELDS,
     defaults: LENS_DEFAULTS,
-    summary: item => (item.mount ? `${item.mount} mount` : ''),
-    filters: GEAR_FILTERS,
-    standingField: 'status',
+    facts: item => [item.mount && `${item.mount} mount`],
+    filters: LENS_FILTERS,
+    count: IN_USE,
   },
   films: {
     title: 'Films',
@@ -90,11 +93,13 @@ const SECTIONS: Record<string, Section> = {
     collection: filmCollection as unknown as Collection<GearRow>,
     fields: FILM_FIELDS,
     defaults: FILM_DEFAULTS,
-    summary: (item, label) =>
-      [item.format, item.iso ? `ISO ${item.iso}` : '', label('kind')].filter(Boolean).join(' · '),
+    facts: (item, label) => [
+      String(item.format ?? ''),
+      item.iso && `ISO ${item.iso}`,
+      label('kind'),
+    ],
     filters: FILM_FILTERS,
-    standingField: 'usage',
-    starred: true,
+    count: { label: 'Favorites', of: item => item.isFavorite === true },
   },
 };
 
@@ -199,13 +204,12 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
   const section = SECTIONS[kind]!;
   const { items, status, save, remove } = useCollection(section.collection);
   const navigate = useNavigate();
-  // Picked chips belong to the section they were picked in; another section starts unfiltered.
+  // Picked filters belong to the section they were picked in; another section starts unfiltered.
   const [picked, setPicked] = useState<{ kind: string; values: Record<string, string> }>({
     kind,
     values: {},
   });
   const picks = picked.kind === kind ? picked.values : {};
-  const favoritesOnly = picks.isFavorite === FAVORITES_ONLY.isFavorite;
   const shown = arrangeGear(items, picks);
   const [listError, setListError] = useState('');
 
@@ -215,9 +219,13 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
       values: { ...(previous.kind === kind ? previous.values : {}), [key]: value },
     }));
 
-  const toggleFavorite = (item: GearRow) => {
+  const toggleFavorite = (itemId: string) => {
+    const item = items.find(candidate => candidate.id === itemId);
+    if (!item) return;
     setListError('');
-    save({ ...item, isFavorite: !item.isFavorite }).catch(() => setListError(MESSAGES.saveFailed));
+    save({ ...item, isFavorite: item.isFavorite !== true }).catch(() =>
+      setListError(MESSAGES.saveFailed),
+    );
   };
 
   // `/library/:kind/:id` shows an item read-only; the form is `/new` or `/:id/edit`.
@@ -317,17 +325,11 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
             {status === 'ready' && (
               <MetaList
                 rows={[
-                  { label: 'Status', value: items.length === 0 ? 'Empty' : 'Ready' },
                   { label: 'Registered', value: formatCount(items.length) },
-                  ...('status' in section.defaults
-                    ? [
-                        {
-                          label: 'In use',
-                          value: formatCount(items.filter(item => item.status === 'active').length),
-                        },
-                      ]
-                    : []),
-                  { label: 'Last added', value: items.at(-1)?.name ?? '—' },
+                  {
+                    label: section.count.label,
+                    value: formatCount(items.filter(section.count.of).length),
+                  },
                 ]}
               />
             )}
@@ -348,33 +350,7 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
 
             {items.length > 0 && (
               <>
-                <div className={css.filterBar}>
-                  <div className={css.filters}>
-                    {section.filters.map(filter => (
-                      <FilterChips
-                        key={filter.key}
-                        label={filter.label}
-                        showLabel
-                        options={filter.options}
-                        value={picks[filter.key] ?? ANY}
-                        onChange={value => pick(filter.key, value)}
-                      />
-                    ))}
-                  </div>
-                  {section.starred && (
-                    <button
-                      type="button"
-                      className={css.star}
-                      aria-pressed={favoritesOnly}
-                      aria-label="Show favorites only"
-                      onClick={() =>
-                        pick('isFavorite', favoritesOnly ? ANY : FAVORITES_ONLY.isFavorite)
-                      }
-                    >
-                      {favoritesOnly ? '★' : '☆'}
-                    </button>
-                  )}
-                </div>
+                <ListFilters filters={section.filters} picks={picks} onPick={pick} />
 
                 {listError && <ErrorText>{listError}</ErrorText>}
 
@@ -385,57 +361,17 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
                 )}
 
                 {shown.length > 0 && (
-                  <ul className={css.list}>
-                    {shown.map(item => {
-                      const label = optionLabel(section.fields, item);
-                      // Rows outside current shooting are dimmed and say why at the end of the line.
-                      const current = isCurrent(item);
-                      // Ownership is a separate fact, so it gets its own tag whatever the status.
-                      const tags = [
-                        current ? '' : label(section.standingField),
-                        item.ownership && item.ownership !== 'owned' ? label('ownership') : '',
-                      ].filter(Boolean);
-                      return (
-                        <li
-                          key={item.id}
-                          className={section.starred ? css.rowWithAction : undefined}
-                        >
-                          {section.starred && (
-                            <button
-                              type="button"
-                              className={css.star}
-                              aria-pressed={item.isFavorite === true}
-                              aria-label={`Favorite ${item.name}`}
-                              onClick={() => toggleFavorite(item)}
-                            >
-                              {item.isFavorite === true ? '★' : '☆'}
-                            </button>
-                          )}
-                          <Link
-                            to={`/library/${kind}/${item.id}`}
-                            className={[
-                              section.starred ? css.rowLink : css.row,
-                              current ? '' : css.rowDimmed,
-                            ].join(' ')}
-                          >
-                            <span className={css.rowHead}>
-                              <span className={css.rowTitle}>{item.name}</span>
-                              {tags.length > 0 && (
-                                <span className={css.rowTags}>
-                                  {tags.map(tag => (
-                                    <span key={tag} className={`${labelText} ${css.rowTag}`}>
-                                      {tag}
-                                    </span>
-                                  ))}
-                                </span>
-                              )}
-                            </span>
-                            <span className={labelText}>{section.summary(item, label)}</span>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <ItemList
+                    rows={shown.map(item => ({
+                      id: item.id,
+                      to: `/library/${kind}/${item.id}`,
+                      title: item.name,
+                      facts: section.facts(item, optionLabel(section.fields, item)),
+                      note: statusNote(item),
+                      favorite: item.isFavorite === true,
+                    }))}
+                    onToggleFavorite={toggleFavorite}
+                  />
                 )}
               </>
             )}

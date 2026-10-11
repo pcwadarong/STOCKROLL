@@ -6,6 +6,8 @@ import {
   SelectTrigger,
 } from 'seed-design/ui/select';
 
+import * as css from './PickField.css';
+
 export type PickOption = { value: string; label: string };
 
 type PickFieldProps = {
@@ -17,6 +19,8 @@ type PickFieldProps = {
   placeholder?: string;
   description?: string;
   indicator?: string;
+  /** `compact` is the smaller control for filter bars; forms use the default. */
+  density?: 'default' | 'compact';
 };
 
 /**
@@ -31,15 +35,9 @@ export const PickField = ({
   placeholder = 'Select',
   description,
   indicator,
-}: PickFieldProps) => (
-  <SelectRoot
-    label={label}
-    indicator={indicator}
-    description={description}
-    value={value ? [value] : []}
-    onValueChange={([next]) => onChange(next ?? '')}
-  >
-    <SelectTrigger placeholder={placeholder} />
+  density = 'default',
+}: PickFieldProps) => {
+  const items = (
     <SelectContent>
       <SelectGroup>
         {options.map(option => (
@@ -47,5 +45,30 @@ export const PickField = ({
         ))}
       </SelectGroup>
     </SelectContent>
-  </SelectRoot>
-);
+  );
+  const select = {
+    value: value ? [value] : [],
+    onValueChange: ([next]: string[]) => onChange(next ?? ''),
+  };
+
+  // Compact: the label is drawn here in the label voice, and names the trigger for assistive tech.
+  if (density === 'compact')
+    return (
+      <div className={css.compact}>
+        <span className={css.compactLabel} aria-hidden="true">
+          {label}
+        </span>
+        <SelectRoot {...select}>
+          <SelectTrigger placeholder={placeholder} size="medium" aria-label={label} />
+          {items}
+        </SelectRoot>
+      </div>
+    );
+
+  return (
+    <SelectRoot label={label} indicator={indicator} description={description} {...select}>
+      <SelectTrigger placeholder={placeholder} />
+      {items}
+    </SelectRoot>
+  );
+};

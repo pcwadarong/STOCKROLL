@@ -1,5 +1,5 @@
 import { vars } from '@seed-design/css/vars';
-import { style } from '@vanilla-extract/css';
+import { style, styleVariants } from '@vanilla-extract/css';
 
 import { beige } from '@/shared/config/accent.css';
 import { COMPACT_MEDIA_QUERY } from '@/shared/config/responsive';
@@ -45,26 +45,6 @@ export const row = style({
   selectors: { '&:hover, &:focus-visible': { color: vars.$color.fg.positive } },
 });
 
-// Name on the left, standing tag pushed to the right.
-export const rowHead = style({
-  display: 'flex',
-  alignItems: 'baseline',
-  justifyContent: 'space-between',
-  gap: vars.$dimension.x3,
-});
-
-export const rowTags = style({ display: 'flex', flexShrink: 0, gap: vars.$dimension.x1_5 });
-
-export const rowTag = style({
-  flexShrink: 0,
-  paddingInline: vars.$dimension.x2,
-  border: `1px solid ${vars.$color.stroke.neutralWeak}`,
-  borderRadius: vars.$radius.r1,
-});
-
-// Not hidden, just quieter: the record stays, the eye goes to what is in use.
-export const rowDimmed = style({ color: vars.$color.fg.neutralSubtle });
-
 export const rowTitle = style({ fontSize: vars.$fontSize.t5, fontWeight: vars.$fontWeight.bold });
 
 // Pushed to the far left, away from Save, so it is not hit by accident.
@@ -77,16 +57,23 @@ export const actions = style({
   gap: vars.$dimension.x3,
 });
 
-// Stacked rows of filter chips, one per fact.
-export const filters = style({ display: 'grid', gap: vars.$dimension.x2 });
+// Dropdowns share the line evenly and wrap on narrow screens; the favorites star ends the line.
+export const filters = style({
+  display: 'grid',
+  flex: 1,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(8.5rem, 1fr))',
+  gap: vars.$dimension.x3,
+  minWidth: 0,
+});
 
-// Chips on the left, the favorites star at the far end of the same line.
 export const filterBar = style({
   display: 'flex',
-  alignItems: 'start',
-  justifyContent: 'space-between',
+  alignItems: 'end',
   gap: vars.$dimension.x3,
 });
+
+// As tall as the dropdowns it sits beside (SEED's medium select is x10).
+export const favoritesToggle = style({ flex: 'none', minHeight: vars.$dimension.x10 });
 
 // A list row with a control beside the link (the favorite star).
 export const rowWithAction = style({
@@ -95,9 +82,17 @@ export const rowWithAction = style({
   alignItems: 'center',
   columnGap: vars.$dimension.x3,
   borderBottom: `1px solid ${vars.$color.stroke.neutralSubtle}`,
+  // The panel's own edge closes the list; a rule under the last row would double it.
+  selectors: { '&:last-child': { borderBottom: 0 } },
 });
 
 export const rowLink = style([row, { borderBottom: 0 }]);
+
+// A state worth pointing out at the end of a row's facts.
+export const rowNote = styleVariants({
+  alert: { color: vars.$color.fg.brand },
+  muted: { color: vars.$color.fg.neutralSubtle },
+});
 
 export const star = style({
   display: 'inline-grid',

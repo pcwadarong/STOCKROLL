@@ -45,6 +45,12 @@ export type RecipeVersion = {
   sourceUrl: string | null;
 };
 
+export const RECIPE_STATES = [
+  { value: 'active', label: 'In the camera' },
+  { value: 'candidate', label: 'Candidate' },
+  { value: 'archived', label: 'Archived' },
+] as const;
+
 export const RECIPE_FIELDS: readonly RecordField[] = [
   { key: 'name', label: 'Recipe name', type: 'text', required: true },
   {
@@ -60,11 +66,7 @@ export const RECIPE_FIELDS: readonly RecordField[] = [
     label: 'State',
     type: 'select',
     required: true,
-    options: [
-      { value: 'active', label: 'In the camera' },
-      { value: 'candidate', label: 'Candidate' },
-      { value: 'archived', label: 'Archived' },
-    ],
+    options: RECIPE_STATES,
   },
   { key: 'note', label: 'Note', type: 'text' },
 ];
@@ -81,8 +83,6 @@ export const MAX_VERSIONS = 30;
 
 /** How close to the cap the remaining count starts being shown, so the limit is no surprise. */
 const LOW_SLOTS = 5;
-
-export type RecipeFilter = 'all' | 'favorite' | Recipe['state'];
 
 export const recipeCollection = createCollection<Recipe>('recipes');
 export const recipeVersionCollection = createCollection<RecipeVersion>('recipe_versions');
@@ -129,15 +129,15 @@ export const versionSlots = (count: number) => {
 };
 
 /**
- * Narrows the recipe list to one view.
- * @param recipes recipes to filter
- * @param filter `all`, `favorite`, or one of the recipe states
- * @returns the recipes that belong to that view, in their original order
+ * Words the state of a recipe that is not loaded in the camera, for the line under its name.
+ * @param recipe recipe to describe
+ * @returns the state label, muted, or undefined for a recipe in the camera
  */
-export const filterRecipes = (recipes: readonly Recipe[], filter: RecipeFilter) =>
-  recipes.filter(recipe =>
-    filter === 'all' ? true : filter === 'favorite' ? recipe.isFavorite : recipe.state === filter,
-  );
+export const recipeNote = (recipe: Pick<Recipe, 'state'>) => {
+  if (recipe.state === 'active') return undefined;
+  const label = RECIPE_STATES.find(option => option.value === recipe.state)?.label;
+  return label ? { label, tone: 'muted' as const } : undefined;
+};
 
 /**
  * Compares two settings objects, treating missing, null and blank values as the same.

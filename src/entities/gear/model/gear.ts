@@ -1,7 +1,13 @@
 import { createCollection } from '@/shared/api/collection';
 
-export type Ownership = 'owned' | 'rented' | 'borrowed' | 'sold';
-export type GearStatus = 'active' | 'inactive' | 'repair' | 'display';
+/**
+ * Where a camera or lens stands, as one fact. Whether it is rented or was sold is part of the same
+ * question ("can I shoot with it, and if not, why"), so there is no separate ownership field.
+ */
+export type GearStatus = 'active' | 'inactive' | 'repair' | 'display' | 'rented' | 'sold';
+
+export type BodyType =
+  'compact' | 'slr' | 'mirrorless' | 'rangefinder' | 'tlr' | 'instant' | 'phone' | 'other';
 
 export type Camera = {
   id: string;
@@ -10,10 +16,12 @@ export type Camera = {
   /** Alias shown on the frame. Falls back to `name`. */
   displayName: string | null;
   kind: 'digital' | 'film';
+  /** Build of the body. Unknown stays empty rather than guessed from the name. */
+  bodyType: BodyType | null;
   mount: string | null;
   filmFormat: '135' | '120' | null;
-  ownership: Ownership;
   status: GearStatus;
+  isFavorite: boolean;
   note: string | null;
 };
 
@@ -22,8 +30,8 @@ export type Lens = {
   name: string;
   displayName: string | null;
   mount: string | null;
-  ownership: Ownership;
   status: GearStatus;
+  isFavorite: boolean;
   note: string | null;
 };
 
@@ -32,9 +40,7 @@ export type Film = {
   name: string;
   format: '135' | '120';
   iso: number | null;
-  kind: 'color_negative' | 'bw' | 'slide';
-  /** `used` only for film actually shot. Candidates stay `planned` or `interested`. */
-  usage: 'used' | 'planned' | 'interested';
+  kind: 'color_negative' | 'bw' | 'slide' | 'cine';
   isFavorite: boolean;
   note: string | null;
 };
