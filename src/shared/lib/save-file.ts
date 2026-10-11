@@ -13,20 +13,31 @@ export const canvasToJpeg = (canvas: HTMLCanvasElement, quality: number) =>
     );
   });
 
+// Revoking right after click makes Safari drop the download, so the URL outlives it by this much.
+const DOWNLOAD_HOLD_MS = 10_000;
+
 /**
- * Downloads a Blob to the device as a file.
+ * Hands a Blob to the browser as a file download. The browser gives no signal that the file was
+ * written, or even that the download was allowed, so this never reports success: the promise only
+ * says that the object URL was revoked and the Blob is no longer kept alive by it.
  * @param blob data to save
  * @param filename file name to save as
+ * @param holdMs how long the object URL stays valid after the click. Callers that download many
+ * files in a row pass a shorter hold and await the promise, so the files do not pile up in memory
+ * @returns a promise that resolves once the object URL has been revoked
  */
-export const downloadBlob = (blob: Blob, filename: string) => {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  // Revoking right after click makes Safari drop the download
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-};
+export const downloadBlob = (blob: Blob, filename: string, holdMs = DOWNLOAD_HOLD_MS) =>
+  new Promise<void>(resolve => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      resolve();
+    }, holdMs);
+  });
 
 /**
  * Checks whether this browser supports sharing files (Web Share API).

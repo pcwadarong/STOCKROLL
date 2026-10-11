@@ -9,7 +9,7 @@ import {
 } from '@/entities/photo';
 import { type Recipe, systemOf, systemOfCamera, SYSTEMS } from '@/entities/recipe';
 
-import type { Picks } from '../model/editor-store';
+import type { Picks } from './photo-queue';
 
 /** Option value meaning "use what EXIF says". Registered gear uses its id as the value. */
 export const FROM_EXIF = 'exif';
@@ -41,6 +41,17 @@ const typedNumber = (text: string) => {
 
 const shown = (value: number | undefined, digits = 0) =>
   value === undefined ? '' : String(Number(value.toFixed(digits)));
+
+/**
+ * Narrows the batch-wide focal mode to what one photo can honestly show. 35mm equivalent is only
+ * valid for a photo whose camera recorded it; for any other photo the mode is `actual`, so an
+ * actual focal length is never presented as an equivalent.
+ * @param mode focal mode chosen for the whole batch
+ * @param exif shooting info of one photo
+ * @returns `35mm` only when it was chosen and this photo records the value
+ */
+export const focalModeFor = (mode: FocalMode, exif: ExifInfo): FocalMode =>
+  mode === '35mm' && exif.focalLength35 !== undefined ? '35mm' : 'actual';
 
 /**
  * Works out what each caption slot shows from the user's picks, the registered library and EXIF.
