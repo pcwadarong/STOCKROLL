@@ -20,6 +20,7 @@ export type Recipe = {
   note: string | null;
   /** Starred by the user. Independent of `state`: a favorite can be in the camera or archived. */
   isFavorite: boolean;
+  photoPath?: string | null;
 };
 
 /** Settings are append-only: changing them adds a version so past shots keep pointing at what was used. */

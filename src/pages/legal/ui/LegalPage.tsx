@@ -25,7 +25,8 @@ const PRIVACY: LegalDocument = {
     {
       heading: 'Summary',
       body: [
-        'STOCKROLL is a personal photo-framing app. Your photos are processed on your device and are never uploaded to or stored on our servers.',
+        'STOCKROLL is a personal photo-framing app. The photos you frame are processed on your device and are never uploaded to or stored on our servers.',
+        'The only image we store is an example photo that you choose to attach to one of your recipes.',
       ],
     },
     {
@@ -33,27 +34,29 @@ const PRIVACY: LegalDocument = {
       body: [
         'If you sign in with Google, we receive your email address and basic profile identifier from Google to create your account.',
         'When signed in, the records you enter — cameras, lenses, films, recipes and shot notes, including any links you add — are stored in our database so you can use them on your other devices.',
+        'If you attach an example photo to a recipe, a reduced copy of that one photo is stored: it is resized on your device and re-encoded without its metadata (no location, camera or date information) before it is uploaded. Each recipe holds at most one, only your account can view it, and you can remove it at any time. Deleting the recipe deletes its photo.',
         'Without an account nothing is saved: you can still frame photos, and they stay on your device.',
       ],
     },
     {
       heading: 'What we do not collect',
       body: [
-        'Photo files, thumbnails and location data (GPS) are not read into our servers. Exported images are re-encoded on your device and carry no original metadata.',
+        'The photos you open in the frame editor, their thumbnails and their location data (GPS) never reach our servers. Exported images are re-encoded on your device and carry no original metadata.',
+        'Location data is never collected, including from a recipe example photo: its metadata is removed before upload.',
         'We do not use advertising or analytics trackers.',
       ],
     },
     {
       heading: 'How data is stored',
       body: [
-        'Account data and records are stored with Supabase. Access rules limit every record to the account that created it. The app is served by Vercel.',
+        'Account data, records and recipe example photos are stored with Supabase. Access rules limit every record and photo to the account that created it; example photos are kept in private storage with no public link. The app is served by Vercel.',
         'We do not sell or share your data with third parties beyond these service providers.',
       ],
     },
     {
       heading: 'Your choices',
       body: [
-        'You can use the framing feature without an account. You can sign out at any time, and you can ask for your account and records to be deleted.',
+        'You can use the framing feature without an account. You can sign out at any time, and you can ask for your account, records and example photos to be deleted.',
         CONTACT,
       ],
     },

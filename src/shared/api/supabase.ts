@@ -4,7 +4,8 @@ const url = import.meta.env.VITE_SUPABASE_URL;
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 /**
- * Supabase client. Only gear, film, recipe and shot records (text) go through it — never photo files.
+ * Supabase client. Gear, film, recipe and shot records (text) go through it. Photos opened in the
+ * editor never do; the one image it carries is a recipe's example photo (`entities/recipe`).
  * It is `null` when env vars are missing, because framing must work without login or network.
  */
 export const supabase: SupabaseClient | null =
