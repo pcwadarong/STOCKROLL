@@ -4,11 +4,13 @@ import { useNavigate, useParams, useSearchParams } from 'react-router';
 import {
   blankSettings,
   DETAIL_FIELDS,
+  hasSettings,
   type Recipe,
   RECIPE_FIELDS,
   type RecipeSettings,
   type RecipeSystem,
   type RecipeVersion,
+  sameSettings,
   systemOf,
   SYSTEMS,
   toSettings,
@@ -135,10 +137,18 @@ const RecipeEditForm = ({
     const missing = editsDetails ? missingRequired(RECIPE_FIELDS, details) : [];
     if (missing.length > 0) return setError(MESSAGES.fillIn(missing));
 
+    const settings = toSettings(system, values);
+    // A version that records nothing, or repeats the one it started from, would only use up a
+    // slot — and an empty v1 would hide the fact that the recipe has no settings yet.
+    if (mode === 'version' && !hasSettings(settings))
+      return setError('Enter at least one setting before saving a version.');
+    if (mode !== 'new' && editsSettings && sameSettings(initial, settings))
+      return setError('Nothing was changed, so there is nothing to save.');
+
     setBusy(true);
     setError('');
     try {
-      await onSubmit(details as unknown as RecipeDetails, system, toSettings(system, values));
+      await onSubmit(details as unknown as RecipeDetails, system, settings);
     } catch {
       setError(MESSAGES.saveFailed);
       setBusy(false);
