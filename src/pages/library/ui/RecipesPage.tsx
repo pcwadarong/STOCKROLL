@@ -13,8 +13,6 @@ import {
   type RecipeVersion,
   recipeVersionCollection,
   sameSettings,
-  STARTER_RECIPES,
-  STARTER_SYSTEM,
   systemOf,
   SYSTEMS,
   toSettings,
@@ -228,8 +226,6 @@ export const RecipesPage = () => {
   const goBack = useGoBack('/recipes');
   const recipes = useCollection(recipeCollection);
   const versions = useCollection(recipeVersionCollection);
-  const [importing, setImporting] = useState(false);
-  const [importError, setImportError] = useState('');
 
   const ready = recipes.status === 'ready' && versions.status === 'ready';
   const editing = id !== undefined;
@@ -250,14 +246,6 @@ export const RecipesPage = () => {
       settings: { simulation },
     })),
   ];
-
-  // The owner's own recipes can be imported at any time; ones already present are skipped.
-  const missingStarters = STARTER_RECIPES.filter(
-    starter =>
-      !recipes.items.some(
-        recipe => recipe.name === starter.name && systemOf(recipe) === STARTER_SYSTEM,
-      ),
-  );
 
   const create = async (meta: Meta, settings: RecipeSettings) => {
     const recipe = await recipeCollection.save({
@@ -309,24 +297,6 @@ export const RecipesPage = () => {
       });
     }
     await Promise.all([recipes.reload(), versions.reload()]);
-  };
-
-  const importStarters = async () => {
-    setImporting(true);
-    setImportError('');
-    try {
-      for (const starter of missingStarters)
-        await create(
-          { name: starter.name, system: STARTER_SYSTEM, state: starter.state, note: null },
-          starter.settings,
-        );
-    } catch {
-      setImportError('Import stopped partway. The ones already imported are in the list.');
-    }
-    // Reload either way: after a partial failure the list must show what did get saved, or the
-    // next attempt would import those again.
-    await Promise.all([recipes.reload(), versions.reload()]).catch(() => undefined);
-    setImporting(false);
   };
 
   return (
@@ -383,20 +353,10 @@ export const RecipesPage = () => {
               />
             )}
 
-            {importError && <ErrorText>{importError}</ErrorText>}
-
             {ready && recipes.items.length === 0 && (
               <EmptyState title="No recipe registered">
-                Start a new recipe for any camera, or import the ones you wrote down.
+                Start a new recipe for any camera. Your recipes are visible only to you.
               </EmptyState>
-            )}
-
-            {ready && missingStarters.length > 0 && (
-              <div className={css.actions}>
-                <Button loading={importing} onClick={() => void importStarters()}>
-                  Import my recipes ({missingStarters.length})
-                </Button>
-              </div>
             )}
 
             {recipes.items.length > 0 && (
