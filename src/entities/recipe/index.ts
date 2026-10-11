@@ -1,4 +1,11 @@
 export {
+  deleteRecipe,
+  recipePhotoPath,
+  recipePhotoUrl,
+  removeRecipePhoto,
+  uploadRecipePhoto,
+} from './api/recipe-photo';
+export {
   blankSettings,
   DETAIL_FIELDS,
   filterRecipes,
@@ -8,6 +15,7 @@ export {
   type Recipe,
   RECIPE_FIELDS,
   recipeCollection,
+  recipeFields,
   type RecipeFilter,
   type RecipeSettings,
   type RecipeVersion,

@@ -20,7 +20,21 @@ export type Recipe = {
   note: string | null;
   /** Starred by the user. Independent of `state`: a favorite can be in the camera or archived. */
   isFavorite: boolean;
+  /**
+   * Storage path of the example photo, when one is attached. Written only by the photo API —
+   * see `recipeFields`.
+   */
+  photoPath?: string | null;
 };
+
+/**
+ * The part of a recipe that forms and toggles may save. The photo path is left out on purpose:
+ * a screen holding a recipe loaded before a photo was attached would otherwise write its stale
+ * `null` back and detach the photo while the file stays in Storage.
+ * @param recipe recipe as loaded
+ * @returns the recipe without `photoPath`
+ */
+export const recipeFields = ({ photoPath: _photoPath, ...fields }: Recipe) => fields;
 
 /** Settings are append-only: changing them adds a version so past shots keep pointing at what was used. */
 export type RecipeVersion = {

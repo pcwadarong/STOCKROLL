@@ -22,6 +22,7 @@ import { PageShell } from '@/widgets/page-shell';
 import { removeVersion } from '../model/recipe-actions';
 import { useRecipeLibrary } from '../model/use-recipe-library';
 
+import { RecipePhoto } from './RecipePhoto';
 import { SettingsView } from './SettingsView';
 
 import * as css from './LibraryPage.css';
@@ -155,54 +156,58 @@ export const RecipeDetailPage = () => {
             )}
           </Panel>
 
-          <Panel
-            title="Versions"
-            action={
-              <span aria-label={`${slots.used} of ${MAX_VERSIONS} versions used`}>
-                {slots.used} / {MAX_VERSIONS}
-              </span>
-            }
-          >
-            {slots.full && (
-              <p className={css.note}>
-                All {MAX_VERSIONS} slots are used. Delete a version you no longer need, or copy to a
-                new recipe. Nothing is removed automatically.
-              </p>
-            )}
-            {slots.low && (
-              <p className={css.note}>
-                {slots.left} {slots.left === 1 ? 'slot' : 'slots'} left.
-              </p>
-            )}
+          <div className={css.stack}>
+            <RecipePhoto recipe={recipe} onChanged={reload} />
 
-            {history.length > 0 && (
-              <ul className={css.versionList}>
-                {history.map((version, index) => (
-                  <li key={version.id}>
-                    <Link
-                      to={`/recipes/${recipe.id}?v=${version.version}`}
-                      replace
-                      className={css.versionItem}
-                      aria-current={version.id === selected?.id ? 'true' : undefined}
-                    >
-                      <span>v{version.version}</span>
-                      <span>{index === 0 ? 'Latest' : (version.settings.simulation ?? '')}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <Panel
+              title="Versions"
+              action={
+                <span aria-label={`${slots.used} of ${MAX_VERSIONS} versions used`}>
+                  {slots.used} / {MAX_VERSIONS}
+                </span>
+              }
+            >
+              {slots.full && (
+                <p className={css.note}>
+                  All {MAX_VERSIONS} slots are used. Delete a version you no longer need, or copy to
+                  a new recipe. Nothing is removed automatically.
+                </p>
+              )}
+              {slots.low && (
+                <p className={css.note}>
+                  {slots.left} {slots.left === 1 ? 'slot' : 'slots'} left.
+                </p>
+              )}
 
-            {selected && (
-              <Button
-                className={css.destructive}
-                variant="plain"
-                onClick={() => setConfirming('version')}
-              >
-                Delete v{selected.version}
-              </Button>
-            )}
-          </Panel>
+              {history.length > 0 && (
+                <ul className={css.versionList}>
+                  {history.map((version, index) => (
+                    <li key={version.id}>
+                      <Link
+                        to={`/recipes/${recipe.id}?v=${version.version}`}
+                        replace
+                        className={css.versionItem}
+                        aria-current={version.id === selected?.id ? 'true' : undefined}
+                      >
+                        <span>v{version.version}</span>
+                        <span>{index === 0 ? 'Latest' : (version.settings.simulation ?? '')}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {selected && (
+                <Button
+                  className={css.destructive}
+                  variant="plain"
+                  onClick={() => setConfirming('version')}
+                >
+                  Delete v{selected.version}
+                </Button>
+              )}
+            </Panel>
+          </div>
         </div>
       </SignInGate>
 
