@@ -1,6 +1,8 @@
 import { Text } from '@seed-design/react';
 import { Link } from 'react-router';
 
+import { labelTitle } from '@/shared/ui/label.css';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import { PageShell } from '@/widgets/page-shell';
 
 import * as css from './LegalPage.css';
@@ -93,17 +95,10 @@ const TERMS: LegalDocument = {
 const LegalPage = ({ document }: { document: LegalDocument }) => (
   <PageShell>
     <article className={css.article}>
-      <Text as="h2" textStyle="t7Bold">
-        {document.title}
-      </Text>
-      <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
-        Last updated {document.updated}
-      </Text>
+      <PageHeader title={document.title} lead={`Last updated ${document.updated}`} />
       {document.sections.map(({ heading, body }) => (
         <section key={heading} className={css.section}>
-          <Text as="h3" textStyle="t5Bold">
-            {heading}
-          </Text>
+          <h2 className={labelTitle}>{heading}</h2>
           {body.map(paragraph => (
             <Text key={paragraph} as="p" textStyle="t4Regular" color="fg.neutralMuted">
               {paragraph}

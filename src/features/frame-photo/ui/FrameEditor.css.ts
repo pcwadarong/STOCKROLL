@@ -4,7 +4,7 @@ import { style } from '@vanilla-extract/css';
 import { tertiary } from '@/shared/config/accent.css';
 import { SHADE } from '@/shared/config/palette';
 import { COMPACT_MEDIA_QUERY } from '@/shared/config/responsive';
-import { LABEL_FONT } from '@/shared/config/typography';
+import { labelTitle } from '@/shared/ui/label.css';
 
 export const root = style({
   display: 'grid',
@@ -79,16 +79,10 @@ export const group = style({
 });
 
 // Section headings use the third color (brown), set as a small label.
-export const legend = style({
-  padding: 0,
-  marginBottom: vars.$dimension.x2,
-  color: tertiary,
-  fontFamily: LABEL_FONT,
-  fontSize: vars.$fontSize.t3,
-  fontWeight: vars.$fontWeight.bold,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-});
+export const legend = style([
+  labelTitle,
+  { padding: 0, marginBottom: vars.$dimension.x2, color: tertiary },
+]);
 
 export const field = style({
   display: 'flex',

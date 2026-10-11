@@ -1,5 +1,4 @@
-import { Text } from '@seed-design/react';
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import { Link, NavLink, useParams } from 'react-router';
 
 import {
@@ -15,6 +14,7 @@ import {
 } from '@/entities/gear';
 import { SignInGate } from '@/features/auth';
 import type { Collection, Row } from '@/shared/api/collection';
+import { MESSAGES } from '@/shared/config/messages';
 import {
   missingRequired,
   normalizeRecord,
@@ -24,8 +24,12 @@ import {
 import { useCollection } from '@/shared/lib/use-collection';
 import { useGoBack } from '@/shared/lib/use-go-back';
 import { Button } from '@/shared/ui/Button';
+import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorText } from '@/shared/ui/ErrorText';
-import { card, labelText } from '@/shared/ui/label.css';
+import { labelText } from '@/shared/ui/label.css';
+import { formatCount, MetaList } from '@/shared/ui/MetaList';
+import { PageHeader } from '@/shared/ui/PageHeader';
+import { Panel } from '@/shared/ui/Panel';
 import { RecordForm } from '@/shared/ui/RecordForm';
 import { PageShell } from '@/widgets/page-shell';
 
@@ -81,23 +85,6 @@ const optionLabel = (fields: readonly RecordField[], item: GearRow) => (key: str
   );
 };
 
-type MetaRow = { label: string; value: string };
-
-/** Two-digit counter, as on a frame counter: 0 → "00". */
-export const count = (value: number) => String(value).padStart(2, '0');
-
-/** Label/value rows shown above a list, catalog style. */
-export const MetaList = ({ rows }: { rows: readonly MetaRow[] }) => (
-  <dl className={`${css.meta} ${labelText}`}>
-    {rows.map(({ label, value }) => (
-      <Fragment key={label}>
-        <dt className={css.metaLabel}>{label}</dt>
-        <dd className={css.metaValue}>{value}</dd>
-      </Fragment>
-    ))}
-  </dl>
-);
-
 type GearFormProps = {
   section: Section;
   initial: RecordValues;
@@ -113,7 +100,7 @@ const GearForm = ({ section, initial, onSave, onDone }: GearFormProps) => {
   const submit = async () => {
     const normalized = normalizeRecord(section.fields, values);
     const missing = missingRequired(section.fields, normalized);
-    if (missing.length > 0) return setError(`Fill in: ${missing.join(', ')}`);
+    if (missing.length > 0) return setError(MESSAGES.fillIn(missing));
 
     setSaving(true);
     setError('');
@@ -121,7 +108,7 @@ const GearForm = ({ section, initial, onSave, onDone }: GearFormProps) => {
       await onSave({ ...values, ...normalized });
       onDone();
     } catch {
-      setError('Could not save. Check your connection and try again.');
+      setError(MESSAGES.saveFailed);
       setSaving(false);
     }
   };
@@ -160,107 +147,95 @@ export const LibraryPage = () => {
 
   return (
     <PageShell>
-      <div className={css.intro}>
-        <h1 className={css.heading}>Gear log</h1>
-        <Text as="p" color="fg.neutralMuted">
-          Cameras, lenses and films you have shot with.
-        </Text>
-      </div>
+      <PageHeader title="Gear log" lead="Cameras, lenses and films you have shot with." />
 
       <nav className={css.tabs} aria-label="Gear type">
         {Object.entries(SECTIONS).map(([key, { title }], index) => (
           <NavLink key={key} to={`/library/${key}`} className={css.tab}>
-            <span aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+            <span aria-hidden="true">{formatCount(index + 1)}</span>
             {title}
           </NavLink>
         ))}
       </nav>
 
       <SignInGate what="cameras, lenses and films">
-        <section className={`${card} ${css.panel}`}>
-          {editing ? (
-            <>
-              <div className={css.header}>
-                <h2 className={`${labelText} ${css.panelTitle}`}>
-                  {id === 'new' ? `Add ${section.singular}` : `Edit ${section.singular}`}
-                </h2>
-              </div>
-              {waitingForItem ? (
-                <Text as="p" color="fg.neutralMuted" aria-live="polite">
-                  {status === 'loading' ? 'Loading…' : 'This item no longer exists.'}
-                </Text>
-              ) : (
-                <GearForm
-                  key={`${kind}:${id}`}
-                  section={section}
-                  initial={current ?? section.defaults}
-                  onSave={values => save(values as GearRow)}
-                  onDone={goBack}
-                />
-              )}
-            </>
-          ) : (
-            <>
-              <div className={css.header}>
-                <h2 className={`${labelText} ${css.panelTitle}`}>{section.title}</h2>
-                {items.length > 0 && (
-                  <Button variant="primary" size="small" to={`/library/${kind}/new`}>
-                    + Add {section.singular}
-                  </Button>
-                )}
-              </div>
+        {editing ? (
+          <Panel title={id === 'new' ? `Add ${section.singular}` : `Edit ${section.singular}`}>
+            {waitingForItem ? (
+              <EmptyState title={status === 'loading' ? 'Loading' : 'Not found'}>
+                {status === 'loading' ? 'One moment.' : 'This item no longer exists.'}
+              </EmptyState>
+            ) : (
+              <GearForm
+                key={`${kind}:${id}`}
+                section={section}
+                initial={current ?? section.defaults}
+                onSave={values => save(values as GearRow)}
+                onDone={goBack}
+              />
+            )}
+          </Panel>
+        ) : (
+          <Panel
+            title={section.title}
+            action={
+              items.length > 0 && (
+                <Button variant="primary" size="small" to={`/library/${kind}/new`}>
+                  + Add {section.singular}
+                </Button>
+              )
+            }
+          >
+            {status === 'error' && <ErrorText>{MESSAGES.loadFailed}</ErrorText>}
 
-              {status === 'error' && <ErrorText>Could not load. Try again.</ErrorText>}
-              {status === 'ready' && (
-                <MetaList
-                  rows={[
-                    { label: 'Status', value: items.length === 0 ? 'Empty' : 'Ready' },
-                    { label: 'Registered', value: count(items.length) },
-                    ...('status' in section.defaults
-                      ? [
-                          {
-                            label: 'In use',
-                            value: count(items.filter(item => item.status === 'active').length),
-                          },
-                        ]
-                      : []),
-                    { label: 'Last added', value: items.at(-1)?.name ?? '—' },
-                  ]}
-                />
-              )}
+            {status === 'ready' && (
+              <MetaList
+                rows={[
+                  { label: 'Status', value: items.length === 0 ? 'Empty' : 'Ready' },
+                  { label: 'Registered', value: formatCount(items.length) },
+                  ...('status' in section.defaults
+                    ? [
+                        {
+                          label: 'In use',
+                          value: formatCount(items.filter(item => item.status === 'active').length),
+                        },
+                      ]
+                    : []),
+                  { label: 'Last added', value: items.at(-1)?.name ?? '—' },
+                ]}
+              />
+            )}
 
-              {status === 'ready' && items.length === 0 && (
-                <div className={css.empty}>
-                  <p className={`${labelText} ${css.panelTitle}`}>
-                    No {section.singular} registered
-                  </p>
-                  <Text as="p" color="fg.neutralMuted">
-                    Your {section.title.toLowerCase()} will appear here. Register a{' '}
-                    {section.singular} to use it in Frame.
-                  </Text>
+            {status === 'ready' && items.length === 0 && (
+              <EmptyState
+                title={`No ${section.singular} registered`}
+                action={
                   <Button variant="primary" to={`/library/${kind}/new`}>
                     + Add {section.singular}
                   </Button>
-                </div>
-              )}
+                }
+              >
+                Your {section.title.toLowerCase()} will appear here. Register a {section.singular}{' '}
+                to use it in Frame.
+              </EmptyState>
+            )}
 
-              {items.length > 0 && (
-                <ul className={css.list}>
-                  {items.map(item => (
-                    <li key={item.id}>
-                      <Link to={`/library/${kind}/${item.id}`} className={css.row}>
-                        <Text textStyle="t5Bold">{item.name}</Text>
-                        <span className={labelText}>
-                          {section.summary(item, optionLabel(section.fields, item))}
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
-        </section>
+            {items.length > 0 && (
+              <ul className={css.list}>
+                {items.map(item => (
+                  <li key={item.id}>
+                    <Link to={`/library/${kind}/${item.id}`} className={css.row}>
+                      <span className={css.rowTitle}>{item.name}</span>
+                      <span className={labelText}>
+                        {section.summary(item, optionLabel(section.fields, item))}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+        )}
       </SignInGate>
     </PageShell>
   );

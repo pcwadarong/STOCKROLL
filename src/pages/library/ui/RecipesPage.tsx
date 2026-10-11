@@ -1,4 +1,3 @@
-import { Text } from '@seed-design/react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 
@@ -19,12 +18,17 @@ import {
   toSettings,
 } from '@/entities/recipe';
 import { SignInGate } from '@/features/auth';
+import { MESSAGES } from '@/shared/config/messages';
 import { missingRequired, normalizeRecord, type RecordValues } from '@/shared/lib/record-field';
 import { useCollection } from '@/shared/lib/use-collection';
 import { useGoBack } from '@/shared/lib/use-go-back';
 import { Button } from '@/shared/ui/Button';
+import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorText } from '@/shared/ui/ErrorText';
-import { card, labelText } from '@/shared/ui/label.css';
+import { labelText, labelTitle } from '@/shared/ui/label.css';
+import { formatCount, MetaList } from '@/shared/ui/MetaList';
+import { PageHeader } from '@/shared/ui/PageHeader';
+import { Panel } from '@/shared/ui/Panel';
 import { PickField } from '@/shared/ui/PickField';
 import { RecordForm } from '@/shared/ui/RecordForm';
 import { PageShell } from '@/widgets/page-shell';
@@ -36,8 +40,6 @@ import {
   AlertDialogRoot,
   AlertDialogTitle,
 } from 'seed-design/ui/alert-dialog';
-
-import { count, MetaList } from './LibraryPage';
 
 import * as css from './LibraryPage.css';
 
@@ -95,14 +97,14 @@ const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps)
       await onSave(meta, toSettings(system, values), target);
       onDone();
     } catch {
-      setError('Could not save. Check your connection and try again.');
+      setError(MESSAGES.saveFailed);
       setBusy(false);
     }
   };
 
   const submit = () => {
     const missing = missingRequired(RECIPE_FIELDS, normalizeRecord(RECIPE_FIELDS, values));
-    if (missing.length > 0) return setError(`Fill in: ${missing.join(', ')}`);
+    if (missing.length > 0) return setError(MESSAGES.fillIn(missing));
     if (!recipe) return void commit('new');
     // Changed settings of an existing recipe: let the user decide where the change goes.
     if (!sameSettings(saved, toSettings(system, values))) return setAsking(true);
@@ -124,7 +126,7 @@ const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps)
         onChange={applyPreset}
       />
 
-      <h3 className={`${labelText} ${css.panelTitle}`}>{SYSTEMS[system].label} settings</h3>
+      <h3 className={labelTitle}>{SYSTEMS[system].label} settings</h3>
       <RecordForm fields={settingFields} values={values} onChange={change} />
 
       <div className={css.actions}>
@@ -246,102 +248,90 @@ export const RecipesPage = () => {
 
   return (
     <PageShell>
-      <div className={css.intro}>
-        <h1 className={css.heading}>Recipes</h1>
-        <Text as="p" color="fg.neutralMuted">
-          Camera settings you shoot with, kept per camera system.
-        </Text>
-      </div>
+      <PageHeader title="Recipes" lead="Camera settings you shoot with, kept per camera system." />
 
       <SignInGate what="recipes">
-        <section className={`${card} ${css.panel}`}>
-          {editing ? (
-            <>
-              <div className={css.header}>
-                <h2 className={`${labelText} ${css.panelTitle}`}>
-                  {id === 'new' ? 'New recipe' : 'Edit recipe'}
-                </h2>
-              </div>
-              {!ready || (id !== 'new' && !current) ? (
-                <Text as="p" color="fg.neutralMuted" aria-live="polite">
-                  {ready ? 'This recipe no longer exists.' : 'Loading…'}
-                </Text>
-              ) : (
-                <RecipeForm
-                  key={id}
-                  recipe={current}
-                  saved={latest?.settings ?? {}}
-                  presets={presets.filter(item => item.value !== `recipe:${current?.id}`)}
-                  onSave={saveRecipe}
-                  onDone={goBack}
-                />
-              )}
-            </>
-          ) : (
-            <>
-              <div className={css.header}>
-                <h2 className={`${labelText} ${css.panelTitle}`}>All recipes</h2>
-                <Button variant="primary" size="small" to="/recipes/new">
-                  + New recipe
+        {editing ? (
+          <Panel title={id === 'new' ? 'New recipe' : 'Edit recipe'}>
+            {!ready || (id !== 'new' && !current) ? (
+              <EmptyState title={ready ? 'Not found' : 'Loading'}>
+                {ready ? 'This recipe no longer exists.' : 'One moment.'}
+              </EmptyState>
+            ) : (
+              <RecipeForm
+                key={id}
+                recipe={current}
+                saved={latest?.settings ?? {}}
+                presets={presets.filter(item => item.value !== `recipe:${current?.id}`)}
+                onSave={saveRecipe}
+                onDone={goBack}
+              />
+            )}
+          </Panel>
+        ) : (
+          <Panel
+            title="All recipes"
+            action={
+              <Button variant="primary" size="small" to="/recipes/new">
+                + New recipe
+              </Button>
+            }
+          >
+            {ready && (
+              <MetaList
+                rows={[
+                  { label: 'Status', value: recipes.items.length === 0 ? 'Empty' : 'Ready' },
+                  { label: 'Registered', value: formatCount(recipes.items.length) },
+                  {
+                    label: 'In the camera',
+                    value: formatCount(
+                      recipes.items.filter(item => item.state === 'active').length,
+                    ),
+                  },
+                  { label: 'Last added', value: recipes.items.at(-1)?.name ?? '—' },
+                ]}
+              />
+            )}
+
+            {importError && <ErrorText>{importError}</ErrorText>}
+
+            {ready && recipes.items.length === 0 && (
+              <EmptyState title="No recipe registered">
+                Start a new recipe for any camera, or import the ones you wrote down.
+              </EmptyState>
+            )}
+
+            {ready && missingStarters.length > 0 && (
+              <div className={css.actions}>
+                <Button loading={importing} onClick={() => void importStarters()}>
+                  Import my recipes ({missingStarters.length})
                 </Button>
               </div>
+            )}
 
-              {ready && (
-                <MetaList
-                  rows={[
-                    { label: 'Status', value: recipes.items.length === 0 ? 'Empty' : 'Ready' },
-                    { label: 'Registered', value: count(recipes.items.length) },
-                    {
-                      label: 'In the camera',
-                      value: count(recipes.items.filter(item => item.state === 'active').length),
-                    },
-                    { label: 'Last added', value: recipes.items.at(-1)?.name ?? '—' },
-                  ]}
-                />
-              )}
-
-              {importError && <ErrorText>{importError}</ErrorText>}
-              {ready && recipes.items.length === 0 && (
-                <div className={css.empty}>
-                  <p className={`${labelText} ${css.panelTitle}`}>No recipe registered</p>
-                  <Text as="p" color="fg.neutralMuted">
-                    Start a new recipe for any camera, or import the ones you wrote down.
-                  </Text>
-                </div>
-              )}
-
-              {ready && missingStarters.length > 0 && (
-                <div className={css.actions}>
-                  <Button loading={importing} onClick={() => void importStarters()}>
-                    Import my recipes ({missingStarters.length})
-                  </Button>
-                </div>
-              )}
-
-              {recipes.items.length > 0 && (
-                <ul className={css.list}>
-                  {recipes.items.map(recipe => {
-                    const version = latestVersion(versions.items, recipe.id);
-                    const summary = [
-                      version?.settings.customSlot,
-                      SYSTEMS[systemOf(recipe)].label,
-                      recipe.baseSimulation,
-                      version ? `v${version.version}` : 'no settings yet',
-                    ];
-                    return (
-                      <li key={recipe.id}>
-                        <Link to={`/recipes/${recipe.id}`} className={css.row}>
-                          <Text textStyle="t5Bold">{recipe.name}</Text>
-                          <span className={labelText}>{summary.filter(Boolean).join(' · ')}</span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </>
-          )}
-        </section>
+            {recipes.items.length > 0 && (
+              <ul className={css.list}>
+                {recipes.items.map(recipe => {
+                  const version = latestVersion(versions.items, recipe.id);
+                  const summary = [
+                    version?.settings.customSlot,
+                    SYSTEMS[systemOf(recipe)].label,
+                    recipe.baseSimulation,
+                    version ? `v${version.version}` : 'no settings yet',
+                  ];
+                  return (
+                    <li key={recipe.id}>
+                      <Link to={`/recipes/${recipe.id}`} className={css.row}>
+                        <span className={css.rowTitle}>{recipe.name}</span>
+                        <span className={labelText}>{summary.filter(Boolean).join(' · ')}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Panel>
+        )}
       </SignInGate>
     </PageShell>
   );

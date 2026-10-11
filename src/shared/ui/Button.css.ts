@@ -1,9 +1,10 @@
 import { vars } from '@seed-design/css/vars';
 import { style, styleVariants } from '@vanilla-extract/css';
 
-import { LABEL_FONT } from '../config/typography';
+import { REDUCED_MOTION_QUERY } from '../config/responsive';
 
 import { beige } from '../config/accent.css';
+import { labelText } from './label.css';
 
 const INK = vars.$color.fg.neutral;
 const hover = '&:hover:not(:disabled), &:focus-visible';
@@ -16,29 +17,31 @@ const green = {
 };
 
 // Flat and thin-ruled: a printed label, not a raised sticker.
-const base = style({
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  border: `1px solid ${INK}`,
-  borderRadius: vars.$radius.r1_5,
-  fontFamily: LABEL_FONT,
-  fontWeight: vars.$fontWeight.bold,
-  letterSpacing: '0.05em',
-  textTransform: 'uppercase',
-  textDecoration: 'none',
-  textAlign: 'center',
-  cursor: 'pointer',
-  transition: `background ${vars.$duration.d2}, color ${vars.$duration.d2}`,
-  selectors: {
-    '&:focus-visible': {
-      outline: `2px solid ${vars.$color.stroke.focusRing}`,
-      outlineOffset: '3px',
+const base = style([
+  labelText,
+  {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: `1px solid ${INK}`,
+    borderRadius: vars.$radius.r1_5,
+    fontWeight: vars.$fontWeight.bold,
+    letterSpacing: '0.05em',
+    textTransform: 'uppercase',
+    textDecoration: 'none',
+    textAlign: 'center',
+    cursor: 'pointer',
+    transition: `background ${vars.$duration.d2}, color ${vars.$duration.d2}`,
+    selectors: {
+      '&:focus-visible': {
+        outline: `2px solid ${vars.$color.stroke.focusRing}`,
+        outlineOffset: '3px',
+      },
+      '&:disabled': { opacity: 0.4, cursor: 'not-allowed' },
     },
-    '&:disabled': { opacity: 0.4, cursor: 'not-allowed' },
+    '@media': { [REDUCED_MOTION_QUERY]: { transition: 'none' } },
   },
-  '@media': { '(prefers-reduced-motion: reduce)': { transition: 'none' } },
-});
+]);
 
 export const variant = styleVariants({
   primary: [
@@ -78,21 +81,23 @@ export const variant = styleVariants({
     },
   ],
   /** Text-only action for low-emphasis links such as "Add camera" under a field. */
-  plain: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: 0,
-    border: 0,
-    background: 'none',
-    color: INK,
-    fontFamily: LABEL_FONT,
-    letterSpacing: '0.06em',
-    textTransform: 'uppercase',
-    textDecoration: 'underline',
-    textUnderlineOffset: '0.2em',
-    cursor: 'pointer',
-    selectors: { '&:hover, &:focus-visible': { color: vars.$color.fg.positive } },
-  },
+  plain: [
+    labelText,
+    {
+      display: 'inline-flex',
+      alignItems: 'center',
+      padding: 0,
+      border: 0,
+      background: 'none',
+      color: INK,
+      letterSpacing: '0.06em',
+      textTransform: 'uppercase',
+      textDecoration: 'underline',
+      textUnderlineOffset: '0.2em',
+      cursor: 'pointer',
+      selectors: { '&:hover, &:focus-visible': { color: vars.$color.fg.positive } },
+    },
+  ],
 });
 
 export const size = styleVariants({

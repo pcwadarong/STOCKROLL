@@ -47,6 +47,8 @@ STOCKROLL은 Lightroom 보정 이후 단계를 맡는 **개인용 사진 프레�
 
 > **UI는 고급 아날로그 카메라 브랜드처럼 보여야 한다 — 필름 패키지, 보관용 라벨, 제품 카탈로그. 다크모드 SaaS 대시보드도, 레트로 장난감(두꺼운 테두리 + 오프셋 그림자 + 전부 모노스페이스)도 틀린 것이다.** 테마는 하나뿐이다(SEED `light-only` 고정, 시스템 라이트/다크와 무관): 따뜻한 오프화이트 배경 + 차콜 잉크, 빨강(키) → 초록(세컨드, 아껴 씀) → 갈색(서드, 거의 안 씀). 형태 규칙: 테두리는 1px, 카드·버튼·탭에 그림자 없음(사진 미리보기의 부드러운 그림자 하나만 예외), 강조는 선·정렬·여백으로 한다. 서체는 역할을 나눈다 — 워드마크·큰 제목만 Anton, 메뉴·라벨·메타데이터만 대문자 타자기체(`labelText`), **본문은 기본 산세리프**. 버튼은 `shared/ui/Button`(납작한 라벨형, 색 면 위에서는 `inverse`), 카드는 `shared/ui/label.css.ts`의 `card`, 목록 위 요약은 `MetaList`(STATUS / REGISTERED …)를 쓴다. 화면 틀은 `widgets/page-shell`이고 편집기만 예외다. **출력물의 여백 색(`Paper`)은 UI 테마와 별개**다.
 
+> **화면은 공통 부품으로 조립한다. 같은 모양을 페이지마다 다시 쓰지 않는다.** 틀은 `widgets/page-shell`, 제목은 `shared/ui/PageHeader`, 내용 상자는 `Panel`, 비어 있음·로딩·없음 안내는 `EmptyState`, 요약 줄은 `MetaList`, 버튼은 `Button`, 오류는 `ErrorText`(채운 박스 금지), 선택은 `PickField`, 폼은 `RecordForm`. 글자 목소리는 `label.css.ts`의 `displayText`·`labelText`·`labelTitle` 셋뿐이고 서체 상수를 직접 쓰지 않는다. 반복되는 문구는 `shared/config/messages.ts`, 미디어 쿼리는 `responsive.ts`에 둔다. 새 화면에서 이 중 맞는 게 없을 때만 새로 만들고, 두 번째로 필요해지면 `shared/ui`로 올린다.
+
 > **캔버스는 CSS 토큰을 못 쓴다.** `entities/frame`이 그리는 출력물의 색·치수는 1080 폭 기준 상수와 `Paper`로 관리한다. 이 영역의 숫자는 토큰 규칙의 예외다.
 
 ## 3. 도메인 규칙 — 조용히 틀리기 쉬운 자리
