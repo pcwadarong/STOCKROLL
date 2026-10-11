@@ -19,11 +19,18 @@ const FORMAT = [
   { value: '120', label: '120' },
 ] as const;
 
-const NAME_HINT = 'Shown on the frame instead of the model name';
+const NAME_HINT =
+  'A shorter name to print on the photo. Leave empty to print the model name as it is.';
 
 export const CAMERA_FIELDS: readonly RecordField[] = [
   { key: 'name', label: 'Model name', type: 'text', required: true, placeholder: 'Fujifilm X-T50' },
-  { key: 'displayName', label: 'Display alias', type: 'text', hint: NAME_HINT },
+  {
+    key: 'displayName',
+    label: 'Name on the frame',
+    type: 'text',
+    hint: NAME_HINT,
+    placeholder: 'X-T50',
+  },
   {
     key: 'kind',
     label: 'Type',
@@ -55,7 +62,13 @@ export const LENS_FIELDS: readonly RecordField[] = [
     required: true,
     placeholder: 'Fujinon XF 16-80mm F4 R OIS WR',
   },
-  { key: 'displayName', label: 'Display alias', type: 'text', hint: NAME_HINT },
+  {
+    key: 'displayName',
+    label: 'Name on the frame',
+    type: 'text',
+    hint: NAME_HINT,
+    placeholder: 'XF 16-80mm F4',
+  },
   { key: 'mount', label: 'Mount', type: 'text', placeholder: 'X, EF…' },
   { key: 'ownership', label: 'Ownership', type: 'select', required: true, options: OWNERSHIP },
   { key: 'status', label: 'Status', type: 'select', required: true, options: STATUS },

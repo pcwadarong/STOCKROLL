@@ -19,6 +19,7 @@ export const App = () => (
         <Route path="/library" element={<Navigate to="/library/cameras" replace />} />
         <Route path="/library/:kind" element={<LibraryPage />} />
         <Route path="/library/:kind/:id" element={<LibraryPage />} />
+        <Route path="/library/:kind/:id/edit" element={<LibraryPage editing />} />
         <Route path="/recipes" element={<RecipeListPage />} />
         <Route path="/recipes/new" element={<RecipeEditPage />} />
         <Route path="/recipes/:id" element={<RecipeDetailPage />} />
