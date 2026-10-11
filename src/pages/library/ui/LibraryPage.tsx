@@ -2,12 +2,17 @@ import { useState } from 'react';
 import { Link, Navigate, NavLink, useNavigate, useParams } from 'react-router';
 
 import {
+  arrangeGear,
   CAMERA_DEFAULTS,
   CAMERA_FIELDS,
   cameraCollection,
   FILM_DEFAULTS,
   FILM_FIELDS,
+  FILM_VIEWS,
   filmCollection,
+  GEAR_VIEWS,
+  type GearView,
+  isCurrent,
   LENS_DEFAULTS,
   LENS_FIELDS,
   lensCollection,
@@ -46,6 +51,10 @@ type Section = {
   defaults: RecordValues;
   /** Short second line shown under the name in the list. */
   summary: (item: GearRow, label: (key: string) => string) => string;
+  /** Ways to narrow this section's list. */
+  views: readonly GearView[];
+  /** Field whose label is shown at the end of a row that is not part of current shooting. */
+  standingField: string;
 };
 
 const SECTIONS: Record<string, Section> = {
@@ -55,7 +64,10 @@ const SECTIONS: Record<string, Section> = {
     collection: cameraCollection as unknown as Collection<GearRow>,
     fields: CAMERA_FIELDS,
     defaults: CAMERA_DEFAULTS,
-    summary: (_item, label) => [label('kind'), label('ownership'), label('status')].join(' · '),
+    summary: (item, label) =>
+      [label('kind'), item.filmFormat, item.mount].filter(Boolean).join(' · '),
+    views: GEAR_VIEWS,
+    standingField: 'status',
   },
   lenses: {
     title: 'Lenses',
@@ -63,8 +75,9 @@ const SECTIONS: Record<string, Section> = {
     collection: lensCollection as unknown as Collection<GearRow>,
     fields: LENS_FIELDS,
     defaults: LENS_DEFAULTS,
-    summary: (item, label) =>
-      [item.mount, label('ownership'), label('status')].filter(Boolean).join(' · '),
+    summary: item => (item.mount ? `${item.mount} mount` : ''),
+    views: GEAR_VIEWS,
+    standingField: 'status',
   },
   films: {
     title: 'Films',
@@ -73,9 +86,9 @@ const SECTIONS: Record<string, Section> = {
     fields: FILM_FIELDS,
     defaults: FILM_DEFAULTS,
     summary: (item, label) =>
-      [item.format, item.iso ? `ISO ${item.iso}` : '', label('kind'), label('usage')]
-        .filter(Boolean)
-        .join(' · '),
+      [item.format, item.iso ? `ISO ${item.iso}` : '', label('kind')].filter(Boolean).join(' · '),
+    views: FILM_VIEWS,
+    standingField: 'usage',
   },
 };
 
@@ -180,6 +193,12 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
   const section = SECTIONS[kind]!;
   const { items, status, save, remove } = useCollection(section.collection);
   const navigate = useNavigate();
+  // The chosen view belongs to the section it was picked in; another section starts from All.
+  const [picked, setPicked] = useState({ kind, value: 'all' });
+  const view =
+    section.views.find(item => picked.kind === kind && item.value === picked.value) ??
+    section.views[0]!;
+  const shown = arrangeGear(items, view);
 
   // `/library/:kind/:id` shows an item read-only; the form is `/new` or `/:id/edit`.
   const editing = id === 'new' || (id !== undefined && editRoute);
@@ -308,18 +327,56 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
             )}
 
             {items.length > 0 && (
-              <ul className={css.list}>
-                {items.map(item => (
-                  <li key={item.id}>
-                    <Link to={`/library/${kind}/${item.id}`} className={css.row}>
-                      <span className={css.rowTitle}>{item.name}</span>
-                      <span className={labelText}>
-                        {section.summary(item, optionLabel(section.fields, item))}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <div className={css.tabs} role="group" aria-label="Show">
+                  {section.views.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={css.filter}
+                      aria-pressed={view.value === value}
+                      onClick={() => setPicked({ kind, value })}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {shown.length === 0 && (
+                  <EmptyState title="Nothing here">
+                    No {section.singular} matches this view.
+                  </EmptyState>
+                )}
+
+                {shown.length > 0 && (
+                  <ul className={css.list}>
+                    {shown.map(item => {
+                      const label = optionLabel(section.fields, item);
+                      const ownership = item.ownership === 'owned' ? '' : label('ownership');
+                      // Rows outside current shooting are dimmed and say why at the end of the line.
+                      const current = isCurrent(item);
+                      return (
+                        <li key={item.id}>
+                          <Link
+                            to={`/library/${kind}/${item.id}`}
+                            className={current ? css.row : `${css.row} ${css.rowDimmed}`}
+                          >
+                            <span className={css.rowHead}>
+                              <span className={css.rowTitle}>{item.name}</span>
+                              {!current && (
+                                <span className={`${labelText} ${css.rowTag}`}>
+                                  {ownership || label(section.standingField)}
+                                </span>
+                              )}
+                            </span>
+                            <span className={labelText}>{section.summary(item, label)}</span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </>
             )}
           </Panel>
         )}

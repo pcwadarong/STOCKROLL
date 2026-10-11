@@ -45,6 +45,24 @@ export const row = style({
   selectors: { '&:hover, &:focus-visible': { color: vars.$color.fg.positive } },
 });
 
+// Name on the left, standing tag pushed to the right.
+export const rowHead = style({
+  display: 'flex',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: vars.$dimension.x3,
+});
+
+export const rowTag = style({
+  flexShrink: 0,
+  paddingInline: vars.$dimension.x2,
+  border: `1px solid ${vars.$color.stroke.neutralWeak}`,
+  borderRadius: vars.$radius.r1,
+});
+
+// Not hidden, just quieter: the record stays, the eye goes to what is in use.
+export const rowDimmed = style({ color: vars.$color.fg.neutralSubtle });
+
 export const rowTitle = style({ fontSize: vars.$fontSize.t5, fontWeight: vars.$fontWeight.bold });
 
 // Pushed to the far left, away from Save, so it is not hit by accident.
