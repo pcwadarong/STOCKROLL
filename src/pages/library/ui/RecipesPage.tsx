@@ -18,10 +18,12 @@ import {
   SYSTEMS,
   toSettings,
 } from '@/entities/recipe';
+import { SignInGate } from '@/features/auth';
 import { missingRequired, normalizeRecord, type RecordValues } from '@/shared/lib/record-field';
 import { useCollection } from '@/shared/lib/use-collection';
 import { useGoBack } from '@/shared/lib/use-go-back';
 import { Button } from '@/shared/ui/Button';
+import { ErrorText } from '@/shared/ui/ErrorText';
 import { card, labelText } from '@/shared/ui/label.css';
 import { PickField } from '@/shared/ui/PickField';
 import { RecordForm } from '@/shared/ui/RecordForm';
@@ -34,7 +36,6 @@ import {
   AlertDialogRoot,
   AlertDialogTitle,
 } from 'seed-design/ui/alert-dialog';
-import { Callout } from 'seed-design/ui/callout';
 
 import { count, MetaList } from './LibraryPage';
 
@@ -110,7 +111,7 @@ const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps)
 
   return (
     <>
-      {error && <Callout tone="critical" role="alert" description={error} />}
+      {error && <ErrorText>{error}</ErrorText>}
 
       <RecordForm fields={RECIPE_FIELDS} values={values} onChange={change} />
 
@@ -248,98 +249,100 @@ export const RecipesPage = () => {
       <div className={css.intro}>
         <h1 className={css.heading}>Recipes</h1>
         <Text as="p" color="fg.neutralMuted">
-          Film simulation recipes for your Fujifilm camera.
+          Camera settings you shoot with, kept per camera system.
         </Text>
       </div>
 
-      <section className={`${card} ${css.panel}`}>
-        {editing ? (
-          <>
-            <div className={css.header}>
-              <h2 className={`${labelText} ${css.panelTitle}`}>
-                {id === 'new' ? 'New recipe' : 'Edit recipe'}
-              </h2>
-            </div>
-            {!ready || (id !== 'new' && !current) ? (
-              <Text as="p" color="fg.neutralMuted" aria-live="polite">
-                {ready ? 'This recipe no longer exists.' : 'Loading…'}
-              </Text>
-            ) : (
-              <RecipeForm
-                key={id}
-                recipe={current}
-                saved={latest?.settings ?? {}}
-                presets={presets.filter(item => item.value !== `recipe:${current?.id}`)}
-                onSave={saveRecipe}
-                onDone={goBack}
-              />
-            )}
-          </>
-        ) : (
-          <>
-            <div className={css.header}>
-              <h2 className={`${labelText} ${css.panelTitle}`}>All recipes</h2>
-              <Button variant="primary" size="small" to="/recipes/new">
-                + New recipe
-              </Button>
-            </div>
-
-            {ready && (
-              <MetaList
-                rows={[
-                  { label: 'Status', value: recipes.items.length === 0 ? 'Empty' : 'Ready' },
-                  { label: 'Registered', value: count(recipes.items.length) },
-                  {
-                    label: 'In the camera',
-                    value: count(recipes.items.filter(item => item.state === 'active').length),
-                  },
-                  { label: 'Last added', value: recipes.items.at(-1)?.name ?? '—' },
-                ]}
-              />
-            )}
-
-            {importError && <Callout tone="critical" role="alert" description={importError} />}
-            {ready && recipes.items.length === 0 && (
-              <div className={css.empty}>
-                <p className={`${labelText} ${css.panelTitle}`}>No recipe registered</p>
-                <Text as="p" color="fg.neutralMuted">
-                  Start a new recipe for any camera, or import the ones you wrote down.
-                </Text>
+      <SignInGate what="recipes">
+        <section className={`${card} ${css.panel}`}>
+          {editing ? (
+            <>
+              <div className={css.header}>
+                <h2 className={`${labelText} ${css.panelTitle}`}>
+                  {id === 'new' ? 'New recipe' : 'Edit recipe'}
+                </h2>
               </div>
-            )}
-
-            {ready && missingStarters.length > 0 && (
-              <div className={css.actions}>
-                <Button loading={importing} onClick={() => void importStarters()}>
-                  Import my recipes ({missingStarters.length})
+              {!ready || (id !== 'new' && !current) ? (
+                <Text as="p" color="fg.neutralMuted" aria-live="polite">
+                  {ready ? 'This recipe no longer exists.' : 'Loading…'}
+                </Text>
+              ) : (
+                <RecipeForm
+                  key={id}
+                  recipe={current}
+                  saved={latest?.settings ?? {}}
+                  presets={presets.filter(item => item.value !== `recipe:${current?.id}`)}
+                  onSave={saveRecipe}
+                  onDone={goBack}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              <div className={css.header}>
+                <h2 className={`${labelText} ${css.panelTitle}`}>All recipes</h2>
+                <Button variant="primary" size="small" to="/recipes/new">
+                  + New recipe
                 </Button>
               </div>
-            )}
 
-            {recipes.items.length > 0 && (
-              <ul className={css.list}>
-                {recipes.items.map(recipe => {
-                  const version = latestVersion(versions.items, recipe.id);
-                  const summary = [
-                    version?.settings.customSlot,
-                    SYSTEMS[systemOf(recipe)].label,
-                    recipe.baseSimulation,
-                    version ? `v${version.version}` : 'no settings yet',
-                  ];
-                  return (
-                    <li key={recipe.id}>
-                      <Link to={`/recipes/${recipe.id}`} className={css.row}>
-                        <Text textStyle="t5Bold">{recipe.name}</Text>
-                        <span className={labelText}>{summary.filter(Boolean).join(' · ')}</span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </>
-        )}
-      </section>
+              {ready && (
+                <MetaList
+                  rows={[
+                    { label: 'Status', value: recipes.items.length === 0 ? 'Empty' : 'Ready' },
+                    { label: 'Registered', value: count(recipes.items.length) },
+                    {
+                      label: 'In the camera',
+                      value: count(recipes.items.filter(item => item.state === 'active').length),
+                    },
+                    { label: 'Last added', value: recipes.items.at(-1)?.name ?? '—' },
+                  ]}
+                />
+              )}
+
+              {importError && <ErrorText>{importError}</ErrorText>}
+              {ready && recipes.items.length === 0 && (
+                <div className={css.empty}>
+                  <p className={`${labelText} ${css.panelTitle}`}>No recipe registered</p>
+                  <Text as="p" color="fg.neutralMuted">
+                    Start a new recipe for any camera, or import the ones you wrote down.
+                  </Text>
+                </div>
+              )}
+
+              {ready && missingStarters.length > 0 && (
+                <div className={css.actions}>
+                  <Button loading={importing} onClick={() => void importStarters()}>
+                    Import my recipes ({missingStarters.length})
+                  </Button>
+                </div>
+              )}
+
+              {recipes.items.length > 0 && (
+                <ul className={css.list}>
+                  {recipes.items.map(recipe => {
+                    const version = latestVersion(versions.items, recipe.id);
+                    const summary = [
+                      version?.settings.customSlot,
+                      SYSTEMS[systemOf(recipe)].label,
+                      recipe.baseSimulation,
+                      version ? `v${version.version}` : 'no settings yet',
+                    ];
+                    return (
+                      <li key={recipe.id}>
+                        <Link to={`/recipes/${recipe.id}`} className={css.row}>
+                          <Text textStyle="t5Bold">{recipe.name}</Text>
+                          <span className={labelText}>{summary.filter(Boolean).join(' · ')}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </>
+          )}
+        </section>
+      </SignInGate>
     </PageShell>
   );
 };

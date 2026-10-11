@@ -19,7 +19,7 @@ const SECTIONS = [
   {
     to: '/recipes',
     title: 'Recipes',
-    body: 'Store your film simulation recipes and tweak them without losing the original.',
+    body: 'Store the camera settings you shoot with and tweak them without losing the original.',
   },
 ];
 

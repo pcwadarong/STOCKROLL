@@ -31,7 +31,7 @@ const PRIVACY: LegalDocument = {
       body: [
         'If you sign in with Google, we receive your email address and basic profile identifier from Google to create your account.',
         'When signed in, the records you enter — cameras, lenses, films, recipes and shot notes, including any links you add — are stored in our database so you can use them on your other devices.',
-        'When signed out, those records stay in your browser’s local storage on that device only.',
+        'Without an account nothing is saved: you can still frame photos, and they stay on your device.',
       ],
     },
     {

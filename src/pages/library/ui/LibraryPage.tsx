@@ -13,6 +13,7 @@ import {
   LENS_FIELDS,
   lensCollection,
 } from '@/entities/gear';
+import { SignInGate } from '@/features/auth';
 import type { Collection, Row } from '@/shared/api/collection';
 import {
   missingRequired,
@@ -23,10 +24,10 @@ import {
 import { useCollection } from '@/shared/lib/use-collection';
 import { useGoBack } from '@/shared/lib/use-go-back';
 import { Button } from '@/shared/ui/Button';
+import { ErrorText } from '@/shared/ui/ErrorText';
 import { card, labelText } from '@/shared/ui/label.css';
 import { RecordForm } from '@/shared/ui/RecordForm';
 import { PageShell } from '@/widgets/page-shell';
-import { Callout } from 'seed-design/ui/callout';
 
 import * as css from './LibraryPage.css';
 
@@ -127,7 +128,7 @@ const GearForm = ({ section, initial, onSave, onDone }: GearFormProps) => {
 
   return (
     <>
-      {error && <Callout tone="critical" role="alert" description={error} />}
+      {error && <ErrorText>{error}</ErrorText>}
       <RecordForm
         fields={section.fields}
         values={values}
@@ -175,90 +176,92 @@ export const LibraryPage = () => {
         ))}
       </nav>
 
-      <section className={`${card} ${css.panel}`}>
-        {editing ? (
-          <>
-            <div className={css.header}>
-              <h2 className={`${labelText} ${css.panelTitle}`}>
-                {id === 'new' ? `Add ${section.singular}` : `Edit ${section.singular}`}
-              </h2>
-            </div>
-            {waitingForItem ? (
-              <Text as="p" color="fg.neutralMuted" aria-live="polite">
-                {status === 'loading' ? 'Loading…' : 'This item no longer exists.'}
-              </Text>
-            ) : (
-              <GearForm
-                key={`${kind}:${id}`}
-                section={section}
-                initial={current ?? section.defaults}
-                onSave={values => save(values as GearRow)}
-                onDone={goBack}
-              />
-            )}
-          </>
-        ) : (
-          <>
-            <div className={css.header}>
-              <h2 className={`${labelText} ${css.panelTitle}`}>{section.title}</h2>
-              {items.length > 0 && (
-                <Button variant="primary" size="small" to={`/library/${kind}/new`}>
-                  + Add {section.singular}
-                </Button>
-              )}
-            </div>
-
-            {status === 'error' && (
-              <Callout tone="critical" role="alert" description="Could not load. Try again." />
-            )}
-            {status === 'ready' && (
-              <MetaList
-                rows={[
-                  { label: 'Status', value: items.length === 0 ? 'Empty' : 'Ready' },
-                  { label: 'Registered', value: count(items.length) },
-                  ...('status' in section.defaults
-                    ? [
-                        {
-                          label: 'In use',
-                          value: count(items.filter(item => item.status === 'active').length),
-                        },
-                      ]
-                    : []),
-                  { label: 'Last added', value: items.at(-1)?.name ?? '—' },
-                ]}
-              />
-            )}
-
-            {status === 'ready' && items.length === 0 && (
-              <div className={css.empty}>
-                <p className={`${labelText} ${css.panelTitle}`}>No {section.singular} registered</p>
-                <Text as="p" color="fg.neutralMuted">
-                  Your {section.title.toLowerCase()} will appear here. Register a {section.singular}{' '}
-                  to use it in Frame.
-                </Text>
-                <Button variant="primary" to={`/library/${kind}/new`}>
-                  + Add {section.singular}
-                </Button>
+      <SignInGate what="cameras, lenses and films">
+        <section className={`${card} ${css.panel}`}>
+          {editing ? (
+            <>
+              <div className={css.header}>
+                <h2 className={`${labelText} ${css.panelTitle}`}>
+                  {id === 'new' ? `Add ${section.singular}` : `Edit ${section.singular}`}
+                </h2>
               </div>
-            )}
+              {waitingForItem ? (
+                <Text as="p" color="fg.neutralMuted" aria-live="polite">
+                  {status === 'loading' ? 'Loading…' : 'This item no longer exists.'}
+                </Text>
+              ) : (
+                <GearForm
+                  key={`${kind}:${id}`}
+                  section={section}
+                  initial={current ?? section.defaults}
+                  onSave={values => save(values as GearRow)}
+                  onDone={goBack}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              <div className={css.header}>
+                <h2 className={`${labelText} ${css.panelTitle}`}>{section.title}</h2>
+                {items.length > 0 && (
+                  <Button variant="primary" size="small" to={`/library/${kind}/new`}>
+                    + Add {section.singular}
+                  </Button>
+                )}
+              </div>
 
-            {items.length > 0 && (
-              <ul className={css.list}>
-                {items.map(item => (
-                  <li key={item.id}>
-                    <Link to={`/library/${kind}/${item.id}`} className={css.row}>
-                      <Text textStyle="t5Bold">{item.name}</Text>
-                      <span className={labelText}>
-                        {section.summary(item, optionLabel(section.fields, item))}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
-        )}
-      </section>
+              {status === 'error' && <ErrorText>Could not load. Try again.</ErrorText>}
+              {status === 'ready' && (
+                <MetaList
+                  rows={[
+                    { label: 'Status', value: items.length === 0 ? 'Empty' : 'Ready' },
+                    { label: 'Registered', value: count(items.length) },
+                    ...('status' in section.defaults
+                      ? [
+                          {
+                            label: 'In use',
+                            value: count(items.filter(item => item.status === 'active').length),
+                          },
+                        ]
+                      : []),
+                    { label: 'Last added', value: items.at(-1)?.name ?? '—' },
+                  ]}
+                />
+              )}
+
+              {status === 'ready' && items.length === 0 && (
+                <div className={css.empty}>
+                  <p className={`${labelText} ${css.panelTitle}`}>
+                    No {section.singular} registered
+                  </p>
+                  <Text as="p" color="fg.neutralMuted">
+                    Your {section.title.toLowerCase()} will appear here. Register a{' '}
+                    {section.singular} to use it in Frame.
+                  </Text>
+                  <Button variant="primary" to={`/library/${kind}/new`}>
+                    + Add {section.singular}
+                  </Button>
+                </div>
+              )}
+
+              {items.length > 0 && (
+                <ul className={css.list}>
+                  {items.map(item => (
+                    <li key={item.id}>
+                      <Link to={`/library/${kind}/${item.id}`} className={css.row}>
+                        <Text textStyle="t5Bold">{item.name}</Text>
+                        <span className={labelText}>
+                          {section.summary(item, optionLabel(section.fields, item))}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </section>
+      </SignInGate>
     </PageShell>
   );
 };

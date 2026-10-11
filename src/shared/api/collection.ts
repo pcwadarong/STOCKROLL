@@ -6,51 +6,32 @@ export type Row = { id: string };
 export type Draft<T extends Row> = Omit<T, 'id'> & { id?: string };
 
 export type Collection<T extends Row> = {
-  /** Lists every record the current user owns, oldest first. */
+  /** Lists every record the signed-in user owns, oldest first. Empty when signed out. */
   list: () => Promise<T[]>;
-  /** Inserts the draft when it has no id, otherwise updates that record. */
+  /** Inserts the draft when it has no id, otherwise updates that record. Requires sign-in. */
   save: (draft: Draft<T>) => Promise<T>;
-};
-
-const storageKey = (table: string) => `stockroll:${table}`;
-
-const readLocal = <T>(table: string): T[] => {
-  try {
-    return JSON.parse(localStorage.getItem(storageKey(table)) ?? '[]') as T[];
-  } catch {
-    return [];
-  }
 };
 
 const hasSession = async () =>
   supabase ? (await supabase.auth.getSession()).data.session !== null : false;
 
 /**
- * Creates a record store for one table.
- * Signed in, records live in Supabase (row-level security limits them to the owner).
- * Signed out, they live in this browser's localStorage so the app stays usable without an account.
- * The two stores are separate: local records are not uploaded on sign-in.
- * @param table Postgres table name, also used as the localStorage namespace
+ * Creates a record store for one Supabase table. Row-level security limits records to their owner.
+ * Records exist only for signed-in users: there is no device-local copy, so a signed-out visitor
+ * sees an empty list and cannot save.
+ * @param table Postgres table name
  * @returns list and save operations
  */
 export const createCollection = <T extends Row>(table: string): Collection<T> => ({
   list: async () => {
-    if (!supabase || !(await hasSession())) return readLocal<T>(table);
+    if (!supabase || !(await hasSession())) return [];
     const { data, error } = await supabase.from(table).select('*').order('created_at');
     if (error) throw new Error(error.message);
     return data.map(row => toCamel(row) as T);
   },
 
   save: async draft => {
-    if (!supabase || !(await hasSession())) {
-      const rows = readLocal<T>(table);
-      const saved = { ...draft, id: draft.id ?? crypto.randomUUID() } as T;
-      const next = draft.id
-        ? rows.map(row => (row.id === saved.id ? saved : row))
-        : [...rows, saved];
-      localStorage.setItem(storageKey(table), JSON.stringify(next));
-      return saved;
-    }
+    if (!supabase || !(await hasSession())) throw new Error('Sign in to save records');
 
     const { id, ...values } = draft;
     const payload = toSnake(values);
