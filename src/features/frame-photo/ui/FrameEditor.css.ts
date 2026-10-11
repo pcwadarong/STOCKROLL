@@ -13,10 +13,8 @@ export const root = style({
   gridTemplateRows: 'minmax(0, 1fr)',
   minHeight: 0,
   '@media': {
-    [COMPACT_MEDIA_QUERY]: {
-      gridTemplateColumns: 'minmax(0, 1fr)',
-      gridTemplateRows: 'minmax(0, 46dvh) minmax(0, 1fr)',
-    },
+    // Stacked in normal flow: the page scrolls, the preview stays pinned (see `stage`).
+    [COMPACT_MEDIA_QUERY]: { display: 'block' },
   },
 });
 
@@ -34,7 +32,22 @@ export const stage = style({
   padding: vars.$dimension.x6,
   outline: '1px dashed transparent',
   outlineOffset: `calc(${vars.$dimension.x2} * -1)`,
-  '@media': { [COMPACT_MEDIA_QUERY]: { padding: vars.$dimension.x3 } },
+  '@media': {
+    [COMPACT_MEDIA_QUERY]: {
+      // Pinned while the settings scroll under it, so a change is seen as it is made.
+      position: 'sticky',
+      top: 0,
+      zIndex: 1,
+      // `svh`, not `dvh`: the height must not jump when the browser toolbar collapses on scroll.
+      height: '46svh',
+      paddingInline: vars.$dimension.x3,
+      paddingBottom: vars.$dimension.x3,
+      // Once the app bar has scrolled away the preview sits at the very top, under the notch.
+      paddingTop: `max(${vars.$dimension.x5}, env(safe-area-inset-top))`,
+      background: vars.$color.bg.layerBasement,
+      borderBottom: `1px solid ${vars.$color.stroke.neutralWeak}`,
+    },
+  },
 });
 
 export const stageDragging = style({ outlineColor: vars.$color.stroke.brandSolid });
@@ -73,9 +86,12 @@ export const panel = style({
   background: vars.$color.bg.layerDefault,
   borderLeft: `1px solid ${vars.$color.stroke.neutralWeak}`,
   '@media': {
+    // The page scrolls here, so the panel is as tall as its content and ends clear of the
+    // browser toolbar and home indicator, which float over the page.
     [COMPACT_MEDIA_QUERY]: {
       borderLeft: 0,
-      borderTop: `1px solid ${vars.$color.stroke.neutralWeak}`,
+      overflowY: 'visible',
+      paddingBottom: `calc(${vars.$dimension.x8} + env(safe-area-inset-bottom))`,
     },
   },
 });
