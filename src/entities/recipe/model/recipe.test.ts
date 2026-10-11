@@ -2,12 +2,17 @@ import { describe, expect, it } from 'vitest';
 
 import {
   blankSettings,
+  filterRecipes,
   hasSettings,
   latestVersion,
+  MAX_VERSIONS,
+  type Recipe,
   type RecipeVersion,
   sameSettings,
   systemOf,
   toSettings,
+  versionSlots,
+  versionsOf,
 } from './recipe';
 import { systemOfCamera } from './systems';
 
@@ -27,6 +32,57 @@ describe('latestVersion', () => {
 
   it('when a recipe has no version yet, it must return undefined', () => {
     expect(latestVersion([version('b', 1)], 'a')).toBeUndefined();
+  });
+});
+
+describe('versionsOf', () => {
+  it('when versions arrive in any order, it must list only that recipe newest first', () => {
+    const versions = [version('a', 1), version('b', 5), version('a', 3), version('a', 2)];
+    expect(versionsOf(versions, 'a').map(item => item.version)).toEqual([3, 2, 1]);
+  });
+});
+
+describe('versionSlots', () => {
+  it('when a recipe has few versions, it must not flag the remaining count', () => {
+    expect(versionSlots(3)).toEqual({ used: 3, left: MAX_VERSIONS - 3, full: false, low: false });
+  });
+
+  it('when five or fewer slots remain, it must flag that the cap is near', () => {
+    expect(versionSlots(MAX_VERSIONS - 5).low).toBe(true);
+    expect(versionSlots(MAX_VERSIONS - 1)).toMatchObject({ left: 1, full: false, low: true });
+  });
+
+  it('when the cap is reached, it must report full instead of low', () => {
+    expect(versionSlots(MAX_VERSIONS)).toMatchObject({ left: 0, full: true, low: false });
+  });
+});
+
+describe('filterRecipes', () => {
+  const recipe = (id: string, state: Recipe['state'], isFavorite: boolean): Recipe => ({
+    id,
+    name: id,
+    system: 'fujifilm',
+    baseSimulation: null,
+    state,
+    note: null,
+    isFavorite,
+  });
+  const recipes = [
+    recipe('a', 'active', true),
+    recipe('b', 'candidate', false),
+    recipe('c', 'archived', true),
+  ];
+
+  it('when the filter is a state, it must keep only recipes in that state', () => {
+    expect(filterRecipes(recipes, 'active').map(item => item.id)).toEqual(['a']);
+  });
+
+  it('when the filter is favorite, it must keep starred recipes of any state', () => {
+    expect(filterRecipes(recipes, 'favorite').map(item => item.id)).toEqual(['a', 'c']);
+  });
+
+  it('when the filter is all, it must keep everything in order', () => {
+    expect(filterRecipes(recipes, 'all')).toHaveLength(3);
   });
 });
 

@@ -18,6 +18,8 @@ export type Recipe = {
   baseSimulation: string | null;
   state: 'candidate' | 'active' | 'archived';
   note: string | null;
+  /** Starred by the user. Independent of `state`: a favorite can be in the camera or archived. */
+  isFavorite: boolean;
 };
 
 /** Settings are append-only: changing them adds a version so past shots keep pointing at what was used. */
@@ -53,6 +55,21 @@ export const RECIPE_FIELDS: readonly RecordField[] = [
   { key: 'note', label: 'Note', type: 'text' },
 ];
 
+/** Recipe fields that can be edited after creation. The system is fixed once settings exist. */
+export const DETAIL_FIELDS = RECIPE_FIELDS.filter(field => field.key !== 'system');
+
+/**
+ * Most versions one recipe may keep. Reaching it blocks new versions until the user deletes one
+ * or branches into a new recipe — an old version is never dropped silently, because photos may
+ * point at it.
+ */
+export const MAX_VERSIONS = 30;
+
+/** How close to the cap the remaining count starts being shown, so the limit is no surprise. */
+const LOW_SLOTS = 5;
+
+export type RecipeFilter = 'all' | 'favorite' | Recipe['state'];
+
 export const recipeCollection = createCollection<Recipe>('recipes');
 export const recipeVersionCollection = createCollection<RecipeVersion>('recipe_versions');
 
@@ -77,6 +94,36 @@ export const latestVersion = (versions: readonly RecipeVersion[], recipeId: stri
       (latest, version) => (!latest || version.version > latest.version ? version : latest),
       undefined,
     );
+
+/**
+ * Lists a recipe's versions, newest first.
+ * @param versions all known versions, in any order
+ * @param recipeId recipe to look up
+ * @returns that recipe's versions sorted by version number, descending
+ */
+export const versionsOf = (versions: readonly RecipeVersion[], recipeId: string) =>
+  versions.filter(version => version.recipeId === recipeId).sort((a, b) => b.version - a.version);
+
+/**
+ * Describes how full a recipe's version history is.
+ * @param count number of versions the recipe has
+ * @returns slots used and left, whether the cap is reached, and whether to show the remaining count
+ */
+export const versionSlots = (count: number) => {
+  const left = Math.max(0, MAX_VERSIONS - count);
+  return { used: count, left, full: left === 0, low: left > 0 && left <= LOW_SLOTS };
+};
+
+/**
+ * Narrows the recipe list to one view.
+ * @param recipes recipes to filter
+ * @param filter `all`, `favorite`, or one of the recipe states
+ * @returns the recipes that belong to that view, in their original order
+ */
+export const filterRecipes = (recipes: readonly Recipe[], filter: RecipeFilter) =>
+  recipes.filter(recipe =>
+    filter === 'all' ? true : filter === 'favorite' ? recipe.isFavorite : recipe.state === filter,
+  );
 
 /**
  * Compares two settings objects, treating missing, null and blank values as the same.

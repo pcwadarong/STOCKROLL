@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, Navigate, NavLink, useParams } from 'react-router';
+import { Link, Navigate, NavLink, useNavigate, useParams } from 'react-router';
 
 import {
   CAMERA_DEFAULTS,
@@ -106,8 +106,8 @@ const GearForm = ({ section, initial, onSave, onDelete, onDone }: GearFormProps)
     setSaving(true);
     setError('');
     try {
+      // The caller navigates away itself: going "back" would land on the deleted item.
       await onDelete();
-      onDone();
     } catch {
       setError(MESSAGES.deleteFailed);
       setSaving(false);
@@ -164,23 +164,28 @@ const GearForm = ({ section, initial, onSave, onDelete, onDone }: GearFormProps)
 };
 
 /**
- * Gear library: lists registered cameras, lenses and films, and hosts the form for adding or
- * editing one. Gear you no longer use keeps its place in the record: change its status rather
+ * Gear library: lists registered cameras, lenses and films, shows one read-only, and hosts the
+ * form for adding or editing one. Opening an item never lands in the form directly.
+ * @param props `editing` is set by the `/:id/edit` route Gear you no longer use keeps its place in the record: change its status rather
  * than deleting it. Delete exists for entries made by mistake.
  */
-export const LibraryPage = () => {
+export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean }) => {
   const { kind: kindParam = 'cameras', id } = useParams();
   // The kind comes from the URL. Accept only real sections: a plain lookup would also "find"
   // inherited keys such as `toString`, and an unknown kind would produce broken links.
   const known = Object.hasOwn(SECTIONS, kindParam);
   const kind = known ? kindParam : 'cameras';
-  const goBack = useGoBack(`/library/${kind}`);
+  // Leaving the form of an existing item returns to its detail; a new item returns to the list.
+  const goBack = useGoBack(id && id !== 'new' ? `/library/${kind}/${id}` : `/library/${kind}`);
   const section = SECTIONS[kind]!;
   const { items, status, save, remove } = useCollection(section.collection);
+  const navigate = useNavigate();
 
-  const editing = id !== undefined;
+  // `/library/:kind/:id` shows an item read-only; the form is `/new` or `/:id/edit`.
+  const editing = id === 'new' || (id !== undefined && editRoute);
+  const viewing = id !== undefined && !editing;
   const current = id && id !== 'new' ? items.find(item => item.id === id) : undefined;
-  const waitingForItem = editing && id !== 'new' && !current;
+  const waitingForItem = id !== undefined && id !== 'new' && !current;
 
   if (!known) return <Navigate to="/library/cameras" replace />;
 
@@ -198,7 +203,42 @@ export const LibraryPage = () => {
       </nav>
 
       <SignInGate what="cameras, lenses and films">
-        {editing ? (
+        {viewing ? (
+          <Panel
+            title={current?.name ?? section.title}
+            action={
+              current && (
+                <Button variant="primary" size="small" to={`/library/${kind}/${current.id}/edit`}>
+                  Edit
+                </Button>
+              )
+            }
+          >
+            {current ? (
+              <>
+                <MetaList
+                  rows={section.fields.flatMap(field => {
+                    const value = current[field.key];
+                    if (value === null || value === undefined || value === '') return [];
+                    return [
+                      {
+                        label: field.label,
+                        value: optionLabel(section.fields, current)(field.key) || String(value),
+                      },
+                    ];
+                  })}
+                />
+                <div className={css.actions}>
+                  <Button to={`/library/${kind}`}>All {section.title.toLowerCase()}</Button>
+                </div>
+              </>
+            ) : (
+              <EmptyState title={status === 'loading' ? 'Loading' : 'Not found'}>
+                {status === 'loading' ? 'One moment.' : 'This item no longer exists.'}
+              </EmptyState>
+            )}
+          </Panel>
+        ) : editing ? (
           <Panel title={id === 'new' ? `Add ${section.singular}` : `Edit ${section.singular}`}>
             {waitingForItem ? (
               <EmptyState title={status === 'loading' ? 'Loading' : 'Not found'}>
@@ -210,7 +250,14 @@ export const LibraryPage = () => {
                 section={section}
                 initial={current ?? section.defaults}
                 onSave={values => save(values as GearRow)}
-                onDelete={current ? () => remove(current.id) : undefined}
+                onDelete={
+                  current
+                    ? () =>
+                        remove(current.id).then(() =>
+                          navigate(`/library/${kind}`, { replace: true }),
+                        )
+                    : undefined
+                }
                 onDone={goBack}
               />
             )}

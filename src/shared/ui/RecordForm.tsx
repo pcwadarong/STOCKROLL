@@ -1,9 +1,12 @@
+import { Fragment } from 'react';
+
 import { TextField, TextFieldInput } from 'seed-design/ui/text-field';
 
 import type { RecordField, RecordValues } from '../lib/record-field';
 
 import { PickField } from './PickField';
 
+import { labelTitle } from './label.css';
 import * as css from './RecordForm.css';
 
 type RecordFormProps = {
@@ -13,42 +16,45 @@ type RecordFormProps = {
 };
 
 /**
- * Renders one input per field definition. Holds no state of its own.
+ * Renders one input per field definition, with a heading above each group of fields.
+ * Holds no state of its own.
  * @param props field definitions, current values and a change handler
  */
 export const RecordForm = ({ fields, values, onChange }: RecordFormProps) => (
   <div className={css.root}>
-    {fields.map(field => {
+    {fields.map((field, index) => {
       const value = values[field.key];
       const text = value === null || value === undefined ? '' : String(value);
-
-      if (field.type === 'select')
-        return (
-          <PickField
-            key={field.key}
-            label={field.label}
-            indicator={field.required ? undefined : 'Optional'}
-            description={field.hint}
-            value={text}
-            options={field.options ?? []}
-            onChange={next => onChange(field.key, next)}
-          />
-        );
+      // A heading opens each run of fields that share a group.
+      const startsGroup = field.group !== undefined && field.group !== fields[index - 1]?.group;
 
       return (
-        <TextField
-          key={field.key}
-          label={field.label}
-          indicator={field.required ? undefined : 'Optional'}
-          description={field.hint}
-          value={text}
-          onValueChange={({ value: next }) => onChange(field.key, next)}
-        >
-          <TextFieldInput
-            placeholder={field.placeholder}
-            inputMode={field.type === 'number' ? 'numeric' : undefined}
-          />
-        </TextField>
+        <Fragment key={field.key}>
+          {startsGroup && <h4 className={`${labelTitle} ${css.heading}`}>{field.group}</h4>}
+          {field.type === 'select' ? (
+            <PickField
+              label={field.label}
+              indicator={field.required ? undefined : 'Optional'}
+              description={field.hint}
+              value={text}
+              options={field.options ?? []}
+              onChange={next => onChange(field.key, next)}
+            />
+          ) : (
+            <TextField
+              label={field.label}
+              indicator={field.required ? undefined : 'Optional'}
+              description={field.hint}
+              value={text}
+              onValueChange={({ value: next }) => onChange(field.key, next)}
+            >
+              <TextFieldInput
+                placeholder={field.placeholder}
+                inputMode={field.type === 'number' ? 'numeric' : undefined}
+              />
+            </TextField>
+          )}
+        </Fragment>
       );
     })}
   </div>
