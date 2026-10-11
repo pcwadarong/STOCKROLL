@@ -28,7 +28,8 @@ export const ListFilters = ({ filters, picks, onPick }: ListFiltersProps) => {
         <PickField
           key={filter.key}
           label={filter.label}
-          density="compact"
+          size="medium"
+          hideLabel
           // Unfiltered shows the filter's own name as the placeholder instead of "All".
           placeholder={filter.label}
           options={filter.options}
@@ -86,7 +87,7 @@ export const ItemList = ({ rows, onToggleFavorite }: ItemListProps) => (
           <Link to={to} className={css.rowLink}>
             <span className={css.rowTitle}>{title}</span>
             {(line || note) && (
-              <span className={labelText}>
+              <span className={`${labelText} ${css.rowFacts}`}>
                 {line}
                 {line && note && ' · '}
                 {note && <span className={css.rowNote[note.tone]}>{note.label}</span>}

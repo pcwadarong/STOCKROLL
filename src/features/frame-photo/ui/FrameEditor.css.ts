@@ -143,6 +143,18 @@ export const exposure = style({
   gap: vars.$dimension.x3,
 });
 
+// Each field lends its label and its input to the shared rows, so a label that wraps
+// ("Focal length (mm)") pushes its neighbour's input down with it and the inputs stay level.
+// The fields are SEED's own roots, which take no class name, hence the child selector.
+globalStyle(`${exposure} > *`, {
+  display: 'grid',
+  gridRow: 'span 2',
+  gridTemplateRows: 'subgrid',
+  rowGap: vars.$dimension.x2,
+  // Labels sit on the input, so a one-line label lines up with the last line of a wrapped one.
+  alignItems: 'end',
+});
+
 export const fieldAction = style({ alignSelf: 'flex-end' });
 
 // Long camera file names wrap anywhere rather than widen the panel.

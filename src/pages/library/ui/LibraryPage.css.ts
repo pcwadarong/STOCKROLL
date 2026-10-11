@@ -45,6 +45,9 @@ export const row = style({
   selectors: { '&:hover, &:focus-visible': { color: vars.$color.fg.positive } },
 });
 
+// Facts wrap on phones; the label face is set tight for single lines, so give wrapped lines air.
+export const rowFacts = style({ lineHeight: 1.6 });
+
 export const rowTitle = style({ fontSize: vars.$fontSize.t5, fontWeight: vars.$fontWeight.bold });
 
 // Pushed to the far left, away from Save, so it is not hit by accident.

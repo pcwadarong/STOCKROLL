@@ -310,6 +310,7 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
             )}
             <div className={css.field}>
               <PickField
+                size="medium"
                 label="Camera"
                 indicator={picks.camera === undefined && resolved.cameraValue ? 'Auto' : undefined}
                 value={resolved.cameraValue || NONE}
@@ -321,6 +322,7 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
 
             <div className={css.field}>
               <PickField
+                size="medium"
                 label="Lens"
                 indicator={picks.lens === undefined && resolved.lensValue ? 'Auto' : undefined}
                 value={resolved.lensValue || NONE}
@@ -335,6 +337,7 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
                 {EXPOSURE_FIELDS.map(({ key, label, inputMode }) => (
                   <TextField
                     key={key}
+                    size="medium"
                     label={label}
                     indicator={picks[key] !== undefined ? 'Manual' : undefined}
                     value={resolved.exposure[key]}
@@ -358,6 +361,7 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
             {resolved.lookField === 'film' && (
               <div className={css.field}>
                 <PickField
+                  size="medium"
                   label="Film"
                   value={resolved.filmValue || NONE}
                   options={[
@@ -373,6 +377,7 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
             {resolved.lookField === 'recipe' && (
               <div className={css.field}>
                 <PickField
+                  size="medium"
                   label={SYSTEMS[resolved.system].lookLabel}
                   description="A label for your records. It does not change the photo's colors."
                   value={resolved.lookValue || NONE}
