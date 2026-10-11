@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 
 import {
+  blankSettings,
+  hasSettings,
   latestVersion,
   type Recipe,
   RECIPE_FIELDS,
@@ -11,8 +13,6 @@ import {
   type RecipeVersion,
   recipeVersionCollection,
   sameSettings,
-  STARTER_RECIPES,
-  STARTER_SYSTEM,
   systemOf,
   SYSTEMS,
   toSettings,
@@ -23,6 +23,7 @@ import { missingRequired, normalizeRecord, type RecordValues } from '@/shared/li
 import { useCollection } from '@/shared/lib/use-collection';
 import { useGoBack } from '@/shared/lib/use-go-back';
 import { Button } from '@/shared/ui/Button';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorText } from '@/shared/ui/ErrorText';
 import { labelText, labelTitle } from '@/shared/ui/label.css';
@@ -32,35 +33,40 @@ import { Panel } from '@/shared/ui/Panel';
 import { PickField } from '@/shared/ui/PickField';
 import { RecordForm } from '@/shared/ui/RecordForm';
 import { PageShell } from '@/widgets/page-shell';
-import {
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogRoot,
-  AlertDialogTitle,
-} from 'seed-design/ui/alert-dialog';
 
 import * as css from './LibraryPage.css';
 
 type Meta = Pick<Recipe, 'name' | 'system' | 'state' | 'note'>;
+/**
+ * Where a change to an existing recipe goes: `correct` overwrites the current version (fixing a
+ * mistake), `version` adds the next version (keeping history), `new` creates a separate recipe.
+ */
+type SaveTarget = 'new' | 'version' | 'correct';
 type Preset = { value: string; label: string; system: RecipeSystem; settings: RecipeSettings };
-type SaveRecipe = (
-  meta: Meta,
-  settings: RecipeSettings,
-  target: 'new' | 'version',
-) => Promise<void>;
+type SaveRecipe = (meta: Meta, settings: RecipeSettings, target: SaveTarget) => Promise<void>;
 
 type RecipeFormProps = {
   recipe: Recipe | undefined;
   /** Settings of the latest saved version, used to tell whether the user changed anything. */
   saved: RecipeSettings;
   presets: readonly Preset[];
+  /** Number of the latest saved version, or 0 when the recipe has none yet. */
+  version: number;
   onSave: SaveRecipe;
+  /** Present only when editing an existing recipe. */
+  onDelete?: () => Promise<void>;
   onDone: () => void;
 };
 
-const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps) => {
+const RecipeForm = ({
+  recipe,
+  saved,
+  presets,
+  version,
+  onSave,
+  onDelete,
+  onDone,
+}: RecipeFormProps) => {
   const [values, setValues] = useState<RecordValues>({
     name: recipe?.name ?? '',
     system: recipe ? systemOf(recipe) : 'fujifilm',
@@ -72,8 +78,29 @@ const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps)
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
-  const change = (key: string, value: string) => setValues(prev => ({ ...prev, [key]: value }));
+  const remove = async () => {
+    if (!onDelete) return;
+    setBusy(true);
+    setError('');
+    try {
+      await onDelete();
+      onDone();
+    } catch {
+      setError(MESSAGES.deleteFailed);
+      setBusy(false);
+    }
+  };
+
+  const change = (key: string, value: string) =>
+    setValues(prev =>
+      // Settings belong to a system. Changing it starts the settings over, so values from the
+      // old system are not saved under the new one.
+      key === 'system' && value !== prev.system
+        ? { ...prev, ...blankSettings(), system: value }
+        : { ...prev, [key]: value },
+    );
 
   const system = systemOf({ system: values.system as RecipeSystem });
   const settingFields = SYSTEMS[system].fields;
@@ -82,13 +109,17 @@ const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps)
     setPreset(value);
     const chosen = presets.find(item => item.value === value);
     if (!chosen) return;
-    // Replace every setting so nothing from a previous preset lingers. A preset also brings its
-    // camera system, since its settings only make sense there.
-    const cleared = Object.fromEntries(SYSTEMS[chosen.system].fields.map(({ key }) => [key, '']));
-    setValues(prev => ({ ...prev, ...cleared, ...chosen.settings, system: chosen.system }));
+    // Replace every setting of every system so nothing from a previous preset or system lingers.
+    // A preset also brings its camera system, since its settings only make sense there.
+    setValues(prev => ({
+      ...prev,
+      ...blankSettings(),
+      ...chosen.settings,
+      system: chosen.system,
+    }));
   };
 
-  const commit = async (target: 'new' | 'version') => {
+  const commit = async (target: SaveTarget) => {
     const meta = normalizeRecord(RECIPE_FIELDS, values) as unknown as Meta;
     setAsking(false);
     setBusy(true);
@@ -106,8 +137,9 @@ const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps)
     const missing = missingRequired(RECIPE_FIELDS, normalizeRecord(RECIPE_FIELDS, values));
     if (missing.length > 0) return setError(MESSAGES.fillIn(missing));
     if (!recipe) return void commit('new');
-    // Changed settings of an existing recipe: let the user decide where the change goes.
-    if (!sameSettings(saved, toSettings(system, values))) return setAsking(true);
+    // Changed settings of a recipe that already has a version: a typo fix, a new version and a
+    // separate recipe are different intentions, so ask. Otherwise there is nothing to choose.
+    if (version > 0 && !sameSettings(saved, toSettings(system, values))) return setAsking(true);
     void commit('version');
   };
 
@@ -115,7 +147,18 @@ const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps)
     <>
       {error && <ErrorText>{error}</ErrorText>}
 
-      <RecordForm fields={RECIPE_FIELDS} values={values} onChange={change} />
+      {/* Saved versions do not record their system, so a recipe that has versions keeps the one
+          it was written for. Another system means another recipe. */}
+      <RecordForm
+        fields={version > 0 ? RECIPE_FIELDS.filter(field => field.key !== 'system') : RECIPE_FIELDS}
+        values={values}
+        onChange={change}
+      />
+      {version > 0 && (
+        <p className={labelText}>
+          Camera system: {SYSTEMS[system].label} — fixed once a version exists
+        </p>
+      )}
 
       <PickField
         label="Start from a preset"
@@ -126,34 +169,50 @@ const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps)
         onChange={applyPreset}
       />
 
-      <h3 className={labelTitle}>{SYSTEMS[system].label} settings</h3>
+      <h3 className={labelTitle}>
+        {SYSTEMS[system].label} settings{version > 0 && ` — v${version}`}
+      </h3>
       <RecordForm fields={settingFields} values={values} onChange={change} />
 
       <div className={css.actions}>
+        {onDelete && (
+          <Button className={css.destructive} variant="plain" onClick={() => setConfirming(true)}>
+            Delete recipe
+          </Button>
+        )}
         <Button onClick={onDone}>Cancel</Button>
         <Button variant="primary" loading={busy} onClick={submit}>
           Save recipe
         </Button>
       </div>
 
-      <AlertDialogRoot open={asking} onOpenChange={setAsking}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Settings changed</AlertDialogTitle>
-            <AlertDialogDescription>
-              Update “{recipe?.name}”, or save these settings as a new recipe? Updating adds a
-              version; linked photos keep the old one.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <Button onClick={() => setAsking(false)}>Cancel</Button>
-            <Button onClick={() => void commit('new')}>Save as new recipe</Button>
-            <Button variant="primary" onClick={() => void commit('version')}>
-              Update this recipe
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialogRoot>
+      <ConfirmDialog
+        open={asking}
+        onOpenChange={setAsking}
+        title="How should this change be saved?"
+        actions={[
+          { label: 'Save as new recipe', onSelect: () => void commit('new') },
+          { label: `Correct v${version}`, onSelect: () => void commit('correct') },
+          {
+            label: `Save as v${version + 1}`,
+            primary: true,
+            onSelect: () => void commit('version'),
+          },
+        ]}
+      >
+        Correct v{version} fixes a mistake in place. Save as v{version + 1} keeps v{version} in the
+        history. Save as new recipe leaves “{recipe?.name}” untouched.
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title="Delete this recipe?"
+        actions={[{ label: 'Delete', primary: true, onSelect: () => void remove() }]}
+      >
+        Use this for a recipe entered by mistake. If you only stopped using it, set its state to
+        Archived so it stays in your record. Deleting removes every version and cannot be undone.
+      </ConfirmDialog>
     </>
   );
 };
@@ -167,8 +226,6 @@ export const RecipesPage = () => {
   const goBack = useGoBack('/recipes');
   const recipes = useCollection(recipeCollection);
   const versions = useCollection(recipeVersionCollection);
-  const [importing, setImporting] = useState(false);
-  const [importError, setImportError] = useState('');
 
   const ready = recipes.status === 'ready' && versions.status === 'ready';
   const editing = id !== undefined;
@@ -190,22 +247,26 @@ export const RecipesPage = () => {
     })),
   ];
 
-  // The owner's own recipes can be imported at any time; ones already present are skipped.
-  const missingStarters = STARTER_RECIPES.filter(
-    starter => !recipes.items.some(recipe => recipe.name === starter.name),
-  );
-
   const create = async (meta: Meta, settings: RecipeSettings) => {
     const recipe = await recipeCollection.save({
       ...meta,
       baseSimulation: settings.simulation ?? null,
     });
-    await recipeVersionCollection.save({
-      recipeId: recipe.id,
-      version: 1,
-      settings,
-      sourceUrl: null,
-    } satisfies Omit<RecipeVersion, 'id'>);
+    // A recipe known only by name gets no version: "no settings yet" and "v1" are different.
+    if (!hasSettings(settings)) return;
+    try {
+      await recipeVersionCollection.save({
+        recipeId: recipe.id,
+        version: 1,
+        settings,
+        sourceUrl: null,
+      } satisfies Omit<RecipeVersion, 'id'>);
+    } catch (cause) {
+      // The two inserts are not one transaction. Undo the first so a retry does not leave a
+      // second recipe behind, then report the original failure.
+      await recipeCollection.remove(recipe.id).catch(() => undefined);
+      throw cause;
+    }
   };
 
   const saveRecipe: SaveRecipe = async (meta, settings, target) => {
@@ -214,36 +275,28 @@ export const RecipesPage = () => {
       const name = current && meta.name === current.name ? `${meta.name} (copy)` : meta.name;
       await create({ ...meta, name }, settings);
     } else {
-      await recipeCollection.save({
-        ...current,
-        ...meta,
-        baseSimulation: settings.simulation ?? null,
-      });
-      if (!latest || !sameSettings(latest.settings, settings))
+      // Settings first, then the recipe's own fields. The two writes are not one transaction;
+      // in this order a failure of the first changes nothing, and a failure of the second only
+      // leaves the name or state as it was.
+      if (latest && target === 'correct')
+        // A mistake is fixed where it is: the version keeps its number, and photos linked to it
+        // show the corrected values.
+        await recipeVersionCollection.save({ ...latest, settings });
+      else if (hasSettings(settings) && (!latest || !sameSettings(latest.settings, settings)))
         await recipeVersionCollection.save({
           recipeId: current.id,
           version: (latest?.version ?? 0) + 1,
           settings,
           sourceUrl: latest?.sourceUrl ?? null,
         });
+      await recipeCollection.save({
+        ...current,
+        ...meta,
+        system: latest ? systemOf(current) : meta.system,
+        baseSimulation: settings.simulation ?? null,
+      });
     }
     await Promise.all([recipes.reload(), versions.reload()]);
-  };
-
-  const importStarters = async () => {
-    setImporting(true);
-    setImportError('');
-    try {
-      for (const starter of missingStarters)
-        await create(
-          { name: starter.name, system: STARTER_SYSTEM, state: starter.state, note: null },
-          starter.settings,
-        );
-      await Promise.all([recipes.reload(), versions.reload()]);
-    } catch {
-      setImportError('Import stopped partway. Check the list before trying again.');
-    }
-    setImporting(false);
   };
 
   return (
@@ -262,7 +315,14 @@ export const RecipesPage = () => {
                 key={id}
                 recipe={current}
                 saved={latest?.settings ?? {}}
-                presets={presets.filter(item => item.value !== `recipe:${current?.id}`)}
+                version={latest?.version ?? 0}
+                onDelete={current ? () => recipes.remove(current.id) : undefined}
+                // Not itself, and — once the system is fixed — only presets of that system.
+                presets={presets.filter(
+                  item =>
+                    item.value !== `recipe:${current?.id}` &&
+                    (!latest || !current || item.system === systemOf(current)),
+                )}
                 onSave={saveRecipe}
                 onDone={goBack}
               />
@@ -293,20 +353,10 @@ export const RecipesPage = () => {
               />
             )}
 
-            {importError && <ErrorText>{importError}</ErrorText>}
-
             {ready && recipes.items.length === 0 && (
               <EmptyState title="No recipe registered">
-                Start a new recipe for any camera, or import the ones you wrote down.
+                Start a new recipe for any camera. Your recipes are visible only to you.
               </EmptyState>
-            )}
-
-            {ready && missingStarters.length > 0 && (
-              <div className={css.actions}>
-                <Button loading={importing} onClick={() => void importStarters()}>
-                  Import my recipes ({missingStarters.length})
-                </Button>
-              </div>
             )}
 
             {recipes.items.length > 0 && (

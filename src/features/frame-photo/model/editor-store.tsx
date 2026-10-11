@@ -1,4 +1,12 @@
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import { DEFAULT_PAPER, DEFAULT_PRESET, type OutputPreset, type Paper } from '@/entities/frame';
 import { type ExifInfo, type FocalMode, readExif } from '@/entities/photo';
@@ -56,6 +64,7 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
   const [focalMode, setFocalMode] = useState<FocalMode>('actual');
   const [detail, setDetail] = useState<ExportDetail>('optimized');
   const [error, setError] = useState('');
+  const latestOpen = useRef(0);
 
   useEffect(() => () => source?.bitmap.close(), [source]);
 
@@ -70,16 +79,24 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
       error,
       open: async file => {
         if (!file) return;
+        // Opening a second photo before the first finishes decoding must not let the slower,
+        // older one win. Only the latest request may update the editor.
+        const request = ++latestOpen.current;
         setError('');
         try {
           const [bitmap, exif] = await Promise.all([
             createImageBitmap(file, { imageOrientation: 'from-image' }),
             readExif(file),
           ]);
+          if (request !== latestOpen.current) return bitmap.close();
           setSource({ name: file.name, bitmap, exif });
           // Choices made for the previous photo do not carry over.
           setPicks({});
+          // 35mm equivalent is only offered when the photo records it. Keeping the mode from a
+          // previous photo would label an actual focal length as an equivalent.
+          if (exif.focalLength35 === undefined) setFocalMode('actual');
         } catch {
+          if (request !== latestOpen.current) return;
           setError("This file can't be opened. Use a photo exported as JPEG, PNG or WebP.");
         }
       },

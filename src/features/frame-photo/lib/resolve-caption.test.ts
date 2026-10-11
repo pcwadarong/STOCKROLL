@@ -106,6 +106,18 @@ describe('resolveCaption', () => {
     expect(result.caption.rightSecondary).toBe('ETERNA / Cinema');
   });
 
+  it('when a Fujifilm simulation is still picked after switching to another camera system, it must not be printed', () => {
+    const result = resolveCaption(
+      { camera: 'c3', look: 'sim:Velvia / Vivid' },
+      {},
+      'actual',
+      library,
+    );
+
+    expect(result.caption.rightSecondary).toBe('');
+    expect(result.lookValue).toBe('');
+  });
+
   it('when the camera is a film camera, the look slot must be the film stock and ignore any recipe pick', () => {
     const result = resolveCaption(
       { camera: 'c2', film: 'f1', look: 'recipe:r1' },

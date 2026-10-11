@@ -6,7 +6,7 @@ import { onAuthChange } from '../api/supabase';
 /**
  * Loads a collection and keeps it in sync after saves and sign-in changes.
  * @param collection the record store to read from
- * @returns the records, a loading/error status, and a save action that reloads the list
+ * @returns the records, a loading/error status, and save/remove actions that reload the list
  */
 export const useCollection = <T extends Row>(collection: Collection<T>) => {
   const [items, setItems] = useState<T[]>([]);
@@ -49,5 +49,16 @@ export const useCollection = <T extends Row>(collection: Collection<T>) => {
     [collection, reload],
   );
 
-  return { items, status, save, reload };
+  const remove = useCallback(
+    async (id: string) => {
+      await collection.remove(id);
+      // Drop it locally first. If the reload that follows fails, the list must still not show a
+      // record that no longer exists.
+      setItems(prev => prev.filter(item => item.id !== id));
+      await reload();
+    },
+    [collection, reload],
+  );
+
+  return { items, status, save, remove, reload };
 };

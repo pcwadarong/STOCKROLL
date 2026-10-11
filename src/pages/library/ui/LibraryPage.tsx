@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, NavLink, useParams } from 'react-router';
+import { Link, Navigate, NavLink, useParams } from 'react-router';
 
 import {
   CAMERA_DEFAULTS,
@@ -24,6 +24,7 @@ import {
 import { useCollection } from '@/shared/lib/use-collection';
 import { useGoBack } from '@/shared/lib/use-go-back';
 import { Button } from '@/shared/ui/Button';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorText } from '@/shared/ui/ErrorText';
 import { labelText } from '@/shared/ui/label.css';
@@ -89,13 +90,29 @@ type GearFormProps = {
   section: Section;
   initial: RecordValues;
   onSave: (values: RecordValues) => Promise<unknown>;
+  /** Present only when editing an existing item; a new one has nothing to delete. */
+  onDelete?: () => Promise<void>;
   onDone: () => void;
 };
 
-const GearForm = ({ section, initial, onSave, onDone }: GearFormProps) => {
+const GearForm = ({ section, initial, onSave, onDelete, onDone }: GearFormProps) => {
   const [values, setValues] = useState<RecordValues>(initial);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  const remove = async () => {
+    if (!onDelete) return;
+    setSaving(true);
+    setError('');
+    try {
+      await onDelete();
+      onDone();
+    } catch {
+      setError(MESSAGES.deleteFailed);
+      setSaving(false);
+    }
+  };
 
   const submit = async () => {
     const normalized = normalizeRecord(section.fields, values);
@@ -122,28 +139,50 @@ const GearForm = ({ section, initial, onSave, onDone }: GearFormProps) => {
         onChange={(key, value) => setValues(prev => ({ ...prev, [key]: value }))}
       />
       <div className={css.actions}>
+        {onDelete && (
+          <Button className={css.destructive} variant="plain" onClick={() => setConfirming(true)}>
+            Delete {section.singular}
+          </Button>
+        )}
         <Button onClick={onDone}>Cancel</Button>
         <Button variant="primary" loading={saving} onClick={() => void submit()}>
           Save {section.singular}
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title={`Delete this ${section.singular}?`}
+        actions={[{ label: 'Delete', primary: true, onSelect: () => void remove() }]}
+      >
+        Use this for an entry made by mistake. If you simply stopped using it, change its status
+        instead so it stays in your record. Deleting cannot be undone.
+      </ConfirmDialog>
     </>
   );
 };
 
 /**
  * Gear library: lists registered cameras, lenses and films, and hosts the form for adding or
- * editing one. Gear is never deleted — past photos refer to it — so status is changed instead.
+ * editing one. Gear you no longer use keeps its place in the record: change its status rather
+ * than deleting it. Delete exists for entries made by mistake.
  */
 export const LibraryPage = () => {
-  const { kind = 'cameras', id } = useParams();
+  const { kind: kindParam = 'cameras', id } = useParams();
+  // The kind comes from the URL. Accept only real sections: a plain lookup would also "find"
+  // inherited keys such as `toString`, and an unknown kind would produce broken links.
+  const known = Object.hasOwn(SECTIONS, kindParam);
+  const kind = known ? kindParam : 'cameras';
   const goBack = useGoBack(`/library/${kind}`);
-  const section = SECTIONS[kind] ?? SECTIONS.cameras!;
-  const { items, status, save } = useCollection(section.collection);
+  const section = SECTIONS[kind]!;
+  const { items, status, save, remove } = useCollection(section.collection);
 
   const editing = id !== undefined;
   const current = id && id !== 'new' ? items.find(item => item.id === id) : undefined;
   const waitingForItem = editing && id !== 'new' && !current;
+
+  if (!known) return <Navigate to="/library/cameras" replace />;
 
   return (
     <PageShell>
@@ -171,6 +210,7 @@ export const LibraryPage = () => {
                 section={section}
                 initial={current ?? section.defaults}
                 onSave={values => save(values as GearRow)}
+                onDelete={current ? () => remove(current.id) : undefined}
                 onDone={goBack}
               />
             )}

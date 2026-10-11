@@ -90,6 +90,27 @@ export const sameSettings = (a: RecipeSettings, b: RecipeSettings) =>
   );
 
 /**
+ * Blank values for every setting of every system.
+ * Systems reuse keys such as `simulation` and `sharpness`, so switching a recipe's system has to
+ * wipe them all — otherwise a Fujifilm simulation would be saved as a Ricoh image control.
+ * @returns an object mapping each known setting key to an empty string
+ */
+export const blankSettings = (): RecipeSettings =>
+  Object.fromEntries(
+    Object.values(SYSTEMS).flatMap(system => system.fields.map(({ key }) => [key, ''])),
+  );
+
+/**
+ * Tells whether any setting was actually entered.
+ * A recipe known only by name has no version at all, which is different from a version that
+ * records settings.
+ * @param settings settings to check
+ * @returns true when at least one setting has a value
+ */
+export const hasSettings = (settings: RecipeSettings) =>
+  Object.values(settings).some(value => value.trim() !== '');
+
+/**
  * Keeps only the filled-in settings that belong to a system, so unknown settings are not stored
  * as empty strings and switching system does not carry stray fields over.
  * @param system camera system whose fields are allowed

@@ -7,7 +7,7 @@ import {
   formatShutter,
   parseShutter,
 } from '@/entities/photo';
-import { type Recipe, systemOf, systemOfCamera } from '@/entities/recipe';
+import { type Recipe, systemOf, systemOfCamera, SYSTEMS } from '@/entities/recipe';
 
 import type { Picks } from '../model/editor-store';
 
@@ -85,7 +85,10 @@ export const resolveCaption = (
   const recipe = library.recipes.find(
     item => `recipe:${item.id}` === look && systemOf(item) === system,
   );
-  const lookText = recipe?.name ?? (look.startsWith('sim:') ? look.slice(4) : '');
+  // A plain look is only valid for the system that offers it. A pick left over from a previous
+  // camera (a Fujifilm simulation after switching to a Ricoh) is dropped, not printed.
+  const plainLook = look.startsWith('sim:') ? look.slice(4) : '';
+  const lookText = recipe?.name ?? (SYSTEMS[system].baseLooks.includes(plainLook) ? plainLook : '');
 
   return {
     exifCamera,

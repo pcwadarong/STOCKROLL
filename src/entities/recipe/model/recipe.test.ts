@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { latestVersion, type RecipeVersion, sameSettings, systemOf, toSettings } from './recipe';
+import {
+  blankSettings,
+  hasSettings,
+  latestVersion,
+  type RecipeVersion,
+  sameSettings,
+  systemOf,
+  toSettings,
+} from './recipe';
 import { systemOfCamera } from './systems';
 
 const version = (recipeId: string, number: number): RecipeVersion => ({
@@ -45,6 +53,28 @@ describe('toSettings', () => {
 
   it('when values hold fields of another system, it must drop them', () => {
     expect(toSettings('ricoh', { colorChrome: 'Strong', hue: '+1' })).toEqual({ hue: '+1' });
+  });
+});
+
+describe('blankSettings', () => {
+  it('when a recipe switches system, the blanks must cover keys shared by several systems and keys unique to one', () => {
+    const blanks = blankSettings();
+
+    expect(blanks.simulation).toBe('');
+    expect(blanks.colorChrome).toBe('');
+    expect(blanks.highLowKey).toBe('');
+    expect(toSettings('ricoh', { simulation: 'Classic Chrome', ...blanks })).toEqual({});
+  });
+});
+
+describe('hasSettings', () => {
+  it('when nothing or only blanks were entered, it must report no settings', () => {
+    expect(hasSettings({})).toBe(false);
+    expect(hasSettings({ color: '  ' })).toBe(false);
+  });
+
+  it('when one setting has a value, it must report settings', () => {
+    expect(hasSettings({ color: '+2' })).toBe(true);
   });
 });
 

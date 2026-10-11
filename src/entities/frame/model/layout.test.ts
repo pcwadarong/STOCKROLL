@@ -72,10 +72,13 @@ describe('computeLayout', () => {
     expect(layout.caption.y).toBeGreaterThan(layout.photo.y + layout.photo.height);
   });
 
-  it('when full detail is chosen but the photo is smaller than the preset, the canvas must not shrink below the preset size', () => {
+  it('when full detail is chosen but the photo is smaller than the preset, the canvas must keep the preset size and the photo its own size', () => {
     const layout = computeLayout({ width: 600, height: 400 }, preset('3x4'), 'full');
 
     expect(layout.canvas).toEqual({ width: 1080, height: 1440 });
+    expect(layout.photo.width).toBe(600);
+    expect(layout.photo.height).toBe(400);
+    expect(layout.caption.width).toBe(600);
   });
 
   it('when full detail would exceed the browser canvas limit, the canvas must be scaled down to stay within it', () => {

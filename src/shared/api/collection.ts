@@ -10,6 +10,8 @@ export type Collection<T extends Row> = {
   list: () => Promise<T[]>;
   /** Inserts the draft when it has no id, otherwise updates that record. Requires sign-in. */
   save: (draft: Draft<T>) => Promise<T>;
+  /** Deletes one record for good. Requires sign-in. */
+  remove: (id: string) => Promise<void>;
 };
 
 const hasSession = async () =>
@@ -20,7 +22,7 @@ const hasSession = async () =>
  * Records exist only for signed-in users: there is no device-local copy, so a signed-out visitor
  * sees an empty list and cannot save.
  * @param table Postgres table name
- * @returns list and save operations
+ * @returns list, save and remove operations
  */
 export const createCollection = <T extends Row>(table: string): Collection<T> => ({
   list: async () => {
@@ -41,5 +43,11 @@ export const createCollection = <T extends Row>(table: string): Collection<T> =>
     const { data, error } = await query.select().single();
     if (error) throw new Error(error.message);
     return toCamel(data) as T;
+  },
+
+  remove: async id => {
+    if (!supabase || !(await hasSession())) throw new Error('Sign in to delete records');
+    const { error } = await supabase.from(table).delete().eq('id', id);
+    if (error) throw new Error(error.message);
   },
 });
