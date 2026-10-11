@@ -54,8 +54,8 @@ export const empty = style({
 export const panel = style({
   display: 'flex',
   flexDirection: 'column',
-  gap: vars.$dimension.x6,
-  padding: vars.$dimension.x4,
+  gap: vars.$dimension.x8,
+  padding: vars.$dimension.x5,
   paddingBottom: `max(${vars.$dimension.x4}, env(safe-area-inset-bottom))`,
   overflowY: 'auto',
   background: vars.$color.bg.layerDefault,
@@ -81,7 +81,8 @@ export const group = style({
 // Section headings use the third color (brown), set as a small label.
 export const legend = style([
   labelTitle,
-  { padding: 0, marginBottom: vars.$dimension.x2, color: tertiary },
+  // Padding, not margin: browsers ignore a legend's bottom margin inside a fieldset.
+  { padding: 0, paddingBottom: vars.$dimension.x3, color: tertiary },
 ]);
 
 export const field = style({

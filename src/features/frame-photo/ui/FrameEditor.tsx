@@ -191,9 +191,11 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
               35mm equiv.
             </SegmentedControlItem>
           </SegmentedControl>
-          {hasPhoto && !has35mm && (
+          {!has35mm && (
             <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
-              This file has no 35mm-equivalent focal length recorded.
+              {hasPhoto
+                ? 'This file has no 35mm-equivalent focal length recorded, so only the actual value is available.'
+                : '35mm equivalent becomes available when the opened photo records it.'}
             </Text>
           )}
         </fieldset>

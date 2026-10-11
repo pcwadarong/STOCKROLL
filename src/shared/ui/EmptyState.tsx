@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react';
 
 import * as css from './EmptyState.css';
-import { labelTitle } from './label.css';
 
 type EmptyStateProps = {
-  /** Short statement of what is missing, set as a label. */
+  /** Short statement of what is missing, set in the display face. */
   title: string;
   /** One or two sentences on what to do about it. */
   children: ReactNode;
@@ -18,7 +17,7 @@ type EmptyStateProps = {
  */
 export const EmptyState = ({ title, children, action }: EmptyStateProps) => (
   <div className={css.root}>
-    <p className={labelTitle}>{title}</p>
+    <p className={css.title}>{title}</p>
     <p className={css.body}>{children}</p>
     {action}
   </div>

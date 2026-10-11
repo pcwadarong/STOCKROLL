@@ -21,7 +21,7 @@ export const SignInGate = ({ what, children }: { what: string; children: ReactNo
   const subject = `${what[0]?.toUpperCase()}${what.slice(1)}`;
 
   return (
-    <Panel title="Account">
+    <Panel>
       <EmptyState
         title="Sign in required"
         action={

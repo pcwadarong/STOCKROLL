@@ -41,6 +41,8 @@ globalStyle(ROOT, {
     '--seed-color-fg-neutral-muted': S.inkMuted,
     '--seed-color-fg-neutral-subtle': B.gray,
     '--seed-color-fg-placeholder': S.inkFaint,
+    // Disabled text stays in the warm ink family instead of SEED's cool gray.
+    '--seed-color-fg-disabled': S.inkFaint,
     '--seed-color-fg-neutral-inverted': B.cream,
     '--seed-color-fg-on-neutral-solid': B.cream,
     '--seed-color-bg-neutral-inverted': B.black,
