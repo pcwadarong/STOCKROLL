@@ -3,7 +3,7 @@ import { globalStyle, style } from '@vanilla-extract/css';
 
 import { tertiary } from '@/shared/config/accent.css';
 import { SHADE } from '@/shared/config/palette';
-import { COMPACT_MEDIA_QUERY } from '@/shared/config/responsive';
+import { COMPACT_MEDIA_QUERY, SHORT_COMPACT_MEDIA_QUERY } from '@/shared/config/responsive';
 import { labelText, labelTitle } from '@/shared/ui/label.css';
 
 export const root = style({
@@ -48,6 +48,13 @@ export const stage = style({
       background: vars.$color.bg.layerBasement,
       borderBottom: `1px solid ${vars.$color.stroke.neutralWeak}`,
     },
+    // A phone on its side has no height to spare for a pinned preview: let it scroll away.
+    [SHORT_COMPACT_MEDIA_QUERY]: { position: 'relative' },
+  },
+  selectors: {
+    // The on-screen keyboard covers the lower half without changing any CSS viewport unit, so a
+    // pinned preview would sit over the field being typed in. Unpin it while a field has focus.
+    [`${root}:has(input[inputmode]:focus) &`]: { position: 'relative' },
   },
 });
 

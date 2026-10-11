@@ -4,6 +4,9 @@
  */
 export const COMPACT_MEDIA_QUERY = 'screen and (max-width: 760px)';
 
+/** Compact width with very little height, such as a phone held sideways. */
+export const SHORT_COMPACT_MEDIA_QUERY = 'screen and (max-width: 760px) and (max-height: 520px)';
+
 /** Phone-sized widths, where rows that sit side by side on larger screens stack. */
 export const NARROW_MEDIA_QUERY = 'screen and (max-width: 560px)';
 
