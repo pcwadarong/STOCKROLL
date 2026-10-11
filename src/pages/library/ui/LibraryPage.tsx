@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, NavLink, useParams } from 'react-router';
+import { Link, Navigate, NavLink, useParams } from 'react-router';
 
 import {
   CAMERA_DEFAULTS,
@@ -169,14 +169,20 @@ const GearForm = ({ section, initial, onSave, onDelete, onDone }: GearFormProps)
  * than deleting it. Delete exists for entries made by mistake.
  */
 export const LibraryPage = () => {
-  const { kind = 'cameras', id } = useParams();
+  const { kind: kindParam = 'cameras', id } = useParams();
+  // The kind comes from the URL. Accept only real sections: a plain lookup would also "find"
+  // inherited keys such as `toString`, and an unknown kind would produce broken links.
+  const known = Object.hasOwn(SECTIONS, kindParam);
+  const kind = known ? kindParam : 'cameras';
   const goBack = useGoBack(`/library/${kind}`);
-  const section = SECTIONS[kind] ?? SECTIONS.cameras!;
+  const section = SECTIONS[kind]!;
   const { items, status, save, remove } = useCollection(section.collection);
 
   const editing = id !== undefined;
   const current = id && id !== 'new' ? items.find(item => item.id === id) : undefined;
   const waitingForItem = editing && id !== 'new' && !current;
+
+  if (!known) return <Navigate to="/library/cameras" replace />;
 
   return (
     <PageShell>

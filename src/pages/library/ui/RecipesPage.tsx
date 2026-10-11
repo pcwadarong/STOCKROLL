@@ -111,10 +111,14 @@ const RecipeForm = ({
     setPreset(value);
     const chosen = presets.find(item => item.value === value);
     if (!chosen) return;
-    // Replace every setting so nothing from a previous preset lingers. A preset also brings its
-    // camera system, since its settings only make sense there.
-    const cleared = Object.fromEntries(SYSTEMS[chosen.system].fields.map(({ key }) => [key, '']));
-    setValues(prev => ({ ...prev, ...cleared, ...chosen.settings, system: chosen.system }));
+    // Replace every setting of every system so nothing from a previous preset or system lingers.
+    // A preset also brings its camera system, since its settings only make sense there.
+    setValues(prev => ({
+      ...prev,
+      ...blankSettings(),
+      ...chosen.settings,
+      system: chosen.system,
+    }));
   };
 
   const commit = async (target: SaveTarget) => {
@@ -145,7 +149,18 @@ const RecipeForm = ({
     <>
       {error && <ErrorText>{error}</ErrorText>}
 
-      <RecordForm fields={RECIPE_FIELDS} values={values} onChange={change} />
+      {/* Saved versions do not record their system, so a recipe that has versions keeps the one
+          it was written for. Another system means another recipe. */}
+      <RecordForm
+        fields={version > 0 ? RECIPE_FIELDS.filter(field => field.key !== 'system') : RECIPE_FIELDS}
+        values={values}
+        onChange={change}
+      />
+      {version > 0 && (
+        <p className={labelText}>
+          Camera system: {SYSTEMS[system].label} — fixed once a version exists
+        </p>
+      )}
 
       <PickField
         label="Start from a preset"
@@ -272,11 +287,9 @@ export const RecipesPage = () => {
       const name = current && meta.name === current.name ? `${meta.name} (copy)` : meta.name;
       await create({ ...meta, name }, settings);
     } else {
-      await recipeCollection.save({
-        ...current,
-        ...meta,
-        baseSimulation: settings.simulation ?? null,
-      });
+      // Settings first, then the recipe's own fields. The two writes are not one transaction;
+      // in this order a failure of the first changes nothing, and a failure of the second only
+      // leaves the name or state as it was.
       if (latest && target === 'correct')
         // A mistake is fixed where it is: the version keeps its number, and photos linked to it
         // show the corrected values.
@@ -288,6 +301,12 @@ export const RecipesPage = () => {
           settings,
           sourceUrl: latest?.sourceUrl ?? null,
         });
+      await recipeCollection.save({
+        ...current,
+        ...meta,
+        system: latest ? systemOf(current) : meta.system,
+        baseSimulation: settings.simulation ?? null,
+      });
     }
     await Promise.all([recipes.reload(), versions.reload()]);
   };
@@ -328,7 +347,12 @@ export const RecipesPage = () => {
                 saved={latest?.settings ?? {}}
                 version={latest?.version ?? 0}
                 onDelete={current ? () => recipes.remove(current.id) : undefined}
-                presets={presets.filter(item => item.value !== `recipe:${current?.id}`)}
+                // Not itself, and — once the system is fixed — only presets of that system.
+                presets={presets.filter(
+                  item =>
+                    item.value !== `recipe:${current?.id}` &&
+                    (!latest || !current || item.system === systemOf(current)),
+                )}
                 onSave={saveRecipe}
                 onDone={goBack}
               />
