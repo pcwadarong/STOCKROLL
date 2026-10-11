@@ -1,4 +1,3 @@
-import { Text } from '@seed-design/react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 
@@ -18,11 +17,18 @@ import {
   SYSTEMS,
   toSettings,
 } from '@/entities/recipe';
+import { SignInGate } from '@/features/auth';
+import { MESSAGES } from '@/shared/config/messages';
 import { missingRequired, normalizeRecord, type RecordValues } from '@/shared/lib/record-field';
 import { useCollection } from '@/shared/lib/use-collection';
 import { useGoBack } from '@/shared/lib/use-go-back';
 import { Button } from '@/shared/ui/Button';
-import { card, labelText } from '@/shared/ui/label.css';
+import { EmptyState } from '@/shared/ui/EmptyState';
+import { ErrorText } from '@/shared/ui/ErrorText';
+import { labelText, labelTitle } from '@/shared/ui/label.css';
+import { formatCount, MetaList } from '@/shared/ui/MetaList';
+import { PageHeader } from '@/shared/ui/PageHeader';
+import { Panel } from '@/shared/ui/Panel';
 import { PickField } from '@/shared/ui/PickField';
 import { RecordForm } from '@/shared/ui/RecordForm';
 import { PageShell } from '@/widgets/page-shell';
@@ -34,9 +40,6 @@ import {
   AlertDialogRoot,
   AlertDialogTitle,
 } from 'seed-design/ui/alert-dialog';
-import { Callout } from 'seed-design/ui/callout';
-
-import { count, MetaList } from './LibraryPage';
 
 import * as css from './LibraryPage.css';
 
@@ -94,14 +97,14 @@ const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps)
       await onSave(meta, toSettings(system, values), target);
       onDone();
     } catch {
-      setError('Could not save. Check your connection and try again.');
+      setError(MESSAGES.saveFailed);
       setBusy(false);
     }
   };
 
   const submit = () => {
     const missing = missingRequired(RECIPE_FIELDS, normalizeRecord(RECIPE_FIELDS, values));
-    if (missing.length > 0) return setError(`Fill in: ${missing.join(', ')}`);
+    if (missing.length > 0) return setError(MESSAGES.fillIn(missing));
     if (!recipe) return void commit('new');
     // Changed settings of an existing recipe: let the user decide where the change goes.
     if (!sameSettings(saved, toSettings(system, values))) return setAsking(true);
@@ -110,7 +113,7 @@ const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps)
 
   return (
     <>
-      {error && <Callout tone="critical" role="alert" description={error} />}
+      {error && <ErrorText>{error}</ErrorText>}
 
       <RecordForm fields={RECIPE_FIELDS} values={values} onChange={change} />
 
@@ -123,7 +126,7 @@ const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps)
         onChange={applyPreset}
       />
 
-      <h3 className={`${labelText} ${css.panelTitle}`}>{SYSTEMS[system].label} settings</h3>
+      <h3 className={labelTitle}>{SYSTEMS[system].label} settings</h3>
       <RecordForm fields={settingFields} values={values} onChange={change} />
 
       <div className={css.actions}>
@@ -245,25 +248,15 @@ export const RecipesPage = () => {
 
   return (
     <PageShell>
-      <div className={css.intro}>
-        <h1 className={css.heading}>Recipes</h1>
-        <Text as="p" color="fg.neutralMuted">
-          Film simulation recipes for your Fujifilm camera.
-        </Text>
-      </div>
+      <PageHeader title="Recipes" lead="Camera settings you shoot with, kept per camera system." />
 
-      <section className={`${card} ${css.panel}`}>
+      <SignInGate what="recipes">
         {editing ? (
-          <>
-            <div className={css.header}>
-              <h2 className={`${labelText} ${css.panelTitle}`}>
-                {id === 'new' ? 'New recipe' : 'Edit recipe'}
-              </h2>
-            </div>
+          <Panel title={id === 'new' ? 'New recipe' : 'Edit recipe'}>
             {!ready || (id !== 'new' && !current) ? (
-              <Text as="p" color="fg.neutralMuted" aria-live="polite">
-                {ready ? 'This recipe no longer exists.' : 'Loading…'}
-              </Text>
+              <EmptyState title={ready ? 'Not found' : 'Loading'}>
+                {ready ? 'This recipe no longer exists.' : 'One moment.'}
+              </EmptyState>
             ) : (
               <RecipeForm
                 key={id}
@@ -274,38 +267,38 @@ export const RecipesPage = () => {
                 onDone={goBack}
               />
             )}
-          </>
+          </Panel>
         ) : (
-          <>
-            <div className={css.header}>
-              <h2 className={`${labelText} ${css.panelTitle}`}>All recipes</h2>
+          <Panel
+            title="All recipes"
+            action={
               <Button variant="primary" size="small" to="/recipes/new">
                 + New recipe
               </Button>
-            </div>
-
+            }
+          >
             {ready && (
               <MetaList
                 rows={[
                   { label: 'Status', value: recipes.items.length === 0 ? 'Empty' : 'Ready' },
-                  { label: 'Registered', value: count(recipes.items.length) },
+                  { label: 'Registered', value: formatCount(recipes.items.length) },
                   {
                     label: 'In the camera',
-                    value: count(recipes.items.filter(item => item.state === 'active').length),
+                    value: formatCount(
+                      recipes.items.filter(item => item.state === 'active').length,
+                    ),
                   },
                   { label: 'Last added', value: recipes.items.at(-1)?.name ?? '—' },
                 ]}
               />
             )}
 
-            {importError && <Callout tone="critical" role="alert" description={importError} />}
+            {importError && <ErrorText>{importError}</ErrorText>}
+
             {ready && recipes.items.length === 0 && (
-              <div className={css.empty}>
-                <p className={`${labelText} ${css.panelTitle}`}>No recipe registered</p>
-                <Text as="p" color="fg.neutralMuted">
-                  Start a new recipe for any camera, or import the ones you wrote down.
-                </Text>
-              </div>
+              <EmptyState title="No recipe registered">
+                Start a new recipe for any camera, or import the ones you wrote down.
+              </EmptyState>
             )}
 
             {ready && missingStarters.length > 0 && (
@@ -329,7 +322,7 @@ export const RecipesPage = () => {
                   return (
                     <li key={recipe.id}>
                       <Link to={`/recipes/${recipe.id}`} className={css.row}>
-                        <Text textStyle="t5Bold">{recipe.name}</Text>
+                        <span className={css.rowTitle}>{recipe.name}</span>
                         <span className={labelText}>{summary.filter(Boolean).join(' · ')}</span>
                       </Link>
                     </li>
@@ -337,9 +330,9 @@ export const RecipesPage = () => {
                 })}
               </ul>
             )}
-          </>
+          </Panel>
         )}
-      </section>
+      </SignInGate>
     </PageShell>
   );
 };

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Link, NavLink, useLocation } from 'react-router';
 
 import { AccountMenu } from '@/features/auth';
+import { COMPACT_MEDIA_QUERY } from '@/shared/config/responsive';
 
 import * as css from './AppBar.css';
 
@@ -21,6 +22,15 @@ export const AppBar = () => {
 
   // Following a link inside the drawer changes the route; close the drawer when that happens.
   useEffect(() => drawerRef.current?.close(), [pathname]);
+
+  // The drawer only exists for compact widths. If the window grows until the inline menu is back,
+  // an open drawer would duplicate it, so close it.
+  useEffect(() => {
+    const compact = window.matchMedia(COMPACT_MEDIA_QUERY);
+    const onChange = () => !compact.matches && drawerRef.current?.close();
+    compact.addEventListener('change', onChange);
+    return () => compact.removeEventListener('change', onChange);
+  }, []);
 
   return (
     <header className={css.bar}>

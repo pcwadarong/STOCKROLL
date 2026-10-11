@@ -2,8 +2,8 @@ import { vars } from '@seed-design/css/vars';
 import { style } from '@vanilla-extract/css';
 
 import { tertiary } from '@/shared/config/accent.css';
-import { NARROW_MEDIA_QUERY } from '@/shared/config/responsive';
-import { DISPLAY_FONT, LABEL_FONT } from '@/shared/config/typography';
+import { NARROW_MEDIA_QUERY, REDUCED_MOTION_QUERY } from '@/shared/config/responsive';
+import { displayText, labelText } from '@/shared/ui/label.css';
 
 const INK = vars.$color.fg.neutral;
 
@@ -16,40 +16,44 @@ export const hero = style({
 });
 
 // Quiet overline: small, wide-set, brown.
-export const overline = style({
-  margin: 0,
-  marginBottom: vars.$dimension.x5,
-  color: tertiary,
-  fontFamily: LABEL_FONT,
-  fontSize: vars.$fontSize.t2,
-  letterSpacing: '0.24em',
-  lineHeight: 1.6,
-  textTransform: 'uppercase',
-});
+export const overline = style([
+  labelText,
+  {
+    margin: 0,
+    marginBottom: vars.$dimension.x5,
+    color: tertiary,
+    fontSize: vars.$fontSize.t2,
+    letterSpacing: '0.24em',
+    lineHeight: 1.6,
+    textTransform: 'uppercase',
+  },
+]);
 
-export const wordmark = style({
-  maxWidth: '100%',
-  margin: 0,
-  marginBottom: vars.$dimension.x6,
-  color: vars.$color.fg.brand,
-  fontFamily: DISPLAY_FONT,
-  fontSize: 'clamp(3rem, 19vw, 8.5rem)',
-  fontWeight: vars.$fontWeight.regular,
-  lineHeight: 0.9,
-  letterSpacing: '0.01em',
-});
+export const wordmark = style([
+  displayText,
+  {
+    maxWidth: '100%',
+    marginBottom: vars.$dimension.x6,
+    color: vars.$color.fg.brand,
+    fontSize: 'clamp(3rem, 19vw, 8.5rem)',
+    lineHeight: 0.9,
+    letterSpacing: '0.01em',
+  },
+]);
 
 // The tagline steps back down: label-sized, one phrase per line.
-export const tagline = style({
-  display: 'grid',
-  gap: vars.$dimension.x0_5,
-  margin: 0,
-  marginBottom: vars.$dimension.x8,
-  fontFamily: LABEL_FONT,
-  fontSize: vars.$fontSize.t3,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
-});
+export const tagline = style([
+  labelText,
+  {
+    display: 'grid',
+    gap: vars.$dimension.x0_5,
+    margin: 0,
+    marginBottom: vars.$dimension.x8,
+    fontSize: vars.$fontSize.t3,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+  },
+]);
 
 // An index, like the contents column of a catalog: one ruled row per destination.
 export const index = style({
@@ -77,19 +81,11 @@ export const row = style({
   },
   '@media': {
     [NARROW_MEDIA_QUERY]: { gridTemplateColumns: 'minmax(0, 1fr) auto' },
-    '(prefers-reduced-motion: reduce)': { transition: 'none' },
+    [REDUCED_MOTION_QUERY]: { transition: 'none' },
   },
 });
 
-export const rowTitle = style({
-  margin: 0,
-  fontFamily: DISPLAY_FONT,
-  fontSize: vars.$fontSize.t7,
-  fontWeight: vars.$fontWeight.regular,
-  letterSpacing: '0.04em',
-  lineHeight: 1,
-  textTransform: 'uppercase',
-});
+export const rowTitle = style([displayText, { fontSize: vars.$fontSize.t7 }]);
 
 export const rowBody = style({
   margin: 0,
@@ -98,9 +94,13 @@ export const rowBody = style({
 });
 
 // The arrow slides right on hover.
-export const arrow = style({
-  fontFamily: LABEL_FONT,
-  transition: `transform ${vars.$duration.d3} ${vars.$timingFunction.easing}`,
-  selectors: { [`${row}:hover &, ${row}:focus-visible &`]: { transform: 'translateX(0.375rem)' } },
-  '@media': { '(prefers-reduced-motion: reduce)': { transition: 'none' } },
-});
+export const arrow = style([
+  labelText,
+  {
+    transition: `transform ${vars.$duration.d3} ${vars.$timingFunction.easing}`,
+    selectors: {
+      [`${row}:hover &, ${row}:focus-visible &`]: { transform: 'translateX(0.375rem)' },
+    },
+    '@media': { [REDUCED_MOTION_QUERY]: { transition: 'none' } },
+  },
+]);

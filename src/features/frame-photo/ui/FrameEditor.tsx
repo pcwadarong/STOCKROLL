@@ -5,8 +5,8 @@ import { OUTPUT_PRESETS, PAPERS } from '@/entities/frame';
 import { systemOf, SYSTEMS } from '@/entities/recipe';
 import { canShareFiles } from '@/shared/lib/save-file';
 import { Button } from '@/shared/ui/Button';
+import { ErrorText } from '@/shared/ui/ErrorText';
 import { PickField, type PickOption } from '@/shared/ui/PickField';
-import { Callout } from 'seed-design/ui/callout';
 import { Chip } from 'seed-design/ui/chip';
 import { SegmentedControl, SegmentedControlItem } from 'seed-design/ui/segmented-control';
 import { TextField, TextFieldInput } from 'seed-design/ui/text-field';
@@ -45,8 +45,9 @@ const AddLink = ({ to, children }: { to: string; children: string }) => (
 /**
  * Editor that adds a shooting-info frame to a single photo and exports it as JPEG.
  * Preview on the left (top on mobile), settings panel on the right (bottom on mobile).
+ * @param props `signedIn` enables the links to register gear and recipes, which need an account
  */
-export const FrameEditor = () => {
+export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
   const { canvasRef, store, library, resolved, outputSize, exportJpeg } = useFrameEditor();
   const { source, picks, preset, paper, focalMode, detail, error } = store;
   const { setPick, setPreset, setPaper, setFocalMode, setDetail } = store;
@@ -116,7 +117,7 @@ export const FrameEditor = () => {
           }}
         />
 
-        {error && <Callout tone="critical" role="alert" description={error} />}
+        {error && <ErrorText>{error}</ErrorText>}
 
         <fieldset className={css.group}>
           <legend className={css.legend}>Output</legend>
@@ -190,15 +191,22 @@ export const FrameEditor = () => {
               35mm equiv.
             </SegmentedControlItem>
           </SegmentedControl>
-          {hasPhoto && !has35mm && (
+          {!has35mm && (
             <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
-              This file has no 35mm-equivalent focal length recorded.
+              {hasPhoto
+                ? 'This file has no 35mm-equivalent focal length recorded, so only the actual value is available.'
+                : '35mm equivalent becomes available when the opened photo records it.'}
             </Text>
           )}
         </fieldset>
 
         <fieldset className={css.group}>
           <legend className={css.legend}>Info</legend>
+          {!signedIn && (
+            <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
+              Sign in to pick from your own cameras, lenses, films and recipes.
+            </Text>
+          )}
           {scanner && (
             <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
               This file was written by a scanner ({scanner}), so it has no camera info. Enter the
@@ -213,7 +221,7 @@ export const FrameEditor = () => {
               options={gearOptions(library.cameras, resolved.exifCamera)}
               onChange={pick('camera')}
             />
-            <AddLink to="/library/cameras/new">Add camera</AddLink>
+            {signedIn && <AddLink to="/library/cameras/new">Add camera</AddLink>}
           </div>
 
           <div className={css.field}>
@@ -224,7 +232,7 @@ export const FrameEditor = () => {
               options={gearOptions(library.lenses, resolved.exifLens)}
               onChange={pick('lens')}
             />
-            <AddLink to="/library/lenses/new">Add lens</AddLink>
+            {signedIn && <AddLink to="/library/lenses/new">Add lens</AddLink>}
           </div>
 
           <div className={css.field}>
@@ -263,7 +271,7 @@ export const FrameEditor = () => {
                 ]}
                 onChange={pick('film')}
               />
-              <AddLink to="/library/films/new">Add film</AddLink>
+              {signedIn && <AddLink to="/library/films/new">Add film</AddLink>}
             </div>
           )}
 
@@ -288,7 +296,7 @@ export const FrameEditor = () => {
                 ]}
                 onChange={pick('look')}
               />
-              <AddLink to="/recipes">Manage recipes</AddLink>
+              {signedIn && <AddLink to="/recipes">Manage recipes</AddLink>}
             </div>
           )}
 
