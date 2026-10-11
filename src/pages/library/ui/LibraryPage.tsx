@@ -238,7 +238,7 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
 
   return (
     <PageShell>
-      <PageHeader title="Gear log" lead="Cameras, lenses and films you have shot with." />
+      <PageHeader title="Gear log" lead="Your cameras, lenses and films." />
 
       <nav className={css.tabs} aria-label="Gear type">
         {Object.entries(SECTIONS).map(([key, { title }], index) => (

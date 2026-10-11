@@ -140,7 +140,7 @@
 | `recipes`와 `recipe_versions` 분리, 버전은 추가만            | 수치를 모르는 후보는 이름만 등록. 수치를 바꿔도 과거 기록이 가리키는 값이 유지된다                                                                            |
 | `shots.simulation` / `recipe_version_id` / `final_look` 분리 | 촬영 당시 설정, 붙인 라벨, 최종 보정 결과는 서로 다른 사실이다                                                                                                |
 | `shots.field_sources`                                        | 값마다 EXIF에서 왔는지 수동인지 남긴다                                                                                                                        |
-| `films.usage`는 화면에서 쓰지 않음 (컬럼은 보존)             | 필름 목록에는 써 본 필름만 올린다. 후보를 구분하는 단계가 실제로 쓰이지 않았다                                                                                |
+| `films.usage`는 화면에서 쓰지 않음 (컬럼은 보존)             | 써 본 필름과 후보를 한 목록에 함께 올린다. 단계를 고르는 칸이 실제로 쓰이지 않았다. 구분이 필요하면 Note에 적는다                                             |
 | 모든 테이블 RLS `user_id = auth.uid()`                       | 클라이언트가 DB를 직접 호출하므로 정책이 유일한 방어선이다                                                                                                    |
 | 촬영 기록에는 사진 컬럼 없이 `drive_url`·`instagram_url`만   | 링크 저장과 파일 읽기는 다른 기능이다. 비공개 Drive 링크를 저장해도 앱이 사진을 읽을 수는 없다                                                                |
 | Storage는 레시피 예시 사진에만 (`recipes.photo_path`)        | 아래 "레시피 예시 사진" 참고                                                                                                                                  |
