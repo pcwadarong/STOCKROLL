@@ -42,6 +42,8 @@ type EditorStore = {
   current: QueuedPhoto | null;
   /** Full-size bitmap of the current photo. Null while it decodes and while "Save all" runs. */
   bitmap: ImageBitmap | null;
+  /** The current photo's full-size decode finished with an error, so `bitmap` will stay null. */
+  decodeFailed: boolean;
   preset: OutputPreset;
   paper: Paper;
   focalMode: FocalMode;
@@ -53,6 +55,8 @@ type EditorStore = {
   reading: number;
   saving: SaveProgress | null;
   open: (files: readonly File[]) => Promise<void>;
+  /** Decodes the current photo again after a failed attempt. */
+  retryDecode: () => void;
   select: (id: string) => void;
   remove: (id: string) => void;
   clear: () => void;
@@ -88,6 +92,7 @@ const EditorContext = createContext<EditorStore | null>(null);
 export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
   const [queue, setQueue] = useState(emptyQueue<QueuedPhoto>);
   const [bitmap, setBitmap] = useState<ImageBitmap | null>(null);
+  const [decodeFailed, setDecodeFailed] = useState(false);
   const [preset, setPreset] = useState<OutputPreset>(DEFAULT_PRESET);
   const [paper, setPaper] = useState<Paper>(DEFAULT_PAPER);
   const [focalMode, setFocalMode] = useState<FocalMode>('actual');
@@ -118,6 +123,7 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
       // Dropped before the next decode starts, not after: two full-size bitmaps at once is what
       // a phone cannot afford.
       setBitmap(null);
+      setDecodeFailed(false);
       const photo = currentPhoto(latestQueue.current);
       if (!photo || previewReleased.current) return;
       // A decode cannot be cancelled, so the next one waits for it instead of running beside it.
@@ -129,7 +135,9 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
           if (request !== latestDecode.current) return decoded.close();
           setBitmap(decoded);
         } catch {
-          if (request === latestDecode.current) setError(openErrorText([photo.file.name]));
+          // The thumbnail decoded, so the file is a photo; full size can still fail when memory
+          // is short. Without this the preview would wait forever for a bitmap that never comes.
+          if (request === latestDecode.current) setDecodeFailed(true);
         }
       });
     };
@@ -144,6 +152,8 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
       for (const item of previous.items) if (!kept.has(item.id)) item.thumbnail.close();
 
       if (next.currentId === previous.currentId) return;
+      // A result line about the previous photo or run would read as being about this one.
+      setMessage('');
       const photo = currentPhoto(next);
       // 35mm equivalent is only offered when the photo records it. Keeping the mode from a
       // previous photo would label an actual focal length as an equivalent.
@@ -186,6 +196,7 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
         opening.current = opening.current.then(() => read(files));
         return opening.current;
       },
+      retryDecode: loadCurrent,
       select: (id: string) => commit(selectPhoto(latestQueue.current, id)),
       remove: (id: string) => commit(removePhoto(latestQueue.current, id)),
       clear: () => {
@@ -231,6 +242,7 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
       queue,
       current: currentPhoto(queue),
       bitmap,
+      decodeFailed,
       preset,
       paper,
       focalMode,
@@ -247,7 +259,20 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
       setError,
       setMessage,
     }),
-    [queue, bitmap, preset, paper, focalMode, detail, error, message, reading, saving, actions],
+    [
+      queue,
+      bitmap,
+      decodeFailed,
+      preset,
+      paper,
+      focalMode,
+      detail,
+      error,
+      message,
+      reading,
+      saving,
+      actions,
+    ],
   );
 
   return <EditorContext.Provider value={store}>{children}</EditorContext.Provider>;

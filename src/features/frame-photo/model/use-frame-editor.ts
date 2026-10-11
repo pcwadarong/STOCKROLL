@@ -13,6 +13,10 @@ import { focalModeFor, resolveCaption } from '../lib/resolve-caption';
 
 import { type QueuedPhoto, useEditorStore } from './editor-store';
 
+// "Save all" waits this long after each download before it starts the next photo, then lets the
+// file go. The default hold would keep ten seconds' worth of encoded JPEGs alive at once.
+const BATCH_DOWNLOAD_HOLD_MS = 1_000;
+
 const NO_PICKS = {};
 const NO_EXIF = {};
 
@@ -83,7 +87,11 @@ export const useFrameEditor = () => {
       // the chosen detail.
       const blob = await renderJpeg(bitmap, { preset, detail, caption, paper });
       const filename = filenameOf(current);
-      if (mode === 'download') return downloadBlob(blob, filename);
+      if (mode === 'download') {
+        // Not awaited: the promise is about releasing the file, which nothing here waits for.
+        void downloadBlob(blob, filename);
+        return;
+      }
       await navigator.share({ files: [new File([blob], filename, { type: 'image/jpeg' })] });
     } catch (cause) {
       // Dismissing the share sheet is not a failure
@@ -94,39 +102,32 @@ export const useFrameEditor = () => {
 
   /**
    * Exports every queued photo as JPEG, one after another, with the shared output settings and
-   * each photo's own caption. Only one photo is decoded at any moment: decode, draw, encode,
-   * download, close, then the next. A photo that fails is skipped and named in the summary.
+   * each photo's own caption. Only one photo is in memory at any moment: decode, draw, encode,
+   * close the bitmap, download, let the file go, then the next. A photo that fails to export is
+   * skipped and named in the summary. Whether the browser kept each download cannot be known.
    */
   const saveAll = async () => {
     const photos = queue.items;
     if (photos.length === 0 || store.saving) return;
     await store.startSaving(photos.length);
     const failed: string[] = [];
-    let saved = 0;
+    let sent = 0;
     let stopped = false;
     for (const [index, photo] of photos.entries()) {
       stopped = !store.advanceSaving(index + 1);
       if (stopped) break;
       try {
         const decoded = await decodePhoto(photo.file);
-        try {
-          const blob = await renderJpeg(decoded, {
-            preset,
-            detail,
-            caption: captionOf(photo),
-            paper,
-          });
-          downloadBlob(blob, filenameOf(photo));
-          saved++;
-        } finally {
-          decoded.close();
-        }
+        const settings = { preset, detail, caption: captionOf(photo), paper };
+        const blob = await renderJpeg(decoded, settings).finally(() => decoded.close());
+        await downloadBlob(blob, filenameOf(photo), BATCH_DOWNLOAD_HOLD_MS);
+        sent++;
       } catch {
         failed.push(photo.file.name);
       }
     }
     store.finishSaving();
-    const summary = saveSummaryText({ saved, total: photos.length, failed, stopped });
+    const summary = saveSummaryText({ sent, total: photos.length, failed, stopped });
     if (failed.length > 0) setError(summary);
     else store.setMessage(summary);
   };

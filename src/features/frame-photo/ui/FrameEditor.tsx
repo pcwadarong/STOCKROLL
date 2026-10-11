@@ -12,7 +12,12 @@ import { Chip } from 'seed-design/ui/chip';
 import { SegmentedControl, SegmentedControlItem } from 'seed-design/ui/segmented-control';
 import { TextField, TextFieldInput } from 'seed-design/ui/text-field';
 
-import { editorStatusText } from '../lib/batch-text';
+import {
+  decodeErrorText,
+  editorStatusText,
+  MULTIPLE_DOWNLOADS_HINT,
+  previewStateOf,
+} from '../lib/batch-text';
 import { FROM_EXIF } from '../lib/resolve-caption';
 import { useFrameEditor } from '../model/use-frame-editor';
 
@@ -67,7 +72,13 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
   const many = photos.length > 1;
   const saving = store.saving !== null;
   // Exporting the current photo needs its full-size bitmap, which "Save all" borrows.
-  const ready = bitmap !== null && !saving;
+  const preview = previewStateOf({
+    hasPhoto,
+    hasBitmap: bitmap !== null,
+    decodeFailed: store.decodeFailed,
+    saving,
+  });
+  const ready = preview === 'ready';
   const has35mm = current?.exif.focalLength35 !== undefined;
   const scanner = current?.exif.scanner;
   const hasExif = current !== null && Object.keys(current.exif).length > 0;
@@ -75,7 +86,7 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
   const status = editorStatusText({
     saving: store.saving,
     reading: store.reading,
-    loading: hasPhoto && bitmap === null,
+    loading: preview === 'loading',
     message: store.message,
   });
 
@@ -102,7 +113,19 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
       >
-        {current ? (
+        {current && preview === 'failed' ? (
+          // Replaces the canvas: its last frame belongs to another photo and must not stay under
+          // this one's name.
+          <div className={css.empty}>
+            <ErrorText>{decodeErrorText(current.file.name)}</ErrorText>
+            <div className={css.queueActions}>
+              <Button variant="primary" onClick={store.retryDecode}>
+                Try again
+              </Button>
+              <Button onClick={() => store.remove(current.id)}>Remove this photo</Button>
+            </div>
+          </div>
+        ) : current ? (
           // Sized 0x0 until the first frame is drawn, so no empty box shows while a photo decodes.
           <canvas
             ref={canvasRef}
@@ -111,7 +134,7 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
             height={0}
             role="img"
             aria-label={`Preview of the framed photo: ${current.file.name}`}
-            aria-busy={!ready}
+            aria-busy={preview !== 'ready'}
           />
         ) : (
           <div className={css.empty}>
@@ -382,6 +405,12 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
             )}
           </fieldset>
         </div>
+
+        {many && (
+          <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
+            {MULTIPLE_DOWNLOADS_HINT}
+          </Text>
+        )}
 
         <div className={css.actions}>
           {shareable && (

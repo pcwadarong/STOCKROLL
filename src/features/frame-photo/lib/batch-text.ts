@@ -21,27 +21,68 @@ export const savingProgressText = ({ current, total }: SaveProgress) =>
   `Saving ${current} of ${total}…`;
 
 /**
- * Words the outcome of "Save all".
- * @param result how many photos were written, how many were in the batch, the names of those
- * that failed, and whether the user stopped the run
- * @returns a sentence that never claims more than what was saved
+ * Explains the one failure "Save all" cannot detect: browsers hold back every automatic download
+ * after the first until the user allows it, and tell the page nothing.
+ */
+export const MULTIPLE_DOWNLOADS_HINT =
+  'Each photo downloads as its own file. If only one arrives, your browser is asking for permission to download multiple files: allow it, then save all again.';
+
+/**
+ * Words the outcome of "Save all". A download started from a page gives no success signal, so
+ * the sentence says how many photos were handed to the browser and never that they were saved.
+ * @param result how many photos were handed to the browser, how many were in the batch, the
+ * names of those that could not be exported, and whether the user stopped the run
+ * @returns a sentence that claims no more than what the editor knows
  */
 export const saveSummaryText = ({
-  saved,
+  sent,
   total,
   failed,
   stopped,
 }: {
-  saved: number;
+  sent: number;
   total: number;
   failed: readonly string[];
   stopped: boolean;
 }) => {
-  const outcome =
-    saved === total
-      ? `Saved ${total === 1 ? '1 photo' : `all ${total} photos`}.`
-      : `${stopped ? 'Stopped. ' : ''}Saved ${saved} of ${photos(total)}.`;
-  return failed.length > 0 ? `${outcome} Could not save: ${listNames(failed)}.` : outcome;
+  const count = sent === total ? photos(total) : `${sent} of ${photos(total)}`;
+  const outcome = `${stopped ? 'Stopped. ' : ''}Sent ${count} to your browser's downloads.`;
+  return failed.length > 0 ? `${outcome} Could not export: ${listNames(failed)}.` : outcome;
+};
+
+/**
+ * Words the error for a queued photo whose full-size decode failed, e.g. under memory pressure.
+ * @param name file name of the photo
+ * @returns the message, naming both ways out
+ */
+export const decodeErrorText = (name: string) =>
+  `${name} could not be loaded at full size. Try again, or remove it and carry on with the others.`;
+
+/** What the preview area is doing for the current photo. */
+export type PreviewState = 'empty' | 'loading' | 'ready' | 'failed' | 'saving';
+
+/**
+ * Works out the preview's state. A failed decode is its own state and not "loading": the wait
+ * is over, and the editor must say so instead of staying busy forever.
+ * @param facts whether a photo is current, whether its bitmap is decoded, whether its decode
+ * failed, and whether "Save all" is running (which borrows the bitmap)
+ * @returns the state the preview shows
+ */
+export const previewStateOf = ({
+  hasPhoto,
+  hasBitmap,
+  decodeFailed,
+  saving,
+}: {
+  hasPhoto: boolean;
+  hasBitmap: boolean;
+  decodeFailed: boolean;
+  saving: boolean;
+}): PreviewState => {
+  if (!hasPhoto) return 'empty';
+  if (saving) return 'saving';
+  if (hasBitmap) return 'ready';
+  return decodeFailed ? 'failed' : 'loading';
 };
 
 /**
