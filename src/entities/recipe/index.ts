@@ -15,6 +15,7 @@ export {
   type Recipe,
   RECIPE_FIELDS,
   recipeCollection,
+  recipeFields,
   type RecipeFilter,
   type RecipeSettings,
   type RecipeVersion,

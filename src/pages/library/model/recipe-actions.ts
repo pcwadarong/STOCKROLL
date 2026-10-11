@@ -3,6 +3,7 @@ import {
   MAX_VERSIONS,
   type Recipe,
   recipeCollection,
+  recipeFields,
   type RecipeSettings,
   type RecipeVersion,
   recipeVersionCollection,
@@ -48,7 +49,10 @@ export const createRecipe = async (
 const syncBaseSimulation = (recipe: Recipe, settings: RecipeSettings) =>
   recipe.baseSimulation === (settings.simulation ?? null)
     ? Promise.resolve(recipe)
-    : recipeCollection.save({ ...recipe, baseSimulation: settings.simulation ?? null });
+    : recipeCollection.save({
+        ...recipeFields(recipe),
+        baseSimulation: settings.simulation ?? null,
+      });
 
 /**
  * Fixes a mistake in an existing version, in place. The version keeps its number, and anything

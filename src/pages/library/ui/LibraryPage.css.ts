@@ -140,6 +140,19 @@ export const versionItem = style([
 
 export const note = style({ margin: 0, color: vars.$color.fg.neutralMuted });
 
+export const photo = style({
+  display: 'block',
+  width: '100%',
+  height: 'auto',
+  borderRadius: vars.$radius.r1,
+  border: `1px solid ${vars.$color.stroke.neutralSubtle}`,
+});
+
+export const hiddenInput = style({ display: 'none' });
+
+// The detail screen's right-hand column stacks its panels.
+export const stack = style({ display: 'grid', gap: vars.$dimension.x6, minWidth: 0 });
+
 export const toolbar = style({
   display: 'flex',
   flexWrap: 'wrap',

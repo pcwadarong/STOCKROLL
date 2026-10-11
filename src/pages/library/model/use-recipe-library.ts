@@ -1,4 +1,10 @@
-import { recipeCollection, recipeVersionCollection } from '@/entities/recipe';
+import {
+  deleteRecipe,
+  type Recipe,
+  recipeCollection,
+  recipeFields,
+  recipeVersionCollection,
+} from '@/entities/recipe';
 import { useCollection } from '@/shared/lib/use-collection';
 
 /**
@@ -13,8 +19,10 @@ export const useRecipeLibrary = () => {
     versions: versions.items,
     ready: recipes.status === 'ready' && versions.status === 'ready',
     failed: recipes.status === 'error' || versions.status === 'error',
-    saveRecipe: recipes.save,
-    removeRecipe: recipes.remove,
+    /** Saves a recipe's own fields. The photo path is never part of this write. */
+    saveRecipe: (recipe: Recipe) => recipes.save(recipeFields(recipe)),
+    /** Deletes a recipe together with its example photo, then refreshes the list. */
+    removeRecipe: (id: string) => deleteRecipe(id).then(() => recipes.reload()),
     reload: () => Promise.all([recipes.reload(), versions.reload()]),
   };
 };
