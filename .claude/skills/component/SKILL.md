@@ -22,7 +22,24 @@ description: STOCKROLL에서 새 UI 컴포넌트·화면을 구현할 때의 절
 - 같은 상태·생명주기를 공유하면 슬라이스를 쪼개지 않는다(`features/frame-photo`가 열기·캡션·내보내기를 모두 가진다).
 - 슬라이스마다 `index.ts`로 공개할 것만 내보낸다.
 
-## Step 2: SEED에서 먼저 찾는다
+## Step 2: 이미 있는 부품부터 찾는다
+
+SEED보다 먼저 이 저장소의 공통 부품을 본다. 같은 모양을 페이지마다 다시 만들지 않는다(`AGENTS.md` §2).
+
+| 필요한 것                    | 쓸 것                                                                                        |
+| ---------------------------- | -------------------------------------------------------------------------------------------- |
+| 화면 틀·제목·내용 상자       | `widgets/page-shell`, `shared/ui/PageHeader`, `Panel`                                        |
+| 버튼, 켜고 끄는 버튼         | `shared/ui/Button` (`pressed`로 토글)                                                        |
+| 드롭다운                     | `shared/ui/PickField` — 폼은 기본, 촘촘한 패널은 `size="medium"`, 필터 줄은 `hideLabel` 추가 |
+| 폼 전체                      | `shared/ui/RecordForm` + 필드 정의(`RecordField[]`)                                          |
+| 목록 위 요약                 | `shared/ui/MetaList` 두 줄                                                                   |
+| 좁혀 보는 목록               | `pages/library/ui/LibraryList`의 `ListFilters` + `ItemList`, 계산은 `shared/lib/pick-filter` |
+| 비어 있음·로딩, 오류, 확인창 | `EmptyState`, `ErrorText`, `ConfirmDialog`                                                   |
+| 글자 목소리                  | `shared/ui/label.css.ts`의 `displayText` / `labelText` / `labelTitle`                        |
+
+맞는 게 없을 때만 다음 단계로 간다.
+
+## Step 3: SEED에서 찾는다
 
 1. `seed-docs` MCP의 `list_react_components` 또는 `https://seed-design.io/react/llms.txt`에서 맞는 컴포넌트를 찾는다. 기억으로 API를 쓰지 않는다.
 2. 스니펫을 받는다: `pnpm dlx @seed-design/cli@latest add ui:{id}`
@@ -41,7 +58,7 @@ import { SegmentedControl, SegmentedControlItem } from 'seed-design/ui/segmented
 
 텍스트는 `@seed-design/react`의 `Text`(`textStyle`, `color`)를 쓴다.
 
-## Step 3: 남는 부분만 `*.css.ts`
+## Step 4: 남는 부분만 `*.css.ts`
 
 컴포넌트 옆에 `{Component}.css.ts`를 두고 `import * as css from './{Component}.css'`로 쓴다.
 
@@ -61,25 +78,29 @@ export const panel = style({
 ```
 
 - 색·간격·radius·글자 크기는 `vars`만. 레이아웃 치수는 `rem`/`dvh`.
+- SEED 컴포넌트의 모양을 고쳐야 하면 스니펫이 아니라 `src/app/seed-overrides.css.ts`에서 `html` 접두 선택자로 덮는다. 크기는 먼저 SEED의 변형(`size="medium"`)을 찾는다.
+- SEED 루트 요소는 `className`을 안쪽 요소에 붙이는 경우가 있다(`TextField`). 바깥 틀을 배치해야 하면 부모에서 `globalStyle(`${parent} > *`, …)`로 잡는다.
+- 폰 화면은 문서가 스크롤하게 짠다. `100dvh` 고정 틀 + 안쪽 스크롤은 iOS 하단 바 뒤에 빈 띠를 남긴다(`AGENTS.md` §2-6).
 - 컴포넌트가 margin/gap prop을 받지 않는다. 바깥 배치는 호출부가 `className`으로.
 
-## Step 4: 상태와 계산 분리
+## Step 5: 상태와 계산 분리
 
 - 상태·부수효과는 `model/use-*.ts` 훅으로, 입력→출력 계산은 `entities/*/model|lib` 순수 함수로.
 - 훅이 ref를 돌려주면 컴포넌트에서 **구조 분해해서** 쓴다(`const { canvasRef, hasPhoto } = useFrameEditor()`). 객체째 들고 `editor.hasPhoto`로 읽으면 `react-hooks/refs` 린트가 렌더 중 ref 접근으로 본다.
 
-## Step 5: 접근성
+## Step 6: 접근성
 
 - 시맨틱 요소(`main`/`section`/`aside`/`fieldset`+`legend`) 우선.
 - SEED 컨트롤에 `aria-label` 또는 보이는 라벨. `canvas`에는 `role="img"` + `aria-label`.
 - 오류는 `role="alert"`, 값이 바뀌는 안내 문구는 `aria-live="polite"`.
 - 설정 패널을 `<form>`으로 감싸지 않는다 — 입력 중 Enter가 첫 버튼을 눌러 버린다.
 
-## Step 6: 검증
+## Step 7: 검증
 
 ```bash
 pnpm check-types && pnpm lint && pnpm test
 pnpm dev   # 사진을 열어 저장까지 직접 확인
+# 로그인해야 보이는 화면은 docs/verification.md §1 (가짜 세션 + 가짜 응답)
 ```
 
 ## 자가 확인

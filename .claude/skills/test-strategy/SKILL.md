@@ -15,6 +15,7 @@ description: STOCKROLL에서 무엇을 어디에 어떻게 테스트할지 정�
    - 예: `src/entities/frame/model/layout.test.ts`, `src/entities/photo/lib/format-exif.test.ts`
 2. **캔버스·`createImageBitmap`·File API 스텁이 필요한가?** → 멈춘다. 스텁을 늘리는 대신 계산을 `entities/*/model|lib` 순수 함수로 뽑아 1번으로 보낸다. `drawFrame`이 좌표를 계산하지 않고 `computeLayout` 결과를 받기만 하는 게 이 분리다.
 3. **실제 픽셀·파일 저장·공유 시트·PWA 설치가 계약인가?** → 자동 테스트로 흉내 내지 않는다. `pnpm dev`로 띄워 실제 브라우저에서 사진을 열고 저장까지 확인하고, 확인한 내용을 보고에 적는다.
+4. **로그인해야 보이는 화면이거나 마이그레이션인가?** → `docs/verification.md`의 절차를 쓴다: 가짜 세션 + 가짜 REST 응답으로 화면 흐름을, 일회용 Postgres로 마이그레이션을 본다. 이 방법으로 확인되지 않는 것(실제 저장, RLS, 실기기)은 보고에 "미실행"으로 적는다.
 
 React 컴포넌트 렌더 테스트(jsdom)는 아직 환경이 없다. 필요해지면 사용자에게 확인한 뒤 추가한다.
 
