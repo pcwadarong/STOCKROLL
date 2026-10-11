@@ -12,6 +12,7 @@ import { DEFAULT_PAPER, DEFAULT_PRESET, type OutputPreset, type Paper } from '@/
 import { type ExifInfo, type FocalMode, readExif } from '@/entities/photo';
 
 import { openErrorText, type SaveProgress } from '../lib/batch-text';
+import { looksLikeBrowserCapture } from '../lib/capture-hint';
 import {
   appendPhotos,
   applyGearPicksToAll,
@@ -31,7 +32,13 @@ import { focalModeFor } from '../lib/resolve-caption';
  * One opened photo. Only the file, its EXIF and a small thumbnail are kept for every photo; the
  * full-size bitmap exists for the current photo alone (see `bitmap` in the store).
  */
-export type QueuedPhoto = QueueItem & { file: File; exif: ExifInfo; thumbnail: ImageBitmap };
+export type QueuedPhoto = QueueItem & {
+  file: File;
+  exif: ExifInfo;
+  thumbnail: ImageBitmap;
+  /** Looks like it was taken from the picker's camera option, which strips the shooting info. */
+  browserCapture: boolean;
+};
 
 // Wide enough for the strip on a 3× phone screen, and about 70KB decoded instead of about 96MB.
 const THUMBNAIL_WIDTH = 160;
@@ -162,6 +169,7 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const read = async (files: readonly File[]) => {
+      const openedAt = Date.now();
       const added: QueuedPhoto[] = [];
       const failed: string[] = [];
       // One file at a time: reading EXIF loads the whole file, and a batch of 25MB exports read
@@ -175,7 +183,14 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
             imageOrientation: 'from-image',
           });
           const exif = await readExif(file);
-          added.push({ id: `photo-${++photoCount.current}`, file, exif, thumbnail, picks: {} });
+          added.push({
+            id: `photo-${++photoCount.current}`,
+            file,
+            exif,
+            thumbnail,
+            picks: {},
+            browserCapture: looksLikeBrowserCapture(exif, file.lastModified, openedAt),
+          });
         } catch {
           failed.push(file.name);
         }

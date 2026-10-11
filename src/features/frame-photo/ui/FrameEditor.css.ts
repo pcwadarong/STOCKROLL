@@ -1,9 +1,9 @@
 import { vars } from '@seed-design/css/vars';
-import { style } from '@vanilla-extract/css';
+import { globalStyle, style } from '@vanilla-extract/css';
 
 import { tertiary } from '@/shared/config/accent.css';
 import { SHADE } from '@/shared/config/palette';
-import { COMPACT_MEDIA_QUERY } from '@/shared/config/responsive';
+import { COMPACT_MEDIA_QUERY, SHORT_COMPACT_MEDIA_QUERY } from '@/shared/config/responsive';
 import { labelText, labelTitle } from '@/shared/ui/label.css';
 
 export const root = style({
@@ -13,10 +13,8 @@ export const root = style({
   gridTemplateRows: 'minmax(0, 1fr)',
   minHeight: 0,
   '@media': {
-    [COMPACT_MEDIA_QUERY]: {
-      gridTemplateColumns: 'minmax(0, 1fr)',
-      gridTemplateRows: 'minmax(0, 46dvh) minmax(0, 1fr)',
-    },
+    // Stacked in normal flow: the page scrolls, the preview stays pinned (see `stage`).
+    [COMPACT_MEDIA_QUERY]: { display: 'block' },
   },
 });
 
@@ -34,7 +32,30 @@ export const stage = style({
   padding: vars.$dimension.x6,
   outline: '1px dashed transparent',
   outlineOffset: `calc(${vars.$dimension.x2} * -1)`,
-  '@media': { [COMPACT_MEDIA_QUERY]: { padding: vars.$dimension.x3 } },
+  '@media': {
+    [COMPACT_MEDIA_QUERY]: {
+      // Pinned while the settings scroll under it, so a change is seen as it is made.
+      position: 'sticky',
+      top: 0,
+      zIndex: 1,
+      // `svh`, not `dvh`: the height must not jump when the browser toolbar collapses on scroll.
+      // Over half the screen: the photo is the point, and the settings scroll under it anyway.
+      height: '58svh',
+      paddingInline: vars.$dimension.x3,
+      paddingBottom: vars.$dimension.x3,
+      // Once the app bar has scrolled away the preview sits at the very top, under the notch.
+      paddingTop: `max(${vars.$dimension.x5}, env(safe-area-inset-top))`,
+      background: vars.$color.bg.layerBasement,
+      borderBottom: `1px solid ${vars.$color.stroke.neutralWeak}`,
+    },
+    // A phone on its side has no height to spare for a pinned preview: let it scroll away.
+    [SHORT_COMPACT_MEDIA_QUERY]: { position: 'relative' },
+  },
+  selectors: {
+    // The on-screen keyboard covers the lower half without changing any CSS viewport unit, so a
+    // pinned preview would sit over the field being typed in. Unpin it while a field has focus.
+    [`${root}:has(input[inputmode]:focus) &`]: { position: 'relative' },
+  },
 });
 
 export const stageDragging = style({ outlineColor: vars.$color.stroke.brandSolid });
@@ -73,9 +94,12 @@ export const panel = style({
   background: vars.$color.bg.layerDefault,
   borderLeft: `1px solid ${vars.$color.stroke.neutralWeak}`,
   '@media': {
+    // The page scrolls here, so the panel is as tall as its content and ends clear of the
+    // browser toolbar and home indicator, which float over the page.
     [COMPACT_MEDIA_QUERY]: {
       borderLeft: 0,
-      borderTop: `1px solid ${vars.$color.stroke.neutralWeak}`,
+      overflowY: 'visible',
+      paddingBottom: `calc(${vars.$dimension.x8} + env(safe-area-inset-bottom))`,
     },
   },
 });
@@ -129,6 +153,16 @@ export const queueActions = style({
   flexWrap: 'wrap',
   gap: vars.$dimension.x2,
 });
+
+// One line of text links under the file name.
+export const queueLinks = style({
+  display: 'flex',
+  flexWrap: 'wrap',
+  columnGap: vars.$dimension.x5,
+});
+
+// Text links are only a line tall; the padding makes them a fair touch target.
+globalStyle(`${queueLinks} > *`, { paddingBlock: vars.$dimension.x2 });
 
 export const actions = style({
   display: 'flex',

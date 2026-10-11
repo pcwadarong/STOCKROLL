@@ -18,6 +18,7 @@ import {
   MULTIPLE_DOWNLOADS_HINT,
   previewStateOf,
 } from '../lib/batch-text';
+import { BROWSER_CAPTURE_HINT } from '../lib/capture-hint';
 import { FROM_EXIF } from '../lib/resolve-caption';
 import { useFrameEditor } from '../model/use-frame-editor';
 
@@ -185,15 +186,21 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
                 {many && `${photos.indexOf(current) + 1} of ${photos.length} · `}
                 {current.file.name}
               </Text>
-              <div className={css.queueActions}>
-                <Button size="small" onClick={openPicker}>
+              {current.browserCapture && (
+                <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
+                  {BROWSER_CAPTURE_HINT}
+                </Text>
+              )}
+              {/* Text links, not boxes: these are housekeeping and should not outweigh the settings. */}
+              <div className={css.queueLinks}>
+                <Button variant="plain" onClick={openPicker}>
                   Add photos
                 </Button>
-                <Button size="small" onClick={() => store.remove(current.id)}>
-                  {many ? 'Remove this photo' : 'Remove'}
+                <Button variant="plain" onClick={() => store.remove(current.id)}>
+                  Remove
                 </Button>
                 {many && (
-                  <Button size="small" onClick={() => setAsking('clear')}>
+                  <Button variant="plain" onClick={() => setAsking('clear')}>
                     Clear all
                   </Button>
                 )}
