@@ -1,0 +1,75 @@
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Editors / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node / Package managers
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Build outputs
+dist/
+dev-dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# ESLint / Prettier
+.eslintcache
+.prettier-cache
+
+# Testing
+vitest.config.ts.timestamp-*
+vite.config.ts.timestamp-*
+playwright-report/
+test-results/
+
+# Supabase
+.supabase/
+supabase/.temp/
+supabase/.branches/
+
+# Vercel
+.vercel/
+
+# Husky generated
+.husky/_/
+
+# 테스트용 사진 — 개인 사진과 EXIF(위치 등)가 저장소에 올라가지 않게 한다
+.tmp/
+samples/
+
+# AI — 스킬·에이전트·팀 공용 설정만 추적한다
+.codex/
+.claude/*
+!.claude/skills/
+!.claude/agents/
+!.claude/settings.json
+
+# Misc
+*.pem
+
+# PR 본문 초안 — PR에 올라가면 역할이 끝난다
+docs/pr/
