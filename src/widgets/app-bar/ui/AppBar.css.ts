@@ -1,8 +1,13 @@
 import { vars } from '@seed-design/css/vars';
-import { keyframes, style } from '@vanilla-extract/css';
+import { globalStyle, keyframes, style } from '@vanilla-extract/css';
 
 import { beige } from '@/shared/config/accent.css';
-import { COMPACT_MEDIA_QUERY, REDUCED_MOTION_QUERY } from '@/shared/config/responsive';
+import {
+  COMPACT_APP_BAR_HEIGHT,
+  COMPACT_MEDIA_QUERY,
+  COMPACT_STANDALONE_MEDIA_QUERY,
+  REDUCED_MOTION_QUERY,
+} from '@/shared/config/responsive';
 import { displayText, labelText } from '@/shared/ui/label.css';
 
 const compact = (rule: Record<string, string | number>) => ({ [COMPACT_MEDIA_QUERY]: rule });
@@ -18,7 +23,21 @@ export const bar = style({
   background: vars.$color.bg.brandSolid,
   color: beige,
   borderBottom: `1px solid ${vars.$color.fg.neutral}`,
-  '@media': compact({ justifyContent: 'space-between' }),
+  // A set compact height, so a shell that pins the bar can reserve exactly this much; the title and
+  // menu button both fit within it.
+  '@media': compact({ justifyContent: 'space-between', height: COMPACT_APP_BAR_HEIGHT }),
+});
+
+// Opt-in pin for document-scrolling shells (PageShell on phones), in the installed app only. There
+// the page runs under the status bar, so a bar that scrolled away would let text pass behind the
+// clock. In a browser tab the bar scrolls with the page instead: Safari colours its own top area
+// from an element pinned to the top edge, and a pinned red bar turned that area red.
+// `fixed`, not `sticky`: a sticky bar re-pins a frame late on fast momentum scrolls.
+// The editor leaves this off; its preview takes the top (see FrameEditor's `stage`).
+export const pinnedBar = style({
+  '@media': {
+    [COMPACT_STANDALONE_MEDIA_QUERY]: { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 20 },
+  },
 });
 
 export const title = style([displayText, { fontSize: vars.$fontSize.t6, letterSpacing: '0.14em' }]);
@@ -119,6 +138,7 @@ export const drawer = style({
   margin: 0,
   padding: vars.$dimension.x5,
   paddingTop: `max(${vars.$dimension.x5}, env(safe-area-inset-top))`,
+  paddingBottom: `max(${vars.$dimension.x5}, env(safe-area-inset-bottom))`,
   border: 0,
   borderLeft: `1px solid ${vars.$color.fg.neutral}`,
   background: vars.$color.bg.brandSolid,
@@ -136,6 +156,10 @@ export const drawer = style({
     },
   },
 });
+
+// A modal dialog makes the page inert but does not stop it scrolling: on phones, where the document
+// is the scroller, a swipe on the backdrop would move the page behind the open drawer.
+globalStyle(`html:has(${drawer}[open])`, { overflow: 'hidden' });
 
 export const drawerHead = style({
   display: 'flex',
@@ -160,4 +184,15 @@ export const drawerLink = style([
   },
 ]);
 
-export const drawerFoot = style({ marginTop: 'auto' });
+export const drawerFoot = style({ display: 'grid', gap: vars.$dimension.x5, marginTop: 'auto' });
+
+/** Brand line and legal links under the account menu, set off by a thin rule. */
+export const drawerLegal = style([
+  labelText,
+  {
+    display: 'grid',
+    gap: vars.$dimension.x3,
+    paddingTop: vars.$dimension.x4,
+    borderTop: `1px solid ${beige}`,
+  },
+]);

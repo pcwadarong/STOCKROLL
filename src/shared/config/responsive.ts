@@ -4,6 +4,19 @@
  */
 export const COMPACT_MEDIA_QUERY = 'screen and (max-width: 760px)';
 
+/**
+ * Compact width in the installed app (opened from the home screen), where there is no browser
+ * chrome and the page runs under the status bar.
+ */
+export const COMPACT_STANDALONE_MEDIA_QUERY =
+  'screen and (max-width: 760px) and (display-mode: standalone)';
+
+/**
+ * Height of the app bar on compact widths, notch included. Shared so a shell that pins the bar
+ * out of the flow can reserve exactly this much space for it.
+ */
+export const COMPACT_APP_BAR_HEIGHT = 'calc(3.5rem + env(safe-area-inset-top))';
+
 /** Compact width with very little height, such as a phone held sideways. */
 export const SHORT_COMPACT_MEDIA_QUERY = 'screen and (max-width: 760px) and (max-height: 520px)';
 
