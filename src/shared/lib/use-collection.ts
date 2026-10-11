@@ -52,6 +52,9 @@ export const useCollection = <T extends Row>(collection: Collection<T>) => {
   const remove = useCallback(
     async (id: string) => {
       await collection.remove(id);
+      // Drop it locally first. If the reload that follows fails, the list must still not show a
+      // record that no longer exists.
+      setItems(prev => prev.filter(item => item.id !== id));
       await reload();
     },
     [collection, reload],
