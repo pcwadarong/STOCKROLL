@@ -138,6 +138,7 @@ export const drawer = style({
   margin: 0,
   padding: vars.$dimension.x5,
   paddingTop: `max(${vars.$dimension.x5}, env(safe-area-inset-top))`,
+  paddingBottom: `max(${vars.$dimension.x5}, env(safe-area-inset-bottom))`,
   border: 0,
   borderLeft: `1px solid ${vars.$color.fg.neutral}`,
   background: vars.$color.bg.brandSolid,
@@ -179,4 +180,15 @@ export const drawerLink = style([
   },
 ]);
 
-export const drawerFoot = style({ marginTop: 'auto' });
+export const drawerFoot = style({ display: 'grid', gap: vars.$dimension.x5, marginTop: 'auto' });
+
+/** Brand line and legal links under the account menu, set off by a thin rule. */
+export const drawerLegal = style([
+  labelText,
+  {
+    display: 'grid',
+    gap: vars.$dimension.x3,
+    paddingTop: vars.$dimension.x4,
+    borderTop: `1px solid ${beige}`,
+  },
+]);

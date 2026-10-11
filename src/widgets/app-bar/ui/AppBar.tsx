@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router';
 
 import { AccountMenu } from '@/features/auth';
 import { COMPACT_MEDIA_QUERY } from '@/shared/config/responsive';
+import { LegalNote } from '@/shared/ui/LegalNote';
 
 import * as css from './AppBar.css';
 
@@ -92,6 +93,10 @@ export const AppBar = ({ pinned = false }: { pinned?: boolean }) => {
         </nav>
         <div className={css.drawerFoot}>
           <AccountMenu />
+          {/* The site footer is hidden on compact widths; its content lives here instead. */}
+          <div className={css.drawerLegal}>
+            <LegalNote />
+          </div>
         </div>
       </dialog>
     </header>
