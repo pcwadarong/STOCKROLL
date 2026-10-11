@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 
 import {
+  blankSettings,
+  hasSettings,
   latestVersion,
   type Recipe,
   RECIPE_FIELDS,
@@ -93,7 +95,14 @@ const RecipeForm = ({
     }
   };
 
-  const change = (key: string, value: string) => setValues(prev => ({ ...prev, [key]: value }));
+  const change = (key: string, value: string) =>
+    setValues(prev =>
+      // Settings belong to a system. Changing it starts the settings over, so values from the
+      // old system are not saved under the new one.
+      key === 'system' && value !== prev.system
+        ? { ...prev, ...blankSettings(), system: value }
+        : { ...prev, [key]: value },
+    );
 
   const system = systemOf({ system: values.system as RecipeSystem });
   const settingFields = SYSTEMS[system].fields;
@@ -229,7 +238,10 @@ export const RecipesPage = () => {
 
   // The owner's own recipes can be imported at any time; ones already present are skipped.
   const missingStarters = STARTER_RECIPES.filter(
-    starter => !recipes.items.some(recipe => recipe.name === starter.name),
+    starter =>
+      !recipes.items.some(
+        recipe => recipe.name === starter.name && systemOf(recipe) === STARTER_SYSTEM,
+      ),
   );
 
   const create = async (meta: Meta, settings: RecipeSettings) => {
@@ -237,12 +249,21 @@ export const RecipesPage = () => {
       ...meta,
       baseSimulation: settings.simulation ?? null,
     });
-    await recipeVersionCollection.save({
-      recipeId: recipe.id,
-      version: 1,
-      settings,
-      sourceUrl: null,
-    } satisfies Omit<RecipeVersion, 'id'>);
+    // A recipe known only by name gets no version: "no settings yet" and "v1" are different.
+    if (!hasSettings(settings)) return;
+    try {
+      await recipeVersionCollection.save({
+        recipeId: recipe.id,
+        version: 1,
+        settings,
+        sourceUrl: null,
+      } satisfies Omit<RecipeVersion, 'id'>);
+    } catch (cause) {
+      // The two inserts are not one transaction. Undo the first so a retry does not leave a
+      // second recipe behind, then report the original failure.
+      await recipeCollection.remove(recipe.id).catch(() => undefined);
+      throw cause;
+    }
   };
 
   const saveRecipe: SaveRecipe = async (meta, settings, target) => {
@@ -260,7 +281,7 @@ export const RecipesPage = () => {
         // A mistake is fixed where it is: the version keeps its number, and photos linked to it
         // show the corrected values.
         await recipeVersionCollection.save({ ...latest, settings });
-      else if (!latest || !sameSettings(latest.settings, settings))
+      else if (hasSettings(settings) && (!latest || !sameSettings(latest.settings, settings)))
         await recipeVersionCollection.save({
           recipeId: current.id,
           version: (latest?.version ?? 0) + 1,
@@ -280,10 +301,12 @@ export const RecipesPage = () => {
           { name: starter.name, system: STARTER_SYSTEM, state: starter.state, note: null },
           starter.settings,
         );
-      await Promise.all([recipes.reload(), versions.reload()]);
     } catch {
-      setImportError('Import stopped partway. Check the list before trying again.');
+      setImportError('Import stopped partway. The ones already imported are in the list.');
     }
+    // Reload either way: after a partial failure the list must show what did get saved, or the
+    // next attempt would import those again.
+    await Promise.all([recipes.reload(), versions.reload()]).catch(() => undefined);
     setImporting(false);
   };
 
