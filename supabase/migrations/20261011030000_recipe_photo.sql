@@ -17,7 +17,12 @@ alter table public.recipes add column photo_path text;
 -- `on conflict do nothing` keeps this safe when the bucket was already created in the dashboard.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('recipe-photos', 'recipe-photos', false, 1048576, array['image/jpeg'])
-on conflict (id) do nothing;
+on conflict (id) do update
+  -- The bucket may already exist (created in the dashboard). Its settings are the privacy
+  -- guarantee, so they are enforced here rather than left as they were found.
+  set public = excluded.public,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
 
 -- The first path segment is the owner's user id, and it is the only thing the policies trust.
 -- The update policy repeats the rule in `with check` so an object cannot be moved or renamed into
