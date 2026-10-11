@@ -5,19 +5,22 @@
 -- 1. Status absorbs ownership. "Rented" and "Sold" answer the same question as "In repair"
 --    (can I shoot with it, and if not, why), so they join the status list. Borrowed gear is
 --    recorded as rented. The `ownership` column is kept, unread, so nothing recorded is lost.
+--    Sold gear becomes "sold" whatever its condition was. Rented or borrowed gear becomes
+--    "rented" only when its status said no more than in use / not in use: "in repair" and
+--    "display only" say something more specific that the old status alone held, so they stay.
 alter table public.cameras drop constraint cameras_status_check;
 alter table public.cameras add constraint cameras_status_check
   check (status in ('active', 'inactive', 'repair', 'display', 'rented', 'sold'));
-update public.cameras
-  set status = case ownership when 'sold' then 'sold' else 'rented' end
-  where ownership <> 'owned';
+update public.cameras set status = 'sold' where ownership = 'sold';
+update public.cameras set status = 'rented'
+  where ownership in ('rented', 'borrowed') and status in ('active', 'inactive');
 
 alter table public.lenses drop constraint lenses_status_check;
 alter table public.lenses add constraint lenses_status_check
   check (status in ('active', 'inactive', 'repair', 'display', 'rented', 'sold'));
-update public.lenses
-  set status = case ownership when 'sold' then 'sold' else 'rented' end
-  where ownership <> 'owned';
+update public.lenses set status = 'sold' where ownership = 'sold';
+update public.lenses set status = 'rented'
+  where ownership in ('rented', 'borrowed') and status in ('active', 'inactive');
 
 -- 2. Favorites on cameras and lenses.
 alter table public.cameras add column is_favorite boolean not null default false;

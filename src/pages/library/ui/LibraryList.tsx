@@ -53,7 +53,10 @@ export const ListFilters = ({ filters, picks, onPick }: ListFiltersProps) => {
   );
 };
 
-/** A fact under a row's title. Anything empty is skipped, so callers can write `value && text`. */
+/**
+ * A fact under a row's title. Text and non-zero numbers are shown; anything else is skipped, so
+ * callers can write `value && text`.
+ */
 export type ListFact = string | number | boolean | null | undefined;
 
 /** One line of a library list. */
@@ -81,7 +84,9 @@ type ItemListProps = {
 export const ItemList = ({ rows, onToggleFavorite }: ItemListProps) => (
   <ul className={css.list}>
     {rows.map(({ id, to, title, facts, note, favorite }) => {
-      const line = facts.filter(fact => typeof fact === 'string' && fact !== '').join(' · ');
+      const line = facts
+        .filter(fact => (typeof fact === 'string' || typeof fact === 'number') && fact)
+        .join(' · ');
       return (
         <li key={id} className={css.rowWithAction}>
           <Link to={to} className={css.rowLink}>
