@@ -109,7 +109,15 @@ window.dispatchEvent(new PopStateEvent('popstate'));
 
 ## 2. 편집기에 사진 넣기
 
-`samples/`(gitignore)의 파일은 dev 서버가 그대로 내려준다. 파일 입력에 직접 넣는다.
+사진은 저장소에 없다(커밋 금지, `AGENTS.md` §4). **각자 가진 사진을 `samples/`(gitignore)에 넣고** 쓴다. dev 서버가 그 폴더를 그대로 내려준다. 아래 세 종류가 있어야 경로가 다 확인된다 — 파일 이름은 예시다.
+
+| 종류                         | 왜 필요한가                                          | 예시 이름       |
+| ---------------------------- | ---------------------------------------------------- | --------------- |
+| 카메라 원본 JPEG             | EXIF가 전부 있는 기본 경로                           | `fuji.jpg`      |
+| Lightroom에서 내보낸 큰 파일 | EXIF가 파일 뒤쪽에 있어 앞부분만 읽으면 빈 값이 된다 | `lightroom.jpg` |
+| 현상소 필름 스캔             | Make/Model이 스캐너라 카메라로 쓰면 안 된다          | `film-scen.jpg` |
+
+사진이 없으면 편집기 화면 확인은 "미실행"으로 적는다. EXIF 없는 파일 경로만 볼 때는 캔버스로 만든 이미지로도 된다(`canvas.toBlob`).
 
 ```js
 const input = document.querySelector('input[type=file]');
@@ -123,16 +131,19 @@ input.files = dt.files;
 input.dispatchEvent(new Event('change', { bubbles: true }));
 ```
 
-- `fuji.jpg`: 후지 원본(EXIF 전부 있음) / `lightroom.jpg`: 보정본 25MB(EXIF가 파일 뒤쪽에 있음) / `film-scen.jpg`: 현상소 스캔(스캐너 정보뿐).
 - 내보내기는 실제로 파일을 쓰지 않게 `URL.createObjectURL`과 `a.click`을 가로채 세기만 한다.
 - 폰 폭은 탭을 393px로 줄여 본다. **iOS 하단 바·키보드·safe-area는 재현되지 않는다.**
 
 ## 3. 마이그레이션을 일회용 Postgres에서 돌리기
 
-`main`에 머지하면 실제 프로젝트에 바로 적용되므로, 그 전에 로컬에서 돌려 본다. Supabase의 `auth` 스키마는 흉내만 낸다.
+`main`에 머지하면 실제 프로젝트에 바로 적용되므로, 그 전에 로컬에서 돌려 본다. Supabase의 `auth`·`storage` 스키마는 마이그레이션이 쓰는 만큼만 흉내 낸다.
+
+**이미 있는 마이그레이션을 전부 순서대로 적용한 다음** 새 파일을 돌린다. `init`만 올리고 새 파일로 건너뛰면 실제 DB와 다른 스키마에서 통과하거나 엉뚱한 이유로 실패한다.
 
 ```bash
 docker run -d --name sr-pg -e POSTGRES_PASSWORD=x postgres:17
+until docker exec sr-pg pg_isready -U postgres -q; do sleep 1; done   # 초기화가 끝나기 전에는 접속이 실패한다
+
 docker exec -i sr-pg psql -U postgres -q -v ON_ERROR_STOP=1 <<'SQL'
 create schema auth;
 create table auth.users (id uuid primary key);
@@ -140,16 +151,35 @@ create function auth.uid() returns uuid language sql as
   $$ select '00000000-0000-4000-8000-000000000001'::uuid $$;
 create role authenticated;
 insert into auth.users values ('00000000-0000-4000-8000-000000000001');
+
+create schema storage;
+create table storage.buckets (
+  id text primary key, name text, public boolean,
+  file_size_limit bigint, allowed_mime_types text[]
+);
+create table storage.objects (
+  id uuid primary key default gen_random_uuid(), bucket_id text, name text
+);
+alter table storage.objects enable row level security;
+create function storage.foldername(name text) returns text[] language sql as
+  $$ select string_to_array(name, '/') $$;
 SQL
-docker exec -i sr-pg psql -U postgres -q -v ON_ERROR_STOP=1 < supabase/migrations/20261011000000_init.sql
-# 여기서 기존 데이터를 흉내 낸 행을 넣는다 — 경계 조합을 전부
-docker exec -i sr-pg psql -U postgres -q -v ON_ERROR_STOP=1 < supabase/migrations/<새 파일>.sql
+
+# 1) 새 파일을 뺀 나머지를 순서대로
+for f in supabase/migrations/*.sql; do
+  [ "$f" = "supabase/migrations/<새 파일>.sql" ] && continue
+  docker exec -i sr-pg psql -U postgres -q -v ON_ERROR_STOP=1 < "$f" || { echo "FAILED $f"; break; }
+done
+# 2) 기존 데이터를 흉내 낸 행을 넣는다 — 경계 조합을 전부
+# 3) 새 파일
+docker exec -i sr-pg psql -U postgres -q -v ON_ERROR_STOP=1 < "supabase/migrations/<새 파일>.sql"
 docker exec sr-pg psql -U postgres -Atc "select …"   # 결과 확인
 docker rm -f sr-pg
 ```
 
+- 이 스텁으로 지금 있는 일곱 개가 처음부터 끝까지 적용되는 걸 확인했다(2026-10-11).
 - **기존 행을 바꾸는 `update`는 조합별 샘플을 넣고 본다.** 상태·소유 이관 때 "대여 + 수리 중"이 덮어써져 되돌릴 수 없게 되는 걸 리뷰에서야 잡았다.
-- Storage 정책이 든 마이그레이션은 `storage.buckets`·`storage.objects`도 흉내 내야 한다. 정책 문법만 확인되고 실제 Storage 동작은 확인되지 않는다.
+- Storage는 정책 문법과 버킷 행까지만 확인된다. 실제 업로드·서명 URL·크기 제한 동작은 확인되지 않는다.
 - 적용 뒤에는 `main` 커밋의 `Supabase Preview` 체크가 성공인지, 새 컬럼이 REST로 조회되는지 본다.
 
 ## 4. PR 하나만 따로 검사하기
@@ -157,21 +187,30 @@ docker rm -f sr-pg
 스택으로 쌓인 브랜치나 다른 에이전트가 만든 브랜치는, 작업 디렉터리를 건드리지 않고 그 커밋만 꺼내 검사한다.
 
 ```bash
-rm -rf /tmp/pr && mkdir /tmp/pr
-git archive origin/<브랜치> | tar -x -C /tmp/pr
-ln -s "$PWD/node_modules" /tmp/pr/node_modules
-(cd /tmp/pr && pnpm check-types && pnpm lint && pnpm test && pnpm build)
+tmpdir=$(mktemp -d)
+trap 'rm -rf "$tmpdir"' EXIT
+git archive origin/<브랜치> | tar -x -C "$tmpdir"
+
+# 의존성이 그대로면 지금 것을 빌려 쓰고, 바뀌었으면 그 커밋의 lockfile로 설치한다
+if git diff --quiet HEAD origin/<브랜치> -- package.json pnpm-lock.yaml; then
+  ln -s "$PWD/node_modules" "$tmpdir/node_modules"
+else
+  (cd "$tmpdir" && pnpm install --frozen-lockfile)
+fi
+(cd "$tmpdir" && pnpm check-types && pnpm lint && pnpm test && pnpm build)
 ```
+
+`node_modules`를 빌려 쓰면 빠르지만, `package.json`이나 `pnpm-lock.yaml`이 다른 커밋을 지금 의존성으로 검사하게 된다. 그 경우엔 통과해도 의미가 없다.
 
 ## 5. 실기기에서만 확인되는 것
 
 지금까지 자동화로 확인하지 못해 사용자가 직접 본 것, 또는 아직 못 본 것.
 
-| 항목                                                 | 상태                                                             |
-| ---------------------------------------------------- | ---------------------------------------------------------------- |
-| iOS "사진 찍기"로 찍은 파일에 촬영 정보가 없음       | 사용자가 확인(보관함에서 고르면 있음). WebKit 버그 207088·229456 |
-| 편집기 하단이 Safari 바 뒤로 비치는지                | 미확인                                                           |
-| 키보드가 올라왔을 때 입력칸이 미리보기에 안 가리는지 | 미확인                                                           |
-| "사진 찍기" 안내 문구가 실제로 뜨는지                | 미확인(파일 수정 시각이 방금으로 오는지에 달렸다)                |
-| 여러 파일 다운로드 허용 창, 디스크에 실제로 쓰임     | 미확인                                                           |
-| 링크 미리보기(카카오톡·iMessage)                     | 미확인. 이미지·태그가 프로덕션에 있는 것까지만 확인              |
+| 항목                                                 | 상태                                                                                                                                 |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| iOS "사진 찍기"로 찍은 파일에 촬영 정보가 없음       | 사용자가 확인(보관함에서 고르면 있음). 같은 보고가 WebKit 버그 207088 댓글에 있다. "사진 찍기" 항목이 항상 표시되는 것은 버그 236981 |
+| 편집기 하단이 Safari 바 뒤로 비치는지                | 미확인                                                                                                                               |
+| 키보드가 올라왔을 때 입력칸이 미리보기에 안 가리는지 | 미확인                                                                                                                               |
+| "사진 찍기" 안내 문구가 실제로 뜨는지                | 미확인(파일 수정 시각이 방금으로 오는지에 달렸다)                                                                                    |
+| 여러 파일 다운로드 허용 창, 디스크에 실제로 쓰임     | 미확인                                                                                                                               |
+| 링크 미리보기(카카오톡·iMessage)                     | 미확인. 이미지·태그가 프로덕션에 있는 것까지만 확인                                                                                  |
