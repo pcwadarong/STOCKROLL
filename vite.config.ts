@@ -21,8 +21,9 @@ export default defineConfig({
         // The installed app opens straight into the editor, not the front page.
         start_url: '/frame',
         display: 'standalone',
-        background_color: '#efe4cf',
-        theme_color: '#8b1e1e',
+        // Splash and status bar colors; mirror BRAND.cream / BRAND.red in src/shared/config/palette.ts.
+        background_color: '#f4efe3',
+        theme_color: '#8e211e',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },

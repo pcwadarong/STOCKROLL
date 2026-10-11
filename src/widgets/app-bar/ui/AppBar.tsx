@@ -15,8 +15,9 @@ const LINKS = [
 /**
  * Title bar shared by every screen: wordmark, main navigation and the account menu.
  * On compact widths the navigation moves into a side drawer opened by a menu button.
+ * @param props `pinned` fixes the bar to the top in the installed app on compact widths
  */
-export const AppBar = () => {
+export const AppBar = ({ pinned = false }: { pinned?: boolean }) => {
   const drawerRef = useRef<HTMLDialogElement>(null);
   const { pathname } = useLocation();
 
@@ -33,7 +34,7 @@ export const AppBar = () => {
   }, []);
 
   return (
-    <header className={css.bar}>
+    <header className={pinned ? `${css.bar} ${css.pinnedBar}` : css.bar}>
       <p className={css.title}>
         <Link to="/" className={css.titleLink}>
           STOCKROLL
