@@ -55,8 +55,9 @@ export const gearLabel = (gear: { name: string; displayName: string | null }) =>
 
 /**
  * Finds the registered camera or lens that an EXIF name refers to.
- * Names match when one contains the other after ignoring case, spaces and punctuation,
- * so "FUJIFILM X-T50" matches a camera registered as "Fujifilm X-T50".
+ * After ignoring case, spaces and punctuation the two names must be equal, or one must end with
+ * the other — which is what a leading maker name looks like ("FUJIFILM X-T50" vs "X-T50").
+ * Plain containment is not enough: "X-T5" is contained in "X-T50" but is a different camera.
  * @param items registered gear
  * @param exifName name read from EXIF
  * @returns the matching gear, or undefined when nothing matches
@@ -66,6 +67,6 @@ export const matchGear = <T extends { name: string }>(items: readonly T[], exifN
   if (!target) return undefined;
   return items.find(item => {
     const name = normalize(item.name);
-    return name !== '' && (name.includes(target) || target.includes(name));
+    return name !== '' && (name.endsWith(target) || target.endsWith(name));
   });
 };

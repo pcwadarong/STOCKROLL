@@ -40,7 +40,12 @@ const layoutOriginal = (photo: Size, longEdge: number): FrameLayout => {
   };
 };
 
-const layoutFixed = (photo: Size, canvasWidth: number, canvasHeight: number): FrameLayout => {
+const layoutFixed = (
+  photo: Size,
+  canvasWidth: number,
+  canvasHeight: number,
+  maxScale = Infinity,
+): FrameLayout => {
   const canvas = { width: Math.round(canvasWidth), height: Math.round(canvasHeight) };
   const unit = canvas.width / BASE_WIDTH;
   const margin = MARGIN * unit;
@@ -49,7 +54,7 @@ const layoutFixed = (photo: Size, canvasWidth: number, canvasHeight: number): Fr
 
   const areaWidth = canvas.width - margin * 2;
   const areaHeight = canvas.height - margin * 2 - gap - captionHeight;
-  const scale = Math.min(areaWidth / photo.width, areaHeight / photo.height);
+  const scale = Math.min(areaWidth / photo.width, areaHeight / photo.height, maxScale);
   const width = Math.round(photo.width * scale);
   const height = Math.round(photo.height * scale);
 
@@ -113,7 +118,8 @@ export const computeLayout = (
   if (detail === 'optimized') return base;
 
   // Full detail: enlarge the whole canvas until the photo is drawn at its own resolution.
-  // Never below the preset size, so a small photo still gets a properly sized canvas.
+  // The canvas never goes below the preset size, and a photo smaller than that is placed at its
+  // own size rather than enlarged — "full" means no resampling up.
   const factor = Math.max(1, photo.width / base.photo.width);
-  return fitPixelBudget(layoutFixed(photo, preset.width * factor, preset.height * factor));
+  return fitPixelBudget(layoutFixed(photo, preset.width * factor, preset.height * factor, 1));
 };

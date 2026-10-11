@@ -15,6 +15,15 @@ describe('matchGear', () => {
     ).toBeDefined();
   });
 
+  it('when a registered model only shares a prefix with the EXIF model, it must not match', () => {
+    expect(matchGear([{ name: 'Fujifilm X-T50' }], 'FUJIFILM X-T5')).toBeUndefined();
+    expect(matchGear([{ name: 'Fujifilm X-T5' }], 'FUJIFILM X-T50')).toBeUndefined();
+  });
+
+  it('when the registered name omits the maker, it must still match the EXIF name that includes it', () => {
+    expect(matchGear([{ name: 'X-T50' }], 'FUJIFILM X-T50')).toBeDefined();
+  });
+
   it('when nothing is registered under that name or the EXIF name is empty, it must return undefined', () => {
     expect(matchGear(CAMERAS, 'NIKON Z f')).toBeUndefined();
     expect(matchGear(CAMERAS, '')).toBeUndefined();
