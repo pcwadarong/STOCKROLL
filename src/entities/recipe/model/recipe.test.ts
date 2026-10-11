@@ -2,11 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   blankSettings,
-  filterRecipes,
   hasSettings,
   latestVersion,
   MAX_VERSIONS,
-  type Recipe,
+  recipeNote,
   type RecipeVersion,
   sameSettings,
   systemOf,
@@ -57,32 +56,14 @@ describe('versionSlots', () => {
   });
 });
 
-describe('filterRecipes', () => {
-  const recipe = (id: string, state: Recipe['state'], isFavorite: boolean): Recipe => ({
-    id,
-    name: id,
-    system: 'fujifilm',
-    baseSimulation: null,
-    state,
-    note: null,
-    isFavorite,
-  });
-  const recipes = [
-    recipe('a', 'active', true),
-    recipe('b', 'candidate', false),
-    recipe('c', 'archived', true),
-  ];
-
-  it('when the filter is a state, it must keep only recipes in that state', () => {
-    expect(filterRecipes(recipes, 'active').map(item => item.id)).toEqual(['a']);
+describe('recipeNote', () => {
+  it('when a recipe is in the camera, there must be nothing to say', () => {
+    expect(recipeNote({ state: 'active' })).toBeUndefined();
   });
 
-  it('when the filter is favorite, it must keep starred recipes of any state', () => {
-    expect(filterRecipes(recipes, 'favorite').map(item => item.id)).toEqual(['a', 'c']);
-  });
-
-  it('when the filter is all, it must keep everything in order', () => {
-    expect(filterRecipes(recipes, 'all')).toHaveLength(3);
+  it('when a recipe is a candidate or archived, the note must name the state, muted', () => {
+    expect(recipeNote({ state: 'candidate' })).toEqual({ label: 'Candidate', tone: 'muted' });
+    expect(recipeNote({ state: 'archived' })).toEqual({ label: 'Archived', tone: 'muted' });
   });
 });
 

@@ -68,8 +68,8 @@ export const row = style({
   gridTemplateColumns: 'minmax(7rem, 14rem) minmax(0, 1fr) auto',
   alignItems: 'baseline',
   columnGap: vars.$dimension.x6,
-  rowGap: vars.$dimension.x1,
-  paddingBlock: vars.$dimension.x4,
+  rowGap: vars.$dimension.x2_5,
+  paddingBlock: vars.$dimension.x5,
   borderBottom: `1px solid ${vars.$color.stroke.neutralWeak}`,
   color: 'inherit',
   textDecoration: 'none',
@@ -89,6 +89,7 @@ export const rowTitle = style([displayText, { fontSize: vars.$fontSize.t7 }]);
 
 export const rowBody = style({
   margin: 0,
+  lineHeight: 1.55,
   color: vars.$color.fg.neutralMuted,
   '@media': { [NARROW_MEDIA_QUERY]: { gridColumn: '1 / -1', gridRow: 2 } },
 });

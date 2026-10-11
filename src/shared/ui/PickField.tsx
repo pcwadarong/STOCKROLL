@@ -17,6 +17,13 @@ type PickFieldProps = {
   placeholder?: string;
   description?: string;
   indicator?: string;
+  /** `medium` is the lower control used in dense panels and filter bars; forms use `large`. */
+  size?: 'large' | 'medium';
+  /**
+   * Drops the label line: the placeholder names the control until something is picked, which
+   * keeps a row of filters one line tall. The label still names it for assistive tech.
+   */
+  hideLabel?: boolean;
 };
 
 /**
@@ -31,15 +38,10 @@ export const PickField = ({
   placeholder = 'Select',
   description,
   indicator,
-}: PickFieldProps) => (
-  <SelectRoot
-    label={label}
-    indicator={indicator}
-    description={description}
-    value={value ? [value] : []}
-    onValueChange={([next]) => onChange(next ?? '')}
-  >
-    <SelectTrigger placeholder={placeholder} />
+  size = 'large',
+  hideLabel = false,
+}: PickFieldProps) => {
+  const items = (
     <SelectContent>
       <SelectGroup>
         {options.map(option => (
@@ -47,5 +49,24 @@ export const PickField = ({
         ))}
       </SelectGroup>
     </SelectContent>
-  </SelectRoot>
-);
+  );
+  const select = {
+    value: value ? [value] : [],
+    onValueChange: ([next]: string[]) => onChange(next ?? ''),
+  };
+
+  if (hideLabel)
+    return (
+      <SelectRoot {...select}>
+        <SelectTrigger placeholder={placeholder} size={size} aria-label={label} />
+        {items}
+      </SelectRoot>
+    );
+
+  return (
+    <SelectRoot label={label} indicator={indicator} description={description} {...select}>
+      <SelectTrigger placeholder={placeholder} size={size} />
+      {items}
+    </SelectRoot>
+  );
+};

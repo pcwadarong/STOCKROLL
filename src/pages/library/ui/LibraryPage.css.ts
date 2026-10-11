@@ -1,5 +1,5 @@
 import { vars } from '@seed-design/css/vars';
-import { style } from '@vanilla-extract/css';
+import { style, styleVariants } from '@vanilla-extract/css';
 
 import { beige } from '@/shared/config/accent.css';
 import { COMPACT_MEDIA_QUERY } from '@/shared/config/responsive';
@@ -45,25 +45,8 @@ export const row = style({
   selectors: { '&:hover, &:focus-visible': { color: vars.$color.fg.positive } },
 });
 
-// Name on the left, standing tag pushed to the right.
-export const rowHead = style({
-  display: 'flex',
-  alignItems: 'baseline',
-  justifyContent: 'space-between',
-  gap: vars.$dimension.x3,
-});
-
-export const rowTags = style({ display: 'flex', flexShrink: 0, gap: vars.$dimension.x1_5 });
-
-export const rowTag = style({
-  flexShrink: 0,
-  paddingInline: vars.$dimension.x2,
-  border: `1px solid ${vars.$color.stroke.neutralWeak}`,
-  borderRadius: vars.$radius.r1,
-});
-
-// Not hidden, just quieter: the record stays, the eye goes to what is in use.
-export const rowDimmed = style({ color: vars.$color.fg.neutralSubtle });
+// Facts wrap on phones; the label face is set tight for single lines, so give wrapped lines air.
+export const rowFacts = style({ lineHeight: 1.6 });
 
 export const rowTitle = style({ fontSize: vars.$fontSize.t5, fontWeight: vars.$fontWeight.bold });
 
@@ -77,27 +60,38 @@ export const actions = style({
   gap: vars.$dimension.x3,
 });
 
-// Stacked rows of filter chips, one per fact.
-export const filters = style({ display: 'grid', gap: vars.$dimension.x2 });
-
-// Chips on the left, the favorites star at the far end of the same line.
+// Dropdowns and the favorites toggle share one grid: a single line where there is room, and
+// as few lines as fit on a phone. 6.5rem is the narrowest a dropdown can be and still show its name.
 export const filterBar = style({
-  display: 'flex',
-  alignItems: 'start',
-  justifyContent: 'space-between',
-  gap: vars.$dimension.x3,
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(6.5rem, 1fr))',
+  gap: vars.$dimension.x2,
 });
+
+// As tall as the dropdowns it sits beside (SEED's medium select is x10).
+export const favoritesToggle = style({ gap: vars.$dimension.x1_5, minHeight: vars.$dimension.x10 });
+
+// The glyph is drawn small in the label face; sized up so it reads as the star in the rows.
+export const toggleStar = style({ fontSize: vars.$fontSize.t6, lineHeight: 1 });
 
 // A list row with a control beside the link (the favorite star).
 export const rowWithAction = style({
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
   alignItems: 'center',
   columnGap: vars.$dimension.x3,
   borderBottom: `1px solid ${vars.$color.stroke.neutralSubtle}`,
+  // The panel's own edge closes the list; a rule under the last row would double it.
+  selectors: { '&:last-child': { borderBottom: 0 } },
 });
 
 export const rowLink = style([row, { borderBottom: 0 }]);
+
+// A state worth pointing out at the end of a row's facts.
+export const rowNote = styleVariants({
+  alert: { color: vars.$color.fg.brand },
+  muted: { color: vars.$color.fg.neutralSubtle },
+});
 
 export const star = style({
   display: 'inline-grid',
@@ -108,7 +102,7 @@ export const star = style({
   borderRadius: vars.$radius.r1,
   background: 'none',
   color: vars.$color.fg.neutralSubtle,
-  fontSize: vars.$fontSize.t6,
+  fontSize: vars.$fontSize.t8,
   lineHeight: 1,
   cursor: 'pointer',
   selectors: {

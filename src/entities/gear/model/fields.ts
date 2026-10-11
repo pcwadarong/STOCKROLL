@@ -1,26 +1,38 @@
 import type { RecordField } from '@/shared/lib/record-field';
 
-export const OWNERSHIP = [
-  { value: 'owned', label: 'Owned' },
-  { value: 'rented', label: 'Rented' },
-  { value: 'borrowed', label: 'Borrowed' },
-  { value: 'sold', label: 'Sold' },
-] as const;
-
 export const STATUS = [
   { value: 'active', label: 'In use' },
   { value: 'inactive', label: 'Not in use' },
   { value: 'repair', label: 'In repair' },
   { value: 'display', label: 'Display only' },
+  { value: 'rented', label: 'Rented' },
+  { value: 'sold', label: 'Sold' },
 ] as const;
 
-export const USAGE = [
-  { value: 'used', label: 'Used' },
-  { value: 'planned', label: 'Planned' },
-  { value: 'interested', label: 'Interested' },
+export const CAMERA_KIND = [
+  { value: 'digital', label: 'Digital' },
+  { value: 'film', label: 'Film' },
 ] as const;
 
-const FORMAT = [
+export const BODY_TYPE = [
+  { value: 'mirrorless', label: 'Mirrorless' },
+  { value: 'slr', label: 'SLR' },
+  { value: 'compact', label: 'Compact' },
+  { value: 'rangefinder', label: 'Rangefinder' },
+  { value: 'tlr', label: 'TLR' },
+  { value: 'instant', label: 'Instant' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'other', label: 'Other' },
+] as const;
+
+export const FILM_KIND = [
+  { value: 'color_negative', label: 'Color negative' },
+  { value: 'bw', label: 'Black & white' },
+  { value: 'slide', label: 'Slide' },
+  { value: 'cine', label: 'Cine' },
+] as const;
+
+export const FORMAT = [
   { value: '135', label: '135' },
   { value: '120', label: '120' },
 ] as const;
@@ -42,10 +54,14 @@ export const CAMERA_FIELDS: readonly RecordField[] = [
     label: 'Type',
     type: 'select',
     required: true,
-    options: [
-      { value: 'digital', label: 'Digital' },
-      { value: 'film', label: 'Film' },
-    ],
+    options: CAMERA_KIND,
+  },
+  {
+    key: 'bodyType',
+    label: 'Body',
+    type: 'select',
+    options: BODY_TYPE,
+    hint: 'A digital SLR is "Digital" with an "SLR" body',
   },
   {
     key: 'filmFormat',
@@ -55,7 +71,6 @@ export const CAMERA_FIELDS: readonly RecordField[] = [
     hint: 'Film cameras only',
   },
   { key: 'mount', label: 'Mount', type: 'text', placeholder: 'X, EF, fixed lens…' },
-  { key: 'ownership', label: 'Ownership', type: 'select', required: true, options: OWNERSHIP },
   { key: 'status', label: 'Status', type: 'select', required: true, options: STATUS },
   { key: 'note', label: 'Note', type: 'text' },
 ];
@@ -76,7 +91,6 @@ export const LENS_FIELDS: readonly RecordField[] = [
     placeholder: 'XF 16-80mm F4',
   },
   { key: 'mount', label: 'Mount', type: 'text', placeholder: 'X, EF…' },
-  { key: 'ownership', label: 'Ownership', type: 'select', required: true, options: OWNERSHIP },
   { key: 'status', label: 'Status', type: 'select', required: true, options: STATUS },
   { key: 'note', label: 'Note', type: 'text' },
 ];
@@ -96,28 +110,11 @@ export const FILM_FIELDS: readonly RecordField[] = [
     label: 'Type',
     type: 'select',
     required: true,
-    options: [
-      { value: 'color_negative', label: 'Color negative' },
-      { value: 'bw', label: 'Black & white' },
-      { value: 'slide', label: 'Slide' },
-    ],
-  },
-  {
-    key: 'usage',
-    label: 'Usage',
-    type: 'select',
-    required: true,
-    hint: 'Keep candidates as "Interested" until you have actually shot them',
-    options: USAGE,
+    options: FILM_KIND,
   },
   { key: 'note', label: 'Note', type: 'text' },
 ];
 
-export const CAMERA_DEFAULTS = { kind: 'digital', ownership: 'owned', status: 'active' };
-export const LENS_DEFAULTS = { ownership: 'owned', status: 'active' };
-export const FILM_DEFAULTS = {
-  format: '135',
-  kind: 'color_negative',
-  usage: 'used',
-  isFavorite: false,
-};
+export const CAMERA_DEFAULTS = { kind: 'digital', status: 'active', isFavorite: false };
+export const LENS_DEFAULTS = { status: 'active', isFavorite: false };
+export const FILM_DEFAULTS = { format: '135', kind: 'color_negative', isFavorite: false };

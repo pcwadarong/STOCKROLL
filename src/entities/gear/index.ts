@@ -7,6 +7,7 @@ export {
   LENS_FIELDS,
 } from './model/fields';
 export {
+  type BodyType,
   type Camera,
   cameraCollection,
   type Film,
@@ -16,14 +17,5 @@ export {
   type Lens,
   lensCollection,
   matchGear,
-  type Ownership,
 } from './model/gear';
-export {
-  ANY,
-  arrangeGear,
-  FAVORITES_ONLY,
-  FILM_FILTERS,
-  GEAR_FILTERS,
-  type GearFilter,
-  isCurrent,
-} from './model/views';
+export { arrangeGear, CAMERA_FILTERS, FILM_FILTERS, LENS_FILTERS, statusNote } from './model/views';
