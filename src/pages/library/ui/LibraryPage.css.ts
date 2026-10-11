@@ -46,6 +46,9 @@ export const row = style({
 
 export const rowTitle = style({ fontSize: vars.$fontSize.t5, fontWeight: vars.$fontWeight.bold });
 
+// Pushed to the far left, away from Save, so it is not hit by accident.
+export const destructive = style({ marginRight: 'auto', color: vars.$color.fg.brand });
+
 export const actions = style({
   display: 'flex',
   justifyContent: 'flex-end',

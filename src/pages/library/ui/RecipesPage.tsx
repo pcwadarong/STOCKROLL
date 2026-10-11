@@ -23,6 +23,7 @@ import { missingRequired, normalizeRecord, type RecordValues } from '@/shared/li
 import { useCollection } from '@/shared/lib/use-collection';
 import { useGoBack } from '@/shared/lib/use-go-back';
 import { Button } from '@/shared/ui/Button';
+import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorText } from '@/shared/ui/ErrorText';
 import { labelText, labelTitle } from '@/shared/ui/label.css';
@@ -32,35 +33,40 @@ import { Panel } from '@/shared/ui/Panel';
 import { PickField } from '@/shared/ui/PickField';
 import { RecordForm } from '@/shared/ui/RecordForm';
 import { PageShell } from '@/widgets/page-shell';
-import {
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogRoot,
-  AlertDialogTitle,
-} from 'seed-design/ui/alert-dialog';
 
 import * as css from './LibraryPage.css';
 
 type Meta = Pick<Recipe, 'name' | 'system' | 'state' | 'note'>;
+/**
+ * Where a change to an existing recipe goes: `correct` overwrites the current version (fixing a
+ * mistake), `version` adds the next version (keeping history), `new` creates a separate recipe.
+ */
+type SaveTarget = 'new' | 'version' | 'correct';
 type Preset = { value: string; label: string; system: RecipeSystem; settings: RecipeSettings };
-type SaveRecipe = (
-  meta: Meta,
-  settings: RecipeSettings,
-  target: 'new' | 'version',
-) => Promise<void>;
+type SaveRecipe = (meta: Meta, settings: RecipeSettings, target: SaveTarget) => Promise<void>;
 
 type RecipeFormProps = {
   recipe: Recipe | undefined;
   /** Settings of the latest saved version, used to tell whether the user changed anything. */
   saved: RecipeSettings;
   presets: readonly Preset[];
+  /** Number of the latest saved version, or 0 when the recipe has none yet. */
+  version: number;
   onSave: SaveRecipe;
+  /** Present only when editing an existing recipe. */
+  onDelete?: () => Promise<void>;
   onDone: () => void;
 };
 
-const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps) => {
+const RecipeForm = ({
+  recipe,
+  saved,
+  presets,
+  version,
+  onSave,
+  onDelete,
+  onDone,
+}: RecipeFormProps) => {
   const [values, setValues] = useState<RecordValues>({
     name: recipe?.name ?? '',
     system: recipe ? systemOf(recipe) : 'fujifilm',
@@ -72,6 +78,20 @@ const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps)
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  const remove = async () => {
+    if (!onDelete) return;
+    setBusy(true);
+    setError('');
+    try {
+      await onDelete();
+      onDone();
+    } catch {
+      setError(MESSAGES.deleteFailed);
+      setBusy(false);
+    }
+  };
 
   const change = (key: string, value: string) => setValues(prev => ({ ...prev, [key]: value }));
 
@@ -88,7 +108,7 @@ const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps)
     setValues(prev => ({ ...prev, ...cleared, ...chosen.settings, system: chosen.system }));
   };
 
-  const commit = async (target: 'new' | 'version') => {
+  const commit = async (target: SaveTarget) => {
     const meta = normalizeRecord(RECIPE_FIELDS, values) as unknown as Meta;
     setAsking(false);
     setBusy(true);
@@ -106,8 +126,9 @@ const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps)
     const missing = missingRequired(RECIPE_FIELDS, normalizeRecord(RECIPE_FIELDS, values));
     if (missing.length > 0) return setError(MESSAGES.fillIn(missing));
     if (!recipe) return void commit('new');
-    // Changed settings of an existing recipe: let the user decide where the change goes.
-    if (!sameSettings(saved, toSettings(system, values))) return setAsking(true);
+    // Changed settings of a recipe that already has a version: a typo fix, a new version and a
+    // separate recipe are different intentions, so ask. Otherwise there is nothing to choose.
+    if (version > 0 && !sameSettings(saved, toSettings(system, values))) return setAsking(true);
     void commit('version');
   };
 
@@ -126,34 +147,50 @@ const RecipeForm = ({ recipe, saved, presets, onSave, onDone }: RecipeFormProps)
         onChange={applyPreset}
       />
 
-      <h3 className={labelTitle}>{SYSTEMS[system].label} settings</h3>
+      <h3 className={labelTitle}>
+        {SYSTEMS[system].label} settings{version > 0 && ` — v${version}`}
+      </h3>
       <RecordForm fields={settingFields} values={values} onChange={change} />
 
       <div className={css.actions}>
+        {onDelete && (
+          <Button className={css.destructive} variant="plain" onClick={() => setConfirming(true)}>
+            Delete recipe
+          </Button>
+        )}
         <Button onClick={onDone}>Cancel</Button>
         <Button variant="primary" loading={busy} onClick={submit}>
           Save recipe
         </Button>
       </div>
 
-      <AlertDialogRoot open={asking} onOpenChange={setAsking}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Settings changed</AlertDialogTitle>
-            <AlertDialogDescription>
-              Update “{recipe?.name}”, or save these settings as a new recipe? Updating adds a
-              version; linked photos keep the old one.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <Button onClick={() => setAsking(false)}>Cancel</Button>
-            <Button onClick={() => void commit('new')}>Save as new recipe</Button>
-            <Button variant="primary" onClick={() => void commit('version')}>
-              Update this recipe
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialogRoot>
+      <ConfirmDialog
+        open={asking}
+        onOpenChange={setAsking}
+        title="How should this change be saved?"
+        actions={[
+          { label: 'Save as new recipe', onSelect: () => void commit('new') },
+          { label: `Correct v${version}`, onSelect: () => void commit('correct') },
+          {
+            label: `Save as v${version + 1}`,
+            primary: true,
+            onSelect: () => void commit('version'),
+          },
+        ]}
+      >
+        Correct v{version} fixes a mistake in place. Save as v{version + 1} keeps v{version} in the
+        history. Save as new recipe leaves “{recipe?.name}” untouched.
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title="Delete this recipe?"
+        actions={[{ label: 'Delete', primary: true, onSelect: () => void remove() }]}
+      >
+        Use this for a recipe entered by mistake. If you only stopped using it, set its state to
+        Archived so it stays in your record. Deleting removes every version and cannot be undone.
+      </ConfirmDialog>
     </>
   );
 };
@@ -219,7 +256,11 @@ export const RecipesPage = () => {
         ...meta,
         baseSimulation: settings.simulation ?? null,
       });
-      if (!latest || !sameSettings(latest.settings, settings))
+      if (latest && target === 'correct')
+        // A mistake is fixed where it is: the version keeps its number, and photos linked to it
+        // show the corrected values.
+        await recipeVersionCollection.save({ ...latest, settings });
+      else if (!latest || !sameSettings(latest.settings, settings))
         await recipeVersionCollection.save({
           recipeId: current.id,
           version: (latest?.version ?? 0) + 1,
@@ -262,6 +303,8 @@ export const RecipesPage = () => {
                 key={id}
                 recipe={current}
                 saved={latest?.settings ?? {}}
+                version={latest?.version ?? 0}
+                onDelete={current ? () => recipes.remove(current.id) : undefined}
                 presets={presets.filter(item => item.value !== `recipe:${current?.id}`)}
                 onSave={saveRecipe}
                 onDone={goBack}
