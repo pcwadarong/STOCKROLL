@@ -1,5 +1,5 @@
 import { vars } from '@seed-design/css/vars';
-import { keyframes, style } from '@vanilla-extract/css';
+import { globalStyle, keyframes, style } from '@vanilla-extract/css';
 
 import { beige } from '@/shared/config/accent.css';
 import {
@@ -156,6 +156,10 @@ export const drawer = style({
     },
   },
 });
+
+// A modal dialog makes the page inert but does not stop it scrolling: on phones, where the document
+// is the scroller, a swipe on the backdrop would move the page behind the open drawer.
+globalStyle(`html:has(${drawer}[open])`, { overflow: 'hidden' });
 
 export const drawerHead = style({
   display: 'flex',
