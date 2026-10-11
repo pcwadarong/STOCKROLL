@@ -1,5 +1,5 @@
 import { vars } from '@seed-design/css/vars';
-import { style } from '@vanilla-extract/css';
+import { globalStyle, style } from '@vanilla-extract/css';
 
 import { tertiary } from '@/shared/config/accent.css';
 import { SHADE } from '@/shared/config/palette';
@@ -145,6 +145,16 @@ export const queueActions = style({
   flexWrap: 'wrap',
   gap: vars.$dimension.x2,
 });
+
+// One line of text links under the file name.
+export const queueLinks = style({
+  display: 'flex',
+  flexWrap: 'wrap',
+  columnGap: vars.$dimension.x5,
+});
+
+// Text links are only a line tall; the padding makes them a fair touch target.
+globalStyle(`${queueLinks} > *`, { paddingBlock: vars.$dimension.x2 });
 
 export const actions = style({
   display: 'flex',

@@ -45,3 +45,18 @@ globalStyle('html .seed-select__content', {
   borderRadius: vars.$radius.r2,
   boxShadow: vars.$shadow.s2,
 });
+
+// Alert dialog: SEED breaks lines between any two letters, which suits Korean but splits English
+// words mid-word. Break between words, and only inside one when it cannot fit at all.
+globalStyle('html .seed-alert-dialog__content', {
+  wordBreak: 'normal',
+  overflowWrap: 'break-word',
+});
+
+// Answers sit side by side with Cancel on the left, and wrap when there are too many to fit.
+globalStyle('html .seed-alert-dialog__footer', {
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  gap: vars.$dimension.x2,
+});
+globalStyle('html .seed-alert-dialog__footer > *', { flex: '1 1 auto' });
