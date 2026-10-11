@@ -1,0 +1,8 @@
+node_modules
+dist
+dev-dist
+coverage
+pnpm-lock.yaml
+seed-design
+skills-lock.json
+.claude/skills/seed-design

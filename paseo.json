@@ -1,0 +1,9 @@
+{
+  "worktree": {
+    "setup": "pnpm install && { [ -f \"$PASEO_SOURCE_CHECKOUT_PATH/.env.local\" ] && ln -sf \"$PASEO_SOURCE_CHECKOUT_PATH/.env.local\" \"$(git rev-parse --show-toplevel)/.env.local\" || true; }",
+    "teardown": [
+      "git -C \"$PASEO_SOURCE_CHECKOUT_PATH\" worktree remove --force \"$PASEO_WORKTREE_PATH\" 2>/dev/null || true",
+      "git -C \"$PASEO_SOURCE_CHECKOUT_PATH\" branch -D \"$PASEO_BRANCH_NAME\" 2>/dev/null || true"
+    ]
+  }
+}

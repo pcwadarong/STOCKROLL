@@ -1,0 +1,76 @@
+{
+  "name": "stockroll",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "check-types": "tsc -b",
+    "typecheck": "pnpm run check-types",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "commit": "cz",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@fontsource/anton": "^5.3.0",
+    "@karrotmarket/react-monochrome-icon": "^1.29.0",
+    "@seed-design/css": "^3.0.2",
+    "@seed-design/react": "^3.0.0",
+    "@supabase/supabase-js": "^2.117.3",
+    "exifr": "^7.1.3",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router": "^8.4.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@seed-design/vite-plugin": "^2.1.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vanilla-extract/css": "^1.21.3",
+    "@vanilla-extract/vite-plugin": "^5.2.6",
+    "@vitejs/plugin-react": "^6.1.2",
+    "commitizen": "^4.3.2",
+    "cz-customizable": "^7.5.4",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-prettier": "^5.5.6",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-simple-import-sort": "^14.0.0",
+    "globals": "^17.13.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.9",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.1",
+    "vite": "^8.3.3",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.0.3"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,mjs,cjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml,css}": [
+      "prettier --write"
+    ]
+  },
+  "config": {
+    "commitizen": {
+      "path": "cz-customizable",
+      "config": ".cz-config.cjs"
+    }
+  },
+  "packageManager": "pnpm@10.28.1",
+  "engines": {
+    "node": ">=22"
+  }
+}
