@@ -18,4 +18,11 @@ export {
   matchGear,
   type Ownership,
 } from './model/gear';
-export { arrangeGear, FILM_VIEWS, GEAR_VIEWS, type GearView, isCurrent } from './model/views';
+export {
+  ANY,
+  arrangeGear,
+  FILM_FILTERS,
+  GEAR_FILTERS,
+  type GearFilter,
+  isCurrent,
+} from './model/views';

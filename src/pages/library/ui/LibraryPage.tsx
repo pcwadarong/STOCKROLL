@@ -2,16 +2,17 @@ import { useState } from 'react';
 import { Link, Navigate, NavLink, useNavigate, useParams } from 'react-router';
 
 import {
+  ANY,
   arrangeGear,
   CAMERA_DEFAULTS,
   CAMERA_FIELDS,
   cameraCollection,
   FILM_DEFAULTS,
   FILM_FIELDS,
-  FILM_VIEWS,
+  FILM_FILTERS,
   filmCollection,
-  GEAR_VIEWS,
-  type GearView,
+  GEAR_FILTERS,
+  type GearFilter,
   isCurrent,
   LENS_DEFAULTS,
   LENS_FIELDS,
@@ -32,6 +33,7 @@ import { Button } from '@/shared/ui/Button';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorText } from '@/shared/ui/ErrorText';
+import { FilterChips } from '@/shared/ui/FilterChips';
 import { labelText } from '@/shared/ui/label.css';
 import { formatCount, MetaList } from '@/shared/ui/MetaList';
 import { PageHeader } from '@/shared/ui/PageHeader';
@@ -51,8 +53,8 @@ type Section = {
   defaults: RecordValues;
   /** Short second line shown under the name in the list. */
   summary: (item: GearRow, label: (key: string) => string) => string;
-  /** Ways to narrow this section's list. */
-  views: readonly GearView[];
+  /** Facts this section's list can be narrowed by, one row of chips each. */
+  filters: readonly GearFilter[];
   /** Field whose label is shown at the end of a row that is not part of current shooting. */
   standingField: string;
 };
@@ -66,7 +68,7 @@ const SECTIONS: Record<string, Section> = {
     defaults: CAMERA_DEFAULTS,
     summary: (item, label) =>
       [label('kind'), item.filmFormat, item.mount].filter(Boolean).join(' · '),
-    views: GEAR_VIEWS,
+    filters: GEAR_FILTERS,
     standingField: 'status',
   },
   lenses: {
@@ -76,7 +78,7 @@ const SECTIONS: Record<string, Section> = {
     fields: LENS_FIELDS,
     defaults: LENS_DEFAULTS,
     summary: item => (item.mount ? `${item.mount} mount` : ''),
-    views: GEAR_VIEWS,
+    filters: GEAR_FILTERS,
     standingField: 'status',
   },
   films: {
@@ -87,7 +89,7 @@ const SECTIONS: Record<string, Section> = {
     defaults: FILM_DEFAULTS,
     summary: (item, label) =>
       [item.format, item.iso ? `ISO ${item.iso}` : '', label('kind')].filter(Boolean).join(' · '),
-    views: FILM_VIEWS,
+    filters: FILM_FILTERS,
     standingField: 'usage',
   },
 };
@@ -193,12 +195,13 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
   const section = SECTIONS[kind]!;
   const { items, status, save, remove } = useCollection(section.collection);
   const navigate = useNavigate();
-  // The chosen view belongs to the section it was picked in; another section starts from All.
-  const [picked, setPicked] = useState({ kind, value: 'all' });
-  const view =
-    section.views.find(item => picked.kind === kind && item.value === picked.value) ??
-    section.views[0]!;
-  const shown = arrangeGear(items, view);
+  // Picked chips belong to the section they were picked in; another section starts unfiltered.
+  const [picked, setPicked] = useState<{ kind: string; values: Record<string, string> }>({
+    kind,
+    values: {},
+  });
+  const picks = picked.kind === kind ? picked.values : {};
+  const shown = arrangeGear(items, picks);
 
   // `/library/:kind/:id` shows an item read-only; the form is `/new` or `/:id/edit`.
   const editing = id === 'new' || (id !== undefined && editRoute);
@@ -328,17 +331,24 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
 
             {items.length > 0 && (
               <>
-                <div className={css.tabs} role="group" aria-label="Show">
-                  {section.views.map(({ value, label }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      className={css.filter}
-                      aria-pressed={view.value === value}
-                      onClick={() => setPicked({ kind, value })}
-                    >
-                      {label}
-                    </button>
+                <div className={css.filters}>
+                  {section.filters.map(filter => (
+                    <FilterChips
+                      key={filter.key}
+                      label={filter.label}
+                      showLabel
+                      options={filter.options}
+                      value={picks[filter.key] ?? ANY}
+                      onChange={value =>
+                        setPicked(previous => ({
+                          kind,
+                          values: {
+                            ...(previous.kind === kind ? previous.values : {}),
+                            [filter.key]: value,
+                          },
+                        }))
+                      }
+                    />
                   ))}
                 </div>
 
@@ -352,9 +362,13 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
                   <ul className={css.list}>
                     {shown.map(item => {
                       const label = optionLabel(section.fields, item);
-                      const ownership = item.ownership === 'owned' ? '' : label('ownership');
                       // Rows outside current shooting are dimmed and say why at the end of the line.
                       const current = isCurrent(item);
+                      // Ownership is a separate fact, so it gets its own tag whatever the status.
+                      const tags = [
+                        current ? '' : label(section.standingField),
+                        item.ownership && item.ownership !== 'owned' ? label('ownership') : '',
+                      ].filter(Boolean);
                       return (
                         <li key={item.id}>
                           <Link
@@ -363,9 +377,13 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
                           >
                             <span className={css.rowHead}>
                               <span className={css.rowTitle}>{item.name}</span>
-                              {!current && (
-                                <span className={`${labelText} ${css.rowTag}`}>
-                                  {ownership || label(section.standingField)}
+                              {tags.length > 0 && (
+                                <span className={css.rowTags}>
+                                  {tags.map(tag => (
+                                    <span key={tag} className={`${labelText} ${css.rowTag}`}>
+                                      {tag}
+                                    </span>
+                                  ))}
                                 </span>
                               )}
                             </span>

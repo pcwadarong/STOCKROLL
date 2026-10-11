@@ -1,17 +1,23 @@
 import type { RecordField } from '@/shared/lib/record-field';
 
-const OWNERSHIP = [
+export const OWNERSHIP = [
   { value: 'owned', label: 'Owned' },
   { value: 'rented', label: 'Rented' },
   { value: 'borrowed', label: 'Borrowed' },
   { value: 'sold', label: 'Sold' },
 ] as const;
 
-const STATUS = [
+export const STATUS = [
   { value: 'active', label: 'In use' },
   { value: 'inactive', label: 'Not in use' },
   { value: 'repair', label: 'In repair' },
   { value: 'display', label: 'Display only' },
+] as const;
+
+export const USAGE = [
+  { value: 'used', label: 'Used' },
+  { value: 'planned', label: 'Planned' },
+  { value: 'interested', label: 'Interested' },
 ] as const;
 
 const FORMAT = [
@@ -102,11 +108,7 @@ export const FILM_FIELDS: readonly RecordField[] = [
     type: 'select',
     required: true,
     hint: 'Keep candidates as "Interested" until you have actually shot them',
-    options: [
-      { value: 'used', label: 'Used' },
-      { value: 'planned', label: 'Planned' },
-      { value: 'interested', label: 'Interested' },
-    ],
+    options: USAGE,
   },
   { key: 'note', label: 'Note', type: 'text' },
 ];

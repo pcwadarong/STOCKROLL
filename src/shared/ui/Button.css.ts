@@ -38,6 +38,8 @@ const base = style([
         outlineOffset: vars.$dimension.x1,
       },
       '&:disabled': { opacity: 0.4, cursor: 'not-allowed' },
+      // A toggle that is on keeps the green that other buttons only show on hover.
+      '&[aria-pressed="true"]': green,
     },
     '@media': { [REDUCED_MOTION_QUERY]: { transition: 'none' } },
   },

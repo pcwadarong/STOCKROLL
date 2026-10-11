@@ -14,6 +14,7 @@ import { MESSAGES } from '@/shared/config/messages';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorText } from '@/shared/ui/ErrorText';
+import { FilterChips } from '@/shared/ui/FilterChips';
 import { labelText } from '@/shared/ui/label.css';
 import { formatCount, MetaList } from '@/shared/ui/MetaList';
 import { PageHeader } from '@/shared/ui/PageHeader';
@@ -88,19 +89,7 @@ export const RecipeListPage = () => {
 
           {recipes.length > 0 && (
             <>
-              <div className={css.tabs} role="group" aria-label="Show">
-                {FILTERS.map(({ value, label }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={css.filter}
-                    aria-pressed={filter === value}
-                    onClick={() => setFilter(value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <FilterChips label="Show" options={FILTERS} value={filter} onChange={setFilter} />
 
               {shown.length === 0 && (
                 <EmptyState title="Nothing here">No recipe matches this view.</EmptyState>

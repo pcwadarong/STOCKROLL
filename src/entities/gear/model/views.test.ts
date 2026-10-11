@@ -1,72 +1,77 @@
 import { describe, expect, it } from 'vitest';
 
-import { arrangeGear, FILM_VIEWS, GEAR_VIEWS, isCurrent } from './views';
-
-const view = (value: string) => GEAR_VIEWS.find(item => item.value === value)!;
-const filmView = (value: string) => FILM_VIEWS.find(item => item.value === value)!;
+import { ANY, arrangeGear, isCurrent } from './views';
 
 const GEAR = [
   { name: 'display', ownership: 'owned', status: 'display' },
-  { name: 'rented', ownership: 'rented', status: 'inactive' },
+  { name: 'rented-shelved', ownership: 'rented', status: 'inactive' },
   { name: 'repair', ownership: 'owned', status: 'repair' },
-  { name: 'active-1', ownership: 'owned', status: 'active' },
+  { name: 'active', ownership: 'owned', status: 'active' },
   { name: 'shelved', ownership: 'owned', status: 'inactive' },
-  { name: 'active-2', ownership: 'owned', status: 'active' },
+  { name: 'rented-active', ownership: 'rented', status: 'active' },
+];
+
+const FILMS = [
+  { name: 'interested', usage: 'interested', isFavorite: false },
+  { name: 'used', usage: 'used', isFavorite: false },
+  { name: 'favorite', usage: 'used', isFavorite: true },
+  { name: 'planned', usage: 'planned', isFavorite: false },
 ];
 
 const names = (items: readonly { name: string }[]) => items.map(item => item.name);
 
 describe('arrangeGear', () => {
-  it('when showing everything, gear in use must lead and rented gear must come last', () => {
-    expect(names(arrangeGear(GEAR, view('all')))).toEqual([
-      'active-1',
-      'active-2',
+  it('when nothing is picked, it must order gear by status alone, whoever owns it', () => {
+    expect(names(arrangeGear(GEAR, {}))).toEqual([
+      'active',
+      'rented-active',
       'repair',
+      'rented-shelved',
       'shelved',
       'display',
-      'rented',
     ]);
   });
 
-  it('when the view is In use, it must list only owned gear that is in use', () => {
-    expect(names(arrangeGear(GEAR, view('active')))).toEqual(['active-1', 'active-2']);
+  it('when the status is In use, rented gear being shot with must be listed too', () => {
+    expect(names(arrangeGear(GEAR, { status: 'active' }))).toEqual(['active', 'rented-active']);
   });
 
-  it('when the view is Not in use, rented gear must not appear even though its status is inactive', () => {
-    expect(names(arrangeGear(GEAR, view('inactive')))).toEqual(['shelved']);
+  it('when both status and ownership are picked, an item must satisfy both', () => {
+    expect(names(arrangeGear(GEAR, { status: 'inactive', ownership: 'owned' }))).toEqual([
+      'shelved',
+    ]);
   });
 
-  it('when the view is Rented or gone, it must list gear the user does not own', () => {
-    expect(names(arrangeGear(GEAR, view('not-owned')))).toEqual(['rented']);
+  it('when a filter is set to All, it must not narrow the list', () => {
+    expect(names(arrangeGear(GEAR, { status: ANY, ownership: 'rented' }))).toEqual([
+      'rented-active',
+      'rented-shelved',
+    ]);
   });
 
   it('when films are shown, favorites must lead and candidates must follow films that were shot', () => {
-    const films = [
-      { name: 'interested', usage: 'interested', isFavorite: false },
-      { name: 'used', usage: 'used', isFavorite: false },
-      { name: 'favorite', usage: 'used', isFavorite: true },
-      { name: 'planned', usage: 'planned', isFavorite: false },
-    ];
-    expect(names(arrangeGear(films, filmView('all')))).toEqual([
-      'favorite',
-      'used',
-      'planned',
-      'interested',
-    ]);
-    expect(names(arrangeGear(films, filmView('favorite')))).toEqual(['favorite']);
+    expect(names(arrangeGear(FILMS, {}))).toEqual(['favorite', 'used', 'planned', 'interested']);
+  });
+
+  it('when Favorites is picked, it must list only films marked as favorite', () => {
+    expect(names(arrangeGear(FILMS, { isFavorite: 'true' }))).toEqual(['favorite']);
   });
 });
 
 describe('isCurrent', () => {
-  it('when gear is owned and in use, or film has been shot, it must count as current', () => {
+  it('when gear is in use, it must count as current even if it is rented', () => {
     expect(isCurrent({ ownership: 'owned', status: 'active' })).toBe(true);
-    expect(isCurrent({ usage: 'used' })).toBe(true);
+    expect(isCurrent({ ownership: 'rented', status: 'active' })).toBe(true);
   });
 
-  it('when gear is in repair, on display, rented, or film is only a candidate, it must not count as current', () => {
+  it('when gear is in repair, shelved or on display, it must not count as current', () => {
     expect(isCurrent({ ownership: 'owned', status: 'repair' })).toBe(false);
+    expect(isCurrent({ ownership: 'owned', status: 'inactive' })).toBe(false);
     expect(isCurrent({ ownership: 'owned', status: 'display' })).toBe(false);
-    expect(isCurrent({ ownership: 'rented', status: 'active' })).toBe(false);
+  });
+
+  it('when a film has been shot it must count as current, and a candidate must not', () => {
+    expect(isCurrent({ usage: 'used' })).toBe(true);
     expect(isCurrent({ usage: 'interested' })).toBe(false);
   });
 });

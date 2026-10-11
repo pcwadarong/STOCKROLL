@@ -11,6 +11,8 @@ type ButtonProps = {
   to?: string;
   /** Shows a busy label and blocks clicks while an action runs. */
   loading?: boolean;
+  /** Marks a toggle as on or off. Leave unset for a plain action button. */
+  pressed?: boolean;
   className?: string;
   children: ReactNode;
 } & Pick<ButtonHTMLAttributes<HTMLButtonElement>, 'onClick' | 'disabled' | 'aria-label'>;
@@ -25,6 +27,7 @@ export const Button = ({
   size = 'medium',
   to,
   loading = false,
+  pressed,
   className,
   children,
   ...rest
@@ -51,6 +54,7 @@ export const Button = ({
       {...rest}
       disabled={rest.disabled || loading}
       aria-busy={loading || undefined}
+      aria-pressed={pressed}
     >
       {loading ? 'Working…' : children}
     </button>

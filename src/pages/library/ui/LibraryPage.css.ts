@@ -36,8 +36,8 @@ export const list = style({ display: 'grid', margin: 0, padding: 0, listStyle: '
 
 export const row = style({
   display: 'grid',
-  gap: vars.$dimension.x0_5,
-  paddingBlock: vars.$dimension.x3,
+  gap: vars.$dimension.x1_5,
+  paddingBlock: vars.$dimension.x4,
   borderBottom: `1px solid ${vars.$color.stroke.neutralSubtle}`,
   color: 'inherit',
   textDecoration: 'none',
@@ -52,6 +52,8 @@ export const rowHead = style({
   justifyContent: 'space-between',
   gap: vars.$dimension.x3,
 });
+
+export const rowTags = style({ display: 'flex', flexShrink: 0, gap: vars.$dimension.x1_5 });
 
 export const rowTag = style({
   flexShrink: 0,
@@ -75,21 +77,8 @@ export const actions = style({
   gap: vars.$dimension.x3,
 });
 
-// Filter chips share the tab look; they are buttons, so the pressed state marks the active one.
-export const filter = style([
-  tab,
-  {
-    background: 'none',
-    cursor: 'pointer',
-    selectors: {
-      '&[aria-pressed="true"]': {
-        background: vars.$color.bg.positiveSolid,
-        borderColor: vars.$color.bg.positiveSolid,
-        color: beige,
-      },
-    },
-  },
-]);
+// Stacked rows of filter chips, one per fact.
+export const filters = style({ display: 'grid', gap: vars.$dimension.x2 });
 
 // A list row with a control beside the link (the favorite star).
 export const rowWithAction = style({
