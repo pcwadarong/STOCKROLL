@@ -34,7 +34,7 @@ export const thumbButton = style({
     '&:hover:not(:disabled), &:focus-visible': { opacity: 1 },
     '&:focus-visible': {
       outline: `2px solid ${vars.$color.stroke.focusRing}`,
-      outlineOffset: '3px',
+      outlineOffset: vars.$dimension.x1,
     },
     // The current photo is marked with a rule in the key color, not with a fill or a shadow.
     '&[aria-current="true"]': { borderColor: vars.$color.stroke.brandSolid, opacity: 1 },

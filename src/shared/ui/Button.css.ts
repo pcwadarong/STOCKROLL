@@ -35,7 +35,7 @@ const base = style([
     selectors: {
       '&:focus-visible': {
         outline: `2px solid ${vars.$color.stroke.focusRing}`,
-        outlineOffset: '3px',
+        outlineOffset: vars.$dimension.x1,
       },
       '&:disabled': { opacity: 0.4, cursor: 'not-allowed' },
     },
