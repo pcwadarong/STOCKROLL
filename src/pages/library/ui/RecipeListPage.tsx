@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 
 import { latestVersion, RECIPE_STATES, recipeNote, systemOf, SYSTEMS } from '@/entities/recipe';
 import { SignInGate } from '@/features/auth';
@@ -13,8 +14,13 @@ import { Panel } from '@/shared/ui/Panel';
 import { PageShell } from '@/widgets/page-shell';
 
 import { useRecipeLibrary } from '../model/use-recipe-library';
+import { useRecipePhotos } from '../model/use-recipe-photos';
 
 import { ItemList, ListFilters } from './LibraryList';
+import { RecipeGallery } from './RecipeGallery';
+import { RecipeTabs } from './RecipeTabs';
+
+import * as css from './LibraryPage.css';
 
 const FILTERS: readonly ListFilter[] = [
   listFilter(
@@ -25,11 +31,20 @@ const FILTERS: readonly ListFilter[] = [
   listFilter('state', 'State', RECIPE_STATES),
 ];
 
-/** Recipe library: every recipe at a glance, narrowed by favorite or state. */
+/**
+ * Recipe library: every recipe at a glance, narrowed by favorite or state. `?view=photos` shows
+ * the same recipes by their example photos instead of as lines.
+ */
 export const RecipeListPage = () => {
   const { recipes, versions, ready, failed, saveRecipe } = useRecipeLibrary();
   const [picks, setPicks] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
+  const [params, setParams] = useSearchParams();
+  const byPhoto = params.get('view') === 'photos';
+  const photoOf = useRecipePhotos(byPhoto ? recipes : []);
+  // Kept in the URL, so coming back from a recipe returns to the same view.
+  const show = (view: 'list' | 'photos') =>
+    setParams(view === 'photos' ? { view } : {}, { replace: true });
 
   // Records saved before systems existed carry none; they are read as their effective system.
   const shown = recipes.filter(recipe =>
@@ -50,6 +65,8 @@ export const RecipeListPage = () => {
       <PageHeader title="Recipes" lead="Camera settings you shoot with, kept per camera system." />
 
       <SignInGate what="recipes">
+        <RecipeTabs />
+
         <Panel
           title="All recipes"
           action={
@@ -87,11 +104,34 @@ export const RecipeListPage = () => {
                 onPick={(key, value) => setPicks(previous => ({ ...previous, [key]: value }))}
               />
 
+              <div className={css.toolbar}>
+                <Button size="small" pressed={!byPhoto} onClick={() => show('list')}>
+                  List
+                </Button>
+                <Button size="small" pressed={byPhoto} onClick={() => show('photos')}>
+                  Photos
+                </Button>
+              </div>
+
               {shown.length === 0 && (
                 <EmptyState title="Nothing here">No recipe matches this view.</EmptyState>
               )}
 
-              {shown.length > 0 && (
+              {shown.length > 0 && byPhoto && (
+                <RecipeGallery
+                  layout="photos"
+                  to={id => `/recipes/${id}`}
+                  items={shown.map(recipe => ({
+                    id: recipe.id,
+                    title: recipe.name,
+                    sub: recipe.baseSimulation ?? SYSTEMS[systemOf(recipe)].label,
+                    photoUrl: photoOf(recipe),
+                    badge: latestVersion(versions, recipe.id)?.settings.customSlot,
+                  }))}
+                />
+              )}
+
+              {shown.length > 0 && !byPhoto && (
                 <ItemList
                   rows={shown.map(recipe => {
                     const version = latestVersion(versions, recipe.id);

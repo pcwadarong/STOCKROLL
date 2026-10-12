@@ -2,7 +2,7 @@ import { vars } from '@seed-design/css/vars';
 import { style, styleVariants } from '@vanilla-extract/css';
 
 import { beige } from '@/shared/config/accent.css';
-import { COMPACT_MEDIA_QUERY } from '@/shared/config/responsive';
+import { COMPACT_MEDIA_QUERY, NARROW_MEDIA_QUERY } from '@/shared/config/responsive';
 import { labelText } from '@/shared/ui/label.css';
 
 const INK = vars.$color.fg.neutral;
@@ -121,10 +121,6 @@ export const columns = style({
   '@media': { [COMPACT_MEDIA_QUERY]: { gridTemplateColumns: 'minmax(0, 1fr)' } },
 });
 
-export const sections = style({ display: 'grid', gap: vars.$dimension.x6 });
-
-export const section = style({ display: 'grid', gap: vars.$dimension.x2 });
-
 export const versionList = style({ display: 'grid', margin: 0, padding: 0, listStyle: 'none' });
 
 export const versionItem = style([
@@ -150,9 +146,13 @@ export const versionItem = style([
 
 export const note = style({ margin: 0, color: vars.$color.fg.neutralMuted });
 
+// Shown whole, never cropped. Capped in height so a portrait shot does not push the settings
+// off the screen.
 export const photo = style({
   display: 'block',
-  width: '100%',
+  maxWidth: '100%',
+  maxHeight: '28rem',
+  width: 'auto',
   height: 'auto',
   borderRadius: vars.$radius.r1,
   border: `1px solid ${vars.$color.stroke.neutralSubtle}`,
@@ -169,3 +169,64 @@ export const toolbar = style({
   alignItems: 'center',
   gap: vars.$dimension.x3,
 });
+
+// A version's settings as a printed sheet: two columns of name-over-value, one column on phones.
+export const sheet = style({
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  columnGap: vars.$dimension.x6,
+  margin: 0,
+  '@media': { [NARROW_MEDIA_QUERY]: { gridTemplateColumns: 'minmax(0, 1fr)' } },
+});
+
+export const sheetCell = style({
+  display: 'grid',
+  gap: vars.$dimension.x1,
+  paddingBlock: vars.$dimension.x2_5,
+  borderBottom: `1px solid ${vars.$color.stroke.neutralSubtle}`,
+});
+
+export const sheetLabel = style([labelText, { color: vars.$color.fg.neutralSubtle }]);
+
+export const sheetValue = style({
+  margin: 0,
+  fontSize: vars.$fontSize.t5,
+  fontWeight: vars.$fontWeight.medium,
+  overflowWrap: 'anywhere',
+});
+
+// Actions as a quiet list rather than a row of buttons: a label and what it does, per line.
+export const actionList = style({ display: 'grid', margin: 0, padding: 0, listStyle: 'none' });
+
+export const actionRow = style({
+  display: 'grid',
+  gap: vars.$dimension.x0_5,
+  width: '100%',
+  paddingBlock: vars.$dimension.x2_5,
+  paddingInline: 0,
+  border: 0,
+  borderBottom: `1px solid ${vars.$color.stroke.neutralSubtle}`,
+  background: 'none',
+  color: INK,
+  font: 'inherit',
+  textAlign: 'left',
+  textDecoration: 'none',
+  cursor: 'pointer',
+  selectors: {
+    '&:hover:not(:disabled), &:focus-visible': { color: vars.$color.fg.positive },
+    '&:disabled': { opacity: 0.5, cursor: 'not-allowed' },
+    'li:last-child > &': { borderBottom: 0 },
+  },
+});
+
+export const actionLabel = style([labelText, { fontWeight: vars.$fontWeight.bold }]);
+
+export const actionDanger = style([actionLabel, { color: vars.$color.fg.brand }]);
+
+export const actionHint = style({
+  fontSize: vars.$fontSize.t3,
+  color: vars.$color.fg.neutralMuted,
+});
+
+// The star sits at the end of a panel's heading row, pulled up so it does not make the row taller.
+export const headingStar = style([star, { marginBlock: `calc(${vars.$dimension.x2} * -1)` }]);

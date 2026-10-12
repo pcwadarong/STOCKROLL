@@ -118,6 +118,28 @@ export const latestVersion = (versions: readonly RecipeVersion[], recipeId: stri
 export const versionsOf = (versions: readonly RecipeVersion[], recipeId: string) =>
   versions.filter(version => version.recipeId === recipeId).sort((a, b) => b.version - a.version);
 
+/** How many versions the history shows before the rest is folded away. */
+export const VERSIONS_SHOWN = 5;
+
+/**
+ * Picks the versions a folded history shows: the newest few, plus the one being viewed when it
+ * is older than those — the list must never hide the version whose settings are on screen.
+ * @param history a recipe's versions, newest first
+ * @param selectedId id of the version being viewed
+ * @param expanded whether the user asked for the whole history
+ * @returns the versions to list, newest first, and how many are folded away
+ */
+export const foldVersions = (
+  history: readonly RecipeVersion[],
+  selectedId: string | undefined,
+  expanded: boolean,
+) => {
+  const shown = expanded
+    ? [...history]
+    : history.filter((version, index) => index < VERSIONS_SHOWN || version.id === selectedId);
+  return { shown, hidden: history.length - shown.length };
+};
+
 /**
  * Describes how full a recipe's version history is.
  * @param count number of versions the recipe has
