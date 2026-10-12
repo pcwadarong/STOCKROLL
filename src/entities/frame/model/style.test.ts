@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { stripHeight } from './spec';
-import { cropRect, DEFAULT_STYLE, effectiveStyle, inkFor, parseStyle, textScale } from './style';
+import {
+  cropRect,
+  DEFAULT_STYLE,
+  effectiveStyle,
+  inkFor,
+  parseStyle,
+  textScale,
+  usesShootingInfo,
+} from './style';
 
 describe('parseStyle', () => {
   it('when nothing was stored, it must return the default style', () => {
@@ -140,5 +148,17 @@ describe('textScale', () => {
 describe('stripHeight', () => {
   it('when the text is larger, the film strip band must grow so the print does not crowd the holes', () => {
     expect(stripHeight(1.25)).toBeGreaterThan(stripHeight(1));
+  });
+});
+
+describe('usesShootingInfo', () => {
+  it('when the template is Text or Photo only, it must report that no shooting info is printed', () => {
+    expect(usesShootingInfo('text')).toBe(false);
+    expect(usesShootingInfo('none')).toBe(false);
+  });
+
+  it('when the template prints camera or exposure, it must report that shooting info is used', () => {
+    for (const template of ['label', 'center', 'bar', 'overlay', 'stamp', 'film'] as const)
+      expect(usesShootingInfo(template)).toBe(true);
   });
 });

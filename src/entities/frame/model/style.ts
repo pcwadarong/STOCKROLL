@@ -165,6 +165,15 @@ export const parseStyle = (stored: unknown): FrameStyle => {
   };
 };
 
+/**
+ * Tells whether a template prints shooting info. Text and Photo only do not, so the editor has no
+ * reason to ask for camera, lens or exposure while one of them is picked.
+ * @param template the look picked
+ * @returns true when camera, lens, exposure or look can appear on the frame
+ */
+export const usesShootingInfo = (template: FrameTemplate) =>
+  template !== 'text' && template !== 'none';
+
 // Templates other than Text are finished looks with their own lettering.
 const TEMPLATE_FONT: Partial<Record<FrameTemplate, FontId>> = { stamp: 'digital' };
 

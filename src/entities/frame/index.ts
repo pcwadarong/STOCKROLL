@@ -25,4 +25,5 @@ export {
   TEMPLATES,
   TEXT_SWATCHES,
   textScale,
+  usesShootingInfo,
 } from './model/style';
