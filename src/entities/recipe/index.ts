@@ -6,6 +6,7 @@ export {
   removeRecipePhoto,
   uploadRecipePhoto,
 } from './api/recipe-photo';
+export { drawRecipeCard } from './lib/draw-recipe-card';
 export {
   assignSlot,
   clearSlot,
@@ -24,6 +25,7 @@ export { type ParsedRecipeText, parseRecipeText } from './model/parse-recipe-tex
 export {
   blankSettings,
   DETAIL_FIELDS,
+  foldVersions,
   hasSettings,
   latestVersion,
   MAX_VERSIONS,
@@ -39,7 +41,10 @@ export {
   sameSettings,
   systemOf,
   toSettings,
+  VERSIONS_SHOWN,
   versionSlots,
   versionsOf,
 } from './model/recipe';
+export { type CardLayout, recipeCardLayout } from './model/recipe-card';
+export { formatRecipeText, type RecipeLine, recipeLines } from './model/recipe-lines';
 export { FUJI_SIMULATIONS, type RecipeSystem, systemOfCamera, SYSTEMS } from './model/systems';

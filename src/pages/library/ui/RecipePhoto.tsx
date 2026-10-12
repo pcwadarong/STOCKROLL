@@ -8,7 +8,6 @@ import {
 } from '@/entities/recipe';
 import { Button } from '@/shared/ui/Button';
 import { ErrorText } from '@/shared/ui/ErrorText';
-import { Panel } from '@/shared/ui/Panel';
 
 import * as css from './LibraryPage.css';
 
@@ -20,6 +19,7 @@ type RecipePhotoProps = {
 
 /**
  * The one example photo a recipe can carry: shows it, and lets the owner add, replace or remove it.
+ * Renders no container of its own, so it sits at the top of the recipe's sheet.
  * This is the only place in the app where an image is uploaded, and only on this explicit action.
  * @param props the recipe and a callback to refresh it after a change
  */
@@ -56,16 +56,11 @@ export const RecipePhoto = ({ recipe, onChanged }: RecipePhotoProps) => {
   };
 
   return (
-    <Panel title="Example photo">
-      {recipe.photoPath && url ? (
+    <>
+      {recipe.photoPath && url && (
         <img className={css.photo} src={url} alt={`Example shot with ${recipe.name}`} />
-      ) : (
-        <p className={css.note}>
-          {recipe.photoPath
-            ? 'Loading…'
-            : 'Attach one photo that shows what this recipe looks like.'}
-        </p>
       )}
+      {recipe.photoPath && !url && <p className={css.note}>Loading the photo…</p>}
 
       {error && <ErrorText>{error}</ErrorText>}
 
@@ -86,8 +81,8 @@ export const RecipePhoto = ({ recipe, onChanged }: RecipePhotoProps) => {
         }}
       />
       <div className={css.toolbar}>
-        <Button size="small" loading={busy} onClick={() => inputRef.current?.click()}>
-          {recipe.photoPath ? 'Replace photo' : 'Add photo'}
+        <Button variant="plain" loading={busy} onClick={() => inputRef.current?.click()}>
+          {recipe.photoPath ? 'Replace photo' : 'Add an example photo'}
         </Button>
         {recipe.photoPath && !busy && (
           <Button
@@ -99,10 +94,13 @@ export const RecipePhoto = ({ recipe, onChanged }: RecipePhotoProps) => {
             Remove photo
           </Button>
         )}
+        {/* Said where the choice is made: before a first photo is picked. */}
+        {!recipe.photoPath && (
+          <span className={css.note}>
+            Shrunk and stripped of location data before upload. Only you can see it.
+          </span>
+        )}
       </div>
-      <p className={css.note}>
-        Shrunk and stripped of location data before upload. Only you can see it.
-      </p>
-    </Panel>
+    </>
   );
 };

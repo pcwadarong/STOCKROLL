@@ -15,7 +15,10 @@ type ButtonProps = {
   pressed?: boolean;
   className?: string;
   children: ReactNode;
-} & Pick<ButtonHTMLAttributes<HTMLButtonElement>, 'onClick' | 'disabled' | 'aria-label'>;
+} & Pick<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  'onClick' | 'disabled' | 'aria-label' | 'aria-expanded'
+>;
 
 /**
  * Label-style button: flat, thin rule, uppercase typewriter lettering.
