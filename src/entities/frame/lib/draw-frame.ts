@@ -2,9 +2,7 @@ import {
   CAPTION_ROW_GAP,
   type CaptionBlock,
   type CaptionRow,
-  LOGO_HEIGHT,
-  logoInline,
-  logoRoom,
+  MARK_IMAGE,
   rowHeight,
 } from '../model/caption';
 import type { FrameLayout, Rect } from '../model/layout';
@@ -22,7 +20,7 @@ export type FrameLook = {
   /** Lettering color chosen by the user. Unset lets the caption's tone and the margin decide. */
   color?: string;
   align: TextAlign;
-  /** A small image of the user's own, drawn with the caption. Never leaves the device. */
+  /** A small image of the user's own, drawn beside their text. Never leaves the device. */
   logo?: CanvasImageSource & { width: number; height: number };
 };
 
@@ -68,8 +66,43 @@ const fit = (
 
 const drawRow = (pen: Pen, row: CaptionRow, box: Rect, baseline: number) => {
   const { ctx, unit, look } = pen;
-  const size = (row.kind === 'cells' || row.strong ? STRONG_SIZE : QUIET_SIZE) * unit * look.scale;
-  ctx.fillStyle = row.kind !== 'cells' && !row.strong ? pen.subInk : pen.ink;
+  const strong = row.kind === 'cells' || row.kind === 'mark' || row.strong;
+  const size = (strong ? STRONG_SIZE : QUIET_SIZE) * unit * look.scale;
+  ctx.fillStyle = strong ? pen.ink : pen.subInk;
+
+  if (row.kind === 'mark') {
+    // The image is fitted into a square by its longer side, then image and text are placed as
+    // one group, so they stay together whichever way the line is aligned.
+    const logo = row.image ? look.logo : undefined;
+    const side = logo ? MARK_IMAGE * unit * look.scale : 0;
+    const gap = logo && row.text ? 18 * unit * look.scale : 0;
+    const room = box.width - side - gap;
+    ctx.fillStyle = pen.ink;
+    fit(pen, true, size, () => ctx.measureText(row.text).width, room);
+    const label = ellipsize(ctx, row.text, room);
+    const width = side + gap + ctx.measureText(label).width;
+    const x =
+      look.align === 'left'
+        ? box.x
+        : look.align === 'right'
+          ? box.x + box.width - width
+          : box.x + (box.width - width) / 2;
+    const top = baseline;
+    if (logo) {
+      const fitted = side / Math.max(logo.width, logo.height);
+      const [w, h] = [logo.width * fitted, logo.height * fitted];
+      ctx.drawImage(logo, x + (side - w) / 2, top + (side - h) / 2, w, h);
+    }
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(
+      label,
+      x + side + gap,
+      top + (logo ? side : rowHeight(row) * unit * look.scale) / 2,
+    );
+    ctx.textBaseline = 'alphabetic';
+    return;
+  }
 
   if (row.kind === 'cells') {
     // Each value is centered in an equal share of the line, so four values read as four columns.
@@ -123,7 +156,8 @@ const drawRows = (pen: Pen, rows: readonly CaptionRow[], box: Rect) => {
   for (const row of rows) {
     const height = rowHeight(row) * scale;
     // Text sits a little above the bottom of its row, like type on a ruled line.
-    drawRow(pen, row, box, top + height - 7 * scale);
+    // A mark row is centered on its own height, so it is handed its top edge instead.
+    drawRow(pen, row, box, row.kind === 'mark' ? top : top + height - 7 * scale);
     top += height + CAPTION_ROW_GAP * scale;
   }
 };
@@ -152,21 +186,6 @@ const drawStrips = (pen: Pen, strips: { top: Rect; bottom: Rect }) => {
       ctx.fill();
     }
   }
-};
-
-const drawLogo = (pen: Pen, logo: NonNullable<FrameLook['logo']>, box: Rect, inline: boolean) => {
-  const { ctx, unit, look } = pen;
-  // Inline, the logo shares the rows' height; above them it has a line of its own.
-  const height = Math.min(LOGO_HEIGHT * unit * look.scale, inline ? box.height : Infinity);
-  const width = (logo.width / logo.height) * height;
-  const align = inline ? 'center' : look.align;
-  const x =
-    align === 'left'
-      ? box.x
-      : align === 'right'
-        ? box.x + box.width - width
-        : box.x + (box.width - width) / 2;
-  ctx.drawImage(logo, x, inline ? box.y + (box.height - height) / 2 : box.y, width, height);
 };
 
 /**
@@ -257,11 +276,8 @@ export const drawFrame = (
     ctx.shadowBlur = 8 * unit;
     ctx.shadowOffsetY = 1 * unit;
   }
-  const room = logoRoom(block, Boolean(look.logo), look.scale) * unit;
-  drawRows(pen, block.rows, { ...caption, y: caption.y + room, height: caption.height - room });
+  drawRows(pen, block.rows, caption);
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
   ctx.shadowOffsetY = 0;
-
-  if (look.logo) drawLogo(pen, look.logo, caption, logoInline(block));
 };

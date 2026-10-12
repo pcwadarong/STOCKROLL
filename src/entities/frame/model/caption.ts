@@ -34,7 +34,9 @@ export type CaptionRow =
   /** One string placed by the style's alignment. */
   | { kind: 'text'; text: string; strong: boolean }
   /** Short values spread evenly across the line. */
-  | { kind: 'cells'; cells: string[] };
+  | { kind: 'cells'; cells: string[] }
+  /** The user's own line with their image beside it, placed together by the alignment. */
+  | { kind: 'mark'; text: string; image: boolean };
 
 export type CaptionBlock = {
   /** `below` the photo in the margin, `over` its lower edge, or on the film `strip`. */
@@ -57,19 +59,19 @@ const text = (value: string, strong: boolean): CaptionRow[] =>
 /**
  * Lays the shooting info out as rows for a template. Rows with nothing to say are left out, so a
  * film scan with no exposure data gets a shorter caption rather than blank lines.
- * The user's own text always comes last, on a line of its own.
+ * The Text template shows no shooting info: only the user's own line and image.
  * @param template the look picked
  * @param info shooting info as strings
- * @param ownText the user's free line
+ * @param ownText the user's free line. Used by the Text template only
+ * @param hasImage whether the user attached an image. Used by the Text template only
  * @returns where the caption goes, its tone, and its rows from top to bottom
  */
 export const buildCaption = (
   template: FrameTemplate,
   info: FrameInfo,
-  ownText: string,
+  ownText = '',
+  hasImage = false,
 ): CaptionBlock => {
-  const own = text(ownText.trim(), false);
-
   switch (template) {
     case 'label':
       return {
@@ -78,7 +80,6 @@ export const buildCaption = (
         rows: [
           ...sides(info.camera ? `Shot on ${info.camera}` : '', join(exposure(info), ' '), true),
           ...sides(info.lens, info.look, false),
-          ...own,
         ],
       };
     case 'center':
@@ -89,7 +90,6 @@ export const buildCaption = (
         rows: [
           ...text(join([info.camera, info.lens], ' · '), true),
           ...text(join([...exposure(info), info.look], ' · '), false),
-          ...own,
         ],
       };
     case 'bar': {
@@ -97,13 +97,13 @@ export const buildCaption = (
       return {
         placement: 'below',
         tone: 'paper',
-        rows: [...(cells.length > 0 ? [{ kind: 'cells' as const, cells }] : []), ...own],
+        rows: cells.length > 0 ? [{ kind: 'cells', cells }] : [],
       };
     }
     case 'stamp': {
       // Two columns that both sit on the bottom edge: what and when on the left, the exposure
       // read-out on the right. The shorter column is padded at the top, not the bottom.
-      const left = [info.date, info.camera, info.lens, ownText.trim()].filter(Boolean);
+      const left = [info.date, info.camera, info.lens].filter(Boolean);
       const right = [info.aperture, info.shutter, info.iso].filter(Boolean);
       const height = Math.max(left.length, right.length);
       const pad = (column: string[]) => [
@@ -126,17 +126,22 @@ export const buildCaption = (
       return {
         placement: 'strip',
         tone: 'amber',
-        rows: [
-          ...sides(
-            (info.look || info.camera).toUpperCase(),
-            join(exposure(info), '  ').toUpperCase(),
-            false,
-          ),
-          ...own,
-        ],
+        rows: sides(
+          (info.look || info.camera).toUpperCase(),
+          join(exposure(info), '  ').toUpperCase(),
+          false,
+        ),
       };
+    case 'text': {
+      const line = ownText.trim();
+      return {
+        placement: 'below',
+        tone: 'paper',
+        rows: line || hasImage ? [{ kind: 'mark', text: line, image: hasImage }] : [],
+      };
+    }
     case 'none':
-      return { placement: 'below', tone: 'paper', rows: own };
+      return { placement: 'below', tone: 'paper', rows: [] };
   }
 };
 
@@ -145,13 +150,18 @@ const STRONG_ROW = 34;
 const QUIET_ROW = 28;
 const ROW_GAP = 12;
 
+/** Side of the square the user's image is fitted into, on a 1080-wide canvas. */
+export const MARK_IMAGE = 64;
+
 /**
  * Height of one caption row before text scaling.
  * @param row the row to measure
  * @returns its height on a 1080-wide canvas
  */
-export const rowHeight = (row: CaptionRow) =>
-  row.kind === 'cells' || row.strong ? STRONG_ROW : QUIET_ROW;
+export const rowHeight = (row: CaptionRow) => {
+  if (row.kind === 'mark') return row.image ? MARK_IMAGE : STRONG_ROW;
+  return row.kind === 'cells' || row.strong ? STRONG_ROW : QUIET_ROW;
+};
 
 /**
  * Height the caption needs, so the layout can reserve it before anything is drawn.
@@ -165,30 +175,3 @@ export const captionHeight = (rows: readonly CaptionRow[], scale: number) =>
     : (rows.reduce((sum, row) => sum + rowHeight(row), 0) + ROW_GAP * (rows.length - 1)) * scale;
 
 export const CAPTION_ROW_GAP = ROW_GAP;
-
-/** Height of the user's logo before text scaling, on a 1080-wide canvas. */
-export const LOGO_HEIGHT = 44;
-
-/**
- * Tells whether a logo sits between the two sides of the caption rather than above it. That is
- * the case for a caption below the photo made only of two-sided rows, where the middle is free.
- * @param block the caption
- * @returns true when the logo goes in the middle of the rows
- */
-export const logoInline = (block: CaptionBlock) =>
-  block.placement === 'below' &&
-  block.rows.length > 0 &&
-  block.rows.every(row => row.kind === 'sides');
-
-/**
- * Extra height a logo needs above the caption rows. None when there is no logo, when it sits
- * inline, or on a film strip, which has no room for one.
- * @param block the caption
- * @param hasLogo whether the user attached a logo
- * @param scale text size multiplier
- * @returns height on a 1080-wide canvas
- */
-export const logoRoom = (block: CaptionBlock, hasLogo: boolean, scale: number) => {
-  if (!hasLogo || block.placement === 'strip' || logoInline(block)) return 0;
-  return (LOGO_HEIGHT + (block.rows.length > 0 ? ROW_GAP : 0)) * scale;
-};

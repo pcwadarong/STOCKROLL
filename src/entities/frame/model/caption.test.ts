@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  buildCaption,
-  captionHeight,
-  EMPTY_INFO,
-  type FrameInfo,
-  logoInline,
-  logoRoom,
-} from './caption';
+import { buildCaption, captionHeight, EMPTY_INFO, type FrameInfo } from './caption';
 
 const FULL: FrameInfo = {
   camera: 'X-T50',
@@ -29,7 +22,16 @@ describe('buildCaption', () => {
   });
 
   it('when there is no shooting info, it must produce no rows instead of blank lines', () => {
-    for (const template of ['label', 'center', 'bar', 'overlay', 'stamp', 'film', 'none'] as const)
+    for (const template of [
+      'label',
+      'center',
+      'bar',
+      'overlay',
+      'stamp',
+      'film',
+      'text',
+      'none',
+    ] as const)
       expect(buildCaption(template, EMPTY_INFO, '').rows).toEqual([]);
   });
 
@@ -49,19 +51,32 @@ describe('buildCaption', () => {
     ]);
   });
 
-  it('when the user typed their own text, it must be the last row of every template', () => {
-    for (const template of ['label', 'center', 'bar', 'overlay', 'none'] as const)
-      expect(buildCaption(template, FULL, '  Seoul  ').rows.at(-1)).toEqual({
-        kind: 'text',
-        text: 'Seoul',
-        strong: false,
-      });
+  it('when the user typed their own text, only the Text template must show it', () => {
+    for (const template of ['label', 'center', 'bar', 'overlay', 'stamp', 'film', 'none'] as const)
+      expect(JSON.stringify(buildCaption(template, FULL, 'Seoul', true).rows)).not.toContain(
+        'Seoul',
+      );
+
+    expect(buildCaption('text', FULL, '  Seoul  ').rows).toEqual([
+      { kind: 'mark', text: 'Seoul', image: false },
+    ]);
   });
 
-  it('when the photo-only template is used, it must show the own text and no shooting info', () => {
-    expect(buildCaption('none', FULL, 'Seoul').rows).toEqual([
-      { kind: 'text', text: 'Seoul', strong: false },
+  it('when the Text template is used, it must show no shooting info', () => {
+    expect(buildCaption('text', FULL, 'Seoul', true).rows).toEqual([
+      { kind: 'mark', text: 'Seoul', image: true },
     ]);
+  });
+
+  it('when the Text template has only an image, it must still make a row for it', () => {
+    expect(buildCaption('text', FULL, '', true).rows).toEqual([
+      { kind: 'mark', text: '', image: true },
+    ]);
+    expect(buildCaption('text', FULL, '', false).rows).toEqual([]);
+  });
+
+  it('when the photo-only template is used, it must show nothing at all', () => {
+    expect(buildCaption('none', FULL, 'Seoul', true).rows).toEqual([]);
   });
 
   it('when the overlay template is used, the text must go over the photo in a light tone', () => {
@@ -113,27 +128,9 @@ describe('captionHeight', () => {
   });
 });
 
-describe('logoRoom', () => {
-  it('when there is no logo, it must need no room', () => {
-    expect(logoRoom(buildCaption('center', FULL, ''), false, 1)).toBe(0);
-  });
-
-  it('when the caption is two-sided, the logo must sit between the sides and need no extra room', () => {
-    const block = buildCaption('label', FULL, '');
-
-    expect(logoInline(block)).toBe(true);
-    expect(logoRoom(block, true, 1)).toBe(0);
-  });
-
-  it('when the caption is centered lines, the logo must get a line of its own above them', () => {
-    expect(logoRoom(buildCaption('center', FULL, ''), true, 1)).toBe(44 + 12);
-  });
-
-  it('when the logo is alone, it must need only its own height', () => {
-    expect(logoRoom(buildCaption('none', FULL, ''), true, 1)).toBe(44);
-  });
-
-  it('when the look is a film strip, there must be no logo', () => {
-    expect(logoRoom(buildCaption('film', FULL, ''), true, 1)).toBe(0);
+describe('captionHeight with an image', () => {
+  it('when the Text row carries an image, the row must be as tall as the image square', () => {
+    expect(captionHeight(buildCaption('text', FULL, 'Seoul', true).rows, 1)).toBe(64);
+    expect(captionHeight(buildCaption('text', FULL, 'Seoul', false).rows, 1)).toBe(34);
   });
 });

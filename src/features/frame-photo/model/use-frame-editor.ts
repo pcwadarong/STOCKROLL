@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { buildCaption, computeLayout, drawFrame, ensureFont, frameSpec } from '@/entities/frame';
+import {
+  computeLayout,
+  drawFrame,
+  effectiveStyle,
+  ensureFont,
+  frameCaption,
+  frameSpec,
+} from '@/entities/frame';
 import { cameraCollection, filmCollection, lensCollection } from '@/entities/gear';
 import { recipeCollection } from '@/entities/recipe';
 import { downloadBlob } from '@/shared/lib/save-file';
@@ -46,14 +53,11 @@ export const useFrameEditor = () => {
   );
 
   const { info } = resolved;
-  const block = useMemo(
-    () => buildCaption(style.template, info, style.text),
-    [style.template, style.text, info],
-  );
   const hasLogo = logo !== null;
+  const block = useMemo(() => frameCaption(style, info, hasLogo), [style, info, hasLogo]);
   const spec = useMemo(
-    () => (bitmap ? frameSpec(bitmap, style, block, hasLogo) : null),
-    [bitmap, style, block, hasLogo],
+    () => (bitmap ? frameSpec(bitmap, style, block) : null),
+    [bitmap, style, block],
   );
   const layout = useMemo(
     () => (bitmap && spec ? computeLayout(bitmap, preset, 'optimized', spec) : null),
@@ -61,14 +65,15 @@ export const useFrameEditor = () => {
   );
 
   // A canvas does not wait for web fonts, so the preview is drawn again once the font is in.
-  const [loadedFont, setLoadedFont] = useState(style.font);
+  const { font } = effectiveStyle(style);
+  const [loadedFont, setLoadedFont] = useState(font);
   useEffect(() => {
     let current = true;
-    void ensureFont(style.font).then(() => current && setLoadedFont(style.font));
+    void ensureFont(font).then(() => current && setLoadedFont(font));
     return () => {
       current = false;
     };
-  }, [style.font]);
+  }, [font]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -95,10 +100,10 @@ export const useFrameEditor = () => {
 
   /** The caption of any queued photo: its own picks and EXIF under the batch's focal mode. */
   const blockOf = (photo: QueuedPhoto) =>
-    buildCaption(
-      style.template,
+    frameCaption(
+      style,
       resolveCaption(photo.picks, photo.exif, focalModeFor(focalMode, photo.exif), library).info,
-      style.text,
+      hasLogo,
     );
 
   /**

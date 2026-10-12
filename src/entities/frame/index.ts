@@ -1,13 +1,6 @@
 export { drawFrame, type FrameLook } from './lib/draw-frame';
 export { ensureFont } from './lib/fonts';
-export {
-  buildCaption,
-  type CaptionBlock,
-  captionHeight,
-  EMPTY_INFO,
-  type FrameInfo,
-  logoRoom,
-} from './model/caption';
+export { type CaptionBlock, captionHeight, EMPTY_INFO, type FrameInfo } from './model/caption';
 export {
   computeLayout,
   type FrameLayout,
@@ -16,12 +9,13 @@ export {
   type Size,
 } from './model/layout';
 export { DEFAULT_PRESET, OUTPUT_PRESETS, type OutputPreset } from './model/presets';
-export { frameSpec } from './model/spec';
+export { frameCaption, frameSpec } from './model/spec';
 export {
   BACKGROUND_SWATCHES,
   cropRect,
   CROPS,
   DEFAULT_STYLE,
+  effectiveStyle,
   FONTS,
   type FrameStyle,
   type FrameTemplate,
@@ -31,5 +25,4 @@ export {
   TEMPLATES,
   TEXT_SWATCHES,
   textScale,
-  withTemplate,
 } from './model/style';

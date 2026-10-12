@@ -2,6 +2,7 @@ import {
   type CaptionBlock,
   computeLayout,
   drawFrame,
+  effectiveStyle,
   ensureFont,
   frameSpec,
   type FrameStyle,
@@ -44,14 +45,9 @@ export const renderJpeg = async (
   },
 ) => {
   const { preset, detail, block, style, logo } = settings;
-  const layout = computeLayout(
-    bitmap,
-    preset,
-    detail,
-    frameSpec(bitmap, style, block, Boolean(logo)),
-  );
+  const layout = computeLayout(bitmap, preset, detail, frameSpec(bitmap, style, block));
   // A canvas draws in the fallback face when the font file has not arrived yet.
-  await ensureFont(style.font);
+  await ensureFont(effectiveStyle(style).font);
   const canvas = document.createElement('canvas');
   canvas.width = layout.canvas.width;
   canvas.height = layout.canvas.height;
@@ -72,11 +68,14 @@ export const renderJpeg = async (
  * @param logo the attached logo, if any
  * @returns margin color, font, text scale and color, alignment and logo
  */
-export const lookOf = (style: FrameStyle, logo: ImageBitmap | null) => ({
-  background: style.background,
-  font: style.font,
-  scale: textScale(style),
-  color: style.textColor || undefined,
-  align: style.align,
-  logo: logo ?? undefined,
-});
+export const lookOf = (style: FrameStyle, logo: ImageBitmap | null) => {
+  const drawn = effectiveStyle(style);
+  return {
+    background: drawn.background,
+    font: drawn.font,
+    scale: textScale(drawn),
+    color: drawn.textColor || undefined,
+    align: drawn.align,
+    logo: logo ?? undefined,
+  };
+};

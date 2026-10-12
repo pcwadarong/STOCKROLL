@@ -1,7 +1,8 @@
 import type { Rect, Size } from './layout';
 
 /** How the shooting info is arranged, and where. Each template is one finished look. */
-export type FrameTemplate = 'label' | 'center' | 'bar' | 'overlay' | 'stamp' | 'film' | 'none';
+export type FrameTemplate =
+  'label' | 'center' | 'bar' | 'overlay' | 'stamp' | 'film' | 'text' | 'none';
 
 export type FontId = 'sans' | 'grotesk' | 'serif' | 'typewriter' | 'display' | 'digital';
 export type TextSize = 's' | 'm' | 'l';
@@ -24,9 +25,9 @@ export type FrameStyle = {
   textSize: TextSize;
   /** Lettering color as `#rrggbb`, or empty to let the template and the margin color decide. */
   textColor: string;
-  /** Alignment of centered-style rows. Two-sided rows ignore it. */
+  /** Where the Text template puts its line and image. */
   align: TextAlign;
-  /** A free line of the user's own, shown with the shooting info or alone. */
+  /** A free line of the user's own. Drawn by the Text template only. */
   text: string;
 };
 
@@ -37,7 +38,8 @@ export const TEMPLATES = [
   { value: 'overlay', label: 'Overlay', hint: 'Text on the photo, no caption margin.' },
   { value: 'stamp', label: 'Date stamp', hint: 'Amber read-out in the corners of the photo.' },
   { value: 'film', label: 'Film strip', hint: 'Sprocket holes and edge print.' },
-  { value: 'none', label: 'Photo only', hint: 'No shooting info. Your own text still shows.' },
+  { value: 'text', label: 'Text', hint: 'Your own line and a small image, set the way you like.' },
+  { value: 'none', label: 'Photo only', hint: 'Just the photo.' },
 ] as const satisfies readonly { value: FrameTemplate; label: string; hint: string }[];
 
 export const FONTS = [
@@ -163,19 +165,27 @@ export const parseStyle = (stored: unknown): FrameStyle => {
   };
 };
 
+// Templates other than Text are finished looks with their own lettering.
+const TEMPLATE_FONT: Partial<Record<FrameTemplate, FontId>> = { stamp: 'digital' };
+
 /**
- * Switches template, carrying the font along only where it belongs: the date stamp is drawn with
- * the segment display, and leaving it puts ordinary lettering back.
- * @param style current style
- * @param template the template picked
- * @returns the style with the new template
+ * The style as it is actually drawn. Lettering choices (font, size, color, alignment, own text)
+ * belong to the Text template; every other template keeps its own fixed lettering, so a choice
+ * made for Text never leaks into a look that was not designed around it.
+ * @param style the style as stored
+ * @returns the style to draw with
  */
-export const withTemplate = (style: FrameStyle, template: FrameTemplate): FrameStyle => {
-  if (template === 'stamp') return { ...style, template, font: 'digital' };
-  if (style.template === 'stamp' && style.font === 'digital')
-    return { ...style, template, font: DEFAULT_STYLE.font };
-  return { ...style, template };
-};
+export const effectiveStyle = (style: FrameStyle): FrameStyle =>
+  style.template === 'text'
+    ? style
+    : {
+        ...style,
+        font: TEMPLATE_FONT[style.template] ?? DEFAULT_STYLE.font,
+        textSize: DEFAULT_STYLE.textSize,
+        textColor: DEFAULT_STYLE.textColor,
+        align: DEFAULT_STYLE.align,
+        text: '',
+      };
 
 /**
  * Picks text colors that read on a margin color: dark ink on light paper, light ink on dark.

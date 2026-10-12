@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { stripHeight } from './spec';
-import { cropRect, DEFAULT_STYLE, inkFor, parseStyle, textScale, withTemplate } from './style';
+import { cropRect, DEFAULT_STYLE, effectiveStyle, inkFor, parseStyle, textScale } from './style';
 
 describe('parseStyle', () => {
   it('when nothing was stored, it must return the default style', () => {
@@ -41,21 +41,46 @@ describe('parseStyle', () => {
   });
 });
 
-describe('withTemplate', () => {
-  it('when the date stamp is picked, the font must become the segment display', () => {
-    expect(withTemplate(DEFAULT_STYLE, 'stamp').font).toBe('digital');
+describe('effectiveStyle', () => {
+  const chosen = {
+    ...DEFAULT_STYLE,
+    font: 'typewriter' as const,
+    textSize: 'l' as const,
+    textColor: '#ff0000',
+    align: 'right' as const,
+    text: 'Seoul',
+  };
+
+  it('when the template is Text, the lettering choices must be used as they are', () => {
+    expect(effectiveStyle({ ...chosen, template: 'text' })).toEqual({
+      ...chosen,
+      template: 'text',
+    });
   });
 
-  it('when leaving the date stamp with its font untouched, ordinary lettering must come back', () => {
-    const stamp = withTemplate(DEFAULT_STYLE, 'stamp');
+  it('when the template is any other, lettering chosen for Text must not leak into it', () => {
+    const drawn = effectiveStyle({ ...chosen, template: 'center' });
 
-    expect(withTemplate(stamp, 'center').font).toBe(DEFAULT_STYLE.font);
+    expect(drawn.font).toBe(DEFAULT_STYLE.font);
+    expect(drawn.textSize).toBe(DEFAULT_STYLE.textSize);
+    expect(drawn.textColor).toBe('');
+    expect(drawn.text).toBe('');
   });
 
-  it('when moving between other templates, the chosen font must be kept', () => {
-    const style = { ...DEFAULT_STYLE, font: 'typewriter' as const };
+  it('when the template is the date stamp, it must be lettered in the segment display', () => {
+    expect(effectiveStyle({ ...chosen, template: 'stamp' }).font).toBe('digital');
+  });
 
-    expect(withTemplate(style, 'bar').font).toBe('typewriter');
+  it('when the template is not Text, frame settings such as background and padding must be kept', () => {
+    const drawn = effectiveStyle({
+      ...chosen,
+      template: 'film',
+      background: '#1f4e3d',
+      padding: 0,
+    });
+
+    expect(drawn.background).toBe('#1f4e3d');
+    expect(drawn.padding).toBe(0);
   });
 });
 
