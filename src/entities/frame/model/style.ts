@@ -22,6 +22,8 @@ export type FrameStyle = {
   crop: FrameCrop;
   font: FontId;
   textSize: TextSize;
+  /** Lettering color as `#rrggbb`, or empty to let the template and the margin color decide. */
+  textColor: string;
   /** Alignment of centered-style rows. Two-sided rows ignore it. */
   align: TextAlign;
   /** A free line of the user's own, shown with the shooting info or alone. */
@@ -68,10 +70,29 @@ export const BACKGROUND_SWATCHES = [
   { value: '#f4efe3', label: 'Cream' },
 ] as const;
 
+/** Lettering colors offered beside the color picker. The empty value lets the template decide. */
+export const TEXT_SWATCHES = [
+  { value: '', label: 'Auto' },
+  { value: '#ffffff', label: 'White' },
+  { value: '#111111', label: 'Black' },
+] as const;
+
 /** Margin around the photo for each padding step, on a 1080-wide canvas. */
 export const PADDING_UNITS: Record<PaddingStep, number> = { 0: 0, 1: 24, 2: 48, 3: 96 };
 
-export const TEXT_SCALE: Record<TextSize, number> = { s: 0.85, m: 1, l: 1.25 };
+const TEXT_SCALE: Record<TextSize, number> = { s: 0.85, m: 1, l: 1.25 };
+
+// The date stamp is a small read-out in the corner of the picture, not a caption.
+const TEMPLATE_SCALE: Partial<Record<FrameTemplate, number>> = { stamp: 0.74 };
+
+/**
+ * How large the lettering is drawn: the size the user picked, adjusted for templates whose text
+ * is meant to be smaller than a caption.
+ * @param style the look picked in the editor
+ * @returns a multiplier on the base text size
+ */
+export const textScale = (style: Pick<FrameStyle, 'template' | 'textSize'>) =>
+  TEXT_SCALE[style.textSize] * (TEMPLATE_SCALE[style.template] ?? 1);
 
 const CROP_RATIO: Record<FrameCrop, number | null> = {
   none: null,
@@ -88,6 +109,7 @@ export const DEFAULT_STYLE: FrameStyle = {
   crop: 'none',
   font: 'sans',
   textSize: 'm',
+  textColor: '',
   align: 'center',
   text: '',
 };
@@ -129,6 +151,10 @@ export const parseStyle = (stored: unknown): FrameStyle => {
       raw.textSize === 's' || raw.textSize === 'l' || raw.textSize === 'm'
         ? raw.textSize
         : base.textSize,
+    textColor:
+      typeof raw.textColor === 'string' && HEX.test(raw.textColor)
+        ? raw.textColor.toLowerCase()
+        : base.textColor,
     align:
       raw.align === 'left' || raw.align === 'right' || raw.align === 'center'
         ? raw.align

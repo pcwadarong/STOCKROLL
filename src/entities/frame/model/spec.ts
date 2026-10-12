@@ -1,9 +1,21 @@
 import { type CaptionBlock, captionHeight, logoRoom } from './caption';
 import type { FrameSpec, Size } from './layout';
-import { cropRect, type FrameStyle, PADDING_UNITS, TEXT_SCALE } from './style';
+import { cropRect, type FrameStyle, PADDING_UNITS, textScale } from './style';
 
-// Height of each film strip band on a 1080-wide canvas: sprocket holes plus a line of edge print.
-const STRIP_HEIGHT = 72;
+// A film strip band on a 1080-wide canvas: a lane for the sprocket holes along the outer edge and
+// a lane for one line of edge print beside the picture. The print lane grows with the text, so
+// large or tall lettering never crowds the holes.
+export const STRIP_HOLE_LANE = 40;
+const STRIP_PRINT_PAD = 22;
+const STRIP_PRINT_ROW = 28;
+
+/**
+ * Height of one film strip band.
+ * @param scale text size multiplier
+ * @returns height on a 1080-wide canvas
+ */
+export const stripHeight = (scale: number) =>
+  STRIP_HOLE_LANE + STRIP_PRINT_ROW * scale + STRIP_PRINT_PAD;
 
 /**
  * Turns the chosen style and the caption it produced into what the layout needs: how much margin,
@@ -20,13 +32,13 @@ export const frameSpec = (
   block: CaptionBlock,
   hasLogo: boolean,
 ): FrameSpec => {
-  const scale = TEXT_SCALE[style.textSize];
+  const scale = textScale(style);
   return {
     margin: PADDING_UNITS[style.padding],
     position: style.position,
     source: cropRect(photo, style.crop),
     captionHeight: captionHeight(block.rows, scale) + logoRoom(block, hasLogo, scale),
     captionPlacement: block.placement,
-    strip: block.placement === 'strip' ? STRIP_HEIGHT : 0,
+    strip: block.placement === 'strip' ? stripHeight(scale) : 0,
   };
 };

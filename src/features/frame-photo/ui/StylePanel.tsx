@@ -1,5 +1,5 @@
 import { HStack, Text } from '@seed-design/react';
-import { useRef } from 'react';
+import { type ReactNode, useRef } from 'react';
 
 import {
   BACKGROUND_SWATCHES,
@@ -8,6 +8,7 @@ import {
   type FrameStyle,
   PADDINGS,
   TEMPLATES,
+  TEXT_SWATCHES,
   withTemplate,
 } from '@/entities/frame';
 import { Button } from '@/shared/ui/Button';
@@ -36,12 +37,64 @@ const ALIGNS = [
   { value: 'right', label: 'Right' },
 ] as const;
 
+// Shown in the color well while the color is automatic; the well cannot be empty.
+const AUTO_COLOR_WELL = '#111111';
+
 const pickFrom =
   <T extends string | number>(options: readonly { value: T }[], apply: (value: T) => void) =>
   (picked: string) => {
     const match = options.find(option => String(option.value) === picked);
     if (match) apply(match.value);
   };
+
+type ControlProps = { label: string; hint?: string; children: ReactNode };
+
+/** One setting: its name, the control, and an optional line of explanation, spaced as a unit. */
+const Control = ({ label, hint, children }: ControlProps) => (
+  <div className={css.control}>
+    <span className={css.controlLabel}>{label}</span>
+    {children}
+    {hint && (
+      <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
+        {hint}
+      </Text>
+    )}
+  </div>
+);
+
+type SwatchRowProps = {
+  label: string;
+  /** Current color, or empty when the automatic choice is in effect. */
+  value: string;
+  /** What the color well shows while the value is empty. */
+  fallback: string;
+  swatches: readonly { value: string; label: string }[];
+  onChange: (value: string) => void;
+};
+
+/** A color well for any color, followed by the few colors most frames use. */
+const SwatchRow = ({ label, value, fallback, swatches, onChange }: SwatchRowProps) => (
+  <div className={css.swatchRow}>
+    <input
+      type="color"
+      className={css.colorInput}
+      aria-label={`${label}: pick any color`}
+      value={value || fallback}
+      onChange={event => onChange(event.target.value)}
+    />
+    {swatches.map(swatch => (
+      <Button
+        key={swatch.label}
+        size="small"
+        className={css.swatch}
+        pressed={value === swatch.value}
+        onClick={() => onChange(swatch.value)}
+      >
+        {swatch.label}
+      </Button>
+    ))}
+  </div>
+);
 
 type StylePanelProps = {
   style: FrameStyle;
@@ -70,176 +123,190 @@ export const StylePanel = ({
     <>
       <fieldset className={css.group}>
         <legend className={css.legend}>Style</legend>
-        <Chip.RadioRoot
-          aria-label="Frame style"
-          value={style.template}
-          onValueChange={pickFrom(TEMPLATES, value => onChange(withTemplate(style, value)))}
-        >
-          <HStack gap="x2" wrap>
-            {TEMPLATES.map(item => (
-              <Chip.RadioItem key={item.value} value={item.value}>
-                <Chip.Label>{item.label}</Chip.Label>
-              </Chip.RadioItem>
-            ))}
-          </HStack>
-        </Chip.RadioRoot>
-        <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle" aria-live="polite">
-          {template?.hint}
-        </Text>
+        <div className={css.controls}>
+          <Control label="Template" hint={template?.hint}>
+            <Chip.RadioRoot
+              aria-label="Frame style"
+              value={style.template}
+              onValueChange={pickFrom(TEMPLATES, value => onChange(withTemplate(style, value)))}
+            >
+              <HStack gap="x2" wrap>
+                {TEMPLATES.map(item => (
+                  <Chip.RadioItem key={item.value} value={item.value}>
+                    <Chip.Label>{item.label}</Chip.Label>
+                  </Chip.RadioItem>
+                ))}
+              </HStack>
+            </Chip.RadioRoot>
+          </Control>
+        </div>
       </fieldset>
 
       <fieldset className={css.group}>
         <legend className={css.legend}>Frame</legend>
-
-        <div className={css.colorRow}>
-          <label className={css.colorField}>
-            <span className={css.controlLabel}>Background</span>
-            <input
-              type="color"
-              className={css.colorInput}
+        <div className={css.controls}>
+          <Control label="Background">
+            <SwatchRow
+              label="Background"
               value={style.background}
-              onChange={event => onChange({ background: event.target.value })}
+              fallback={style.background}
+              swatches={BACKGROUND_SWATCHES}
+              onChange={background => onChange({ background })}
             />
-          </label>
-          {BACKGROUND_SWATCHES.map(swatch => (
-            <Button
-              key={swatch.value}
-              size="small"
-              pressed={style.background === swatch.value}
-              onClick={() => onChange({ background: swatch.value })}
+          </Control>
+
+          <Control label="Padding">
+            <SegmentedControl
+              aria-label="Padding around the photo"
+              value={String(style.padding)}
+              onValueChange={pickFrom(PADDINGS, padding => onChange({ padding }))}
             >
-              {swatch.label}
-            </Button>
-          ))}
+              {PADDINGS.map(item => (
+                <SegmentedControlItem key={item.value} value={String(item.value)}>
+                  {item.label}
+                </SegmentedControlItem>
+              ))}
+            </SegmentedControl>
+          </Control>
+
+          <Control
+            label="Photo position"
+            hint={
+              positionApplies
+                ? undefined
+                : 'Original output wraps the photo, so there is no room to move it.'
+            }
+          >
+            <SegmentedControl
+              aria-label="Photo position"
+              value={style.position}
+              onValueChange={pickFrom(POSITIONS, position => onChange({ position }))}
+            >
+              {POSITIONS.map(item => (
+                <SegmentedControlItem
+                  key={item.value}
+                  value={item.value}
+                  disabled={!positionApplies}
+                >
+                  {item.label}
+                </SegmentedControlItem>
+              ))}
+            </SegmentedControl>
+          </Control>
+
+          <Control
+            label="Wide cut"
+            hint={
+              style.crop === 'none' ? undefined : 'Cuts the photo to a centered band of this shape.'
+            }
+          >
+            <Chip.RadioRoot
+              aria-label="Wide cut"
+              value={style.crop}
+              onValueChange={pickFrom(CROPS, crop => onChange({ crop }))}
+            >
+              <HStack gap="x2" wrap>
+                {CROPS.map(item => (
+                  <Chip.RadioItem key={item.value} value={item.value}>
+                    <Chip.Label>{item.label}</Chip.Label>
+                  </Chip.RadioItem>
+                ))}
+              </HStack>
+            </Chip.RadioRoot>
+          </Control>
         </div>
-
-        <span className={css.controlLabel}>Padding</span>
-        <SegmentedControl
-          aria-label="Padding around the photo"
-          value={String(style.padding)}
-          onValueChange={pickFrom(PADDINGS, padding => onChange({ padding }))}
-        >
-          {PADDINGS.map(item => (
-            <SegmentedControlItem key={item.value} value={String(item.value)}>
-              {item.label}
-            </SegmentedControlItem>
-          ))}
-        </SegmentedControl>
-
-        <span className={css.controlLabel}>Photo position</span>
-        <SegmentedControl
-          aria-label="Photo position"
-          value={style.position}
-          onValueChange={pickFrom(POSITIONS, position => onChange({ position }))}
-        >
-          {POSITIONS.map(item => (
-            <SegmentedControlItem key={item.value} value={item.value} disabled={!positionApplies}>
-              {item.label}
-            </SegmentedControlItem>
-          ))}
-        </SegmentedControl>
-        {!positionApplies && (
-          <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
-            Original output wraps the photo, so there is no room to move it.
-          </Text>
-        )}
-
-        <span className={css.controlLabel}>Wide cut</span>
-        <Chip.RadioRoot
-          aria-label="Wide cut"
-          value={style.crop}
-          onValueChange={pickFrom(CROPS, crop => onChange({ crop }))}
-        >
-          <HStack gap="x2" wrap>
-            {CROPS.map(item => (
-              <Chip.RadioItem key={item.value} value={item.value}>
-                <Chip.Label>{item.label}</Chip.Label>
-              </Chip.RadioItem>
-            ))}
-          </HStack>
-        </Chip.RadioRoot>
-        {style.crop !== 'none' && (
-          <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
-            Cuts the photo to a centered band of this shape. Everything else keeps the whole photo.
-          </Text>
-        )}
       </fieldset>
 
       <fieldset className={css.group}>
         <legend className={css.legend}>Text</legend>
-        <PickField
-          size="medium"
-          label="Font"
-          value={style.font}
-          options={FONTS}
-          onChange={pickFrom(FONTS, font => onChange({ font }))}
-        />
+        <div className={css.controls}>
+          <PickField
+            size="medium"
+            label="Font"
+            value={style.font}
+            options={FONTS}
+            onChange={pickFrom(FONTS, font => onChange({ font }))}
+          />
 
-        <span className={css.controlLabel}>Size</span>
-        <SegmentedControl
-          aria-label="Text size"
-          value={style.textSize}
-          onValueChange={pickFrom(SIZES, textSize => onChange({ textSize }))}
-        >
-          {SIZES.map(item => (
-            <SegmentedControlItem key={item.value} value={item.value}>
-              {item.label}
-            </SegmentedControlItem>
-          ))}
-        </SegmentedControl>
+          <Control label="Size">
+            <SegmentedControl
+              aria-label="Text size"
+              value={style.textSize}
+              onValueChange={pickFrom(SIZES, textSize => onChange({ textSize }))}
+            >
+              {SIZES.map(item => (
+                <SegmentedControlItem key={item.value} value={item.value}>
+                  {item.label}
+                </SegmentedControlItem>
+              ))}
+            </SegmentedControl>
+          </Control>
 
-        <span className={css.controlLabel}>Alignment</span>
-        <SegmentedControl
-          aria-label="Text alignment"
-          value={style.align}
-          onValueChange={pickFrom(ALIGNS, align => onChange({ align }))}
-        >
-          {ALIGNS.map(item => (
-            <SegmentedControlItem key={item.value} value={item.value}>
-              {item.label}
-            </SegmentedControlItem>
-          ))}
-        </SegmentedControl>
-        <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
-          Applies to single lines, your own text and the logo. Two-sided rows always run edge to
-          edge.
-        </Text>
+          <Control label="Alignment" hint="Two-sided rows always run edge to edge.">
+            <SegmentedControl
+              aria-label="Text alignment"
+              value={style.align}
+              onValueChange={pickFrom(ALIGNS, align => onChange({ align }))}
+            >
+              {ALIGNS.map(item => (
+                <SegmentedControlItem key={item.value} value={item.value}>
+                  {item.label}
+                </SegmentedControlItem>
+              ))}
+            </SegmentedControl>
+          </Control>
 
-        <TextField
-          size="medium"
-          label="Your text"
-          indicator="Optional"
-          value={style.text}
-          onValueChange={({ value }) => onChange({ text: value })}
-        >
-          <TextFieldInput inputMode="text" placeholder="A title, a place, a name" />
-        </TextField>
+          <Control label="Color" hint="Auto follows the template and the background.">
+            <SwatchRow
+              label="Text color"
+              value={style.textColor}
+              fallback={AUTO_COLOR_WELL}
+              swatches={TEXT_SWATCHES}
+              onChange={textColor => onChange({ textColor })}
+            />
+          </Control>
 
-        <input
-          ref={logoInputRef}
-          className={css.hiddenInput}
-          type="file"
-          accept="image/*"
-          tabIndex={-1}
-          onChange={event => {
-            onLogo(event.target.files?.[0] ?? null);
-            event.target.value = '';
-          }}
-        />
-        <div className={css.queueLinks}>
-          <Button variant="plain" onClick={() => logoInputRef.current?.click()}>
-            {hasLogo ? 'Change logo' : 'Add logo'}
-          </Button>
-          {hasLogo && (
-            <Button variant="plain" onClick={() => onLogo(null)}>
-              Remove logo
-            </Button>
-          )}
+          <TextField
+            size="medium"
+            label="Your text"
+            indicator="Optional"
+            value={style.text}
+            onValueChange={({ value }) => onChange({ text: value })}
+          >
+            <TextFieldInput inputMode="text" placeholder="A title, a place, a name" />
+          </TextField>
+
+          <Control
+            label="Logo"
+            hint="A small image drawn with the caption. It stays on this device and is forgotten when you close the app."
+          >
+            <div className={css.swatchRow}>
+              <input
+                ref={logoInputRef}
+                className={css.hiddenInput}
+                type="file"
+                accept="image/*"
+                tabIndex={-1}
+                onChange={event => {
+                  onLogo(event.target.files?.[0] ?? null);
+                  event.target.value = '';
+                }}
+              />
+              <Button
+                size="small"
+                className={css.swatch}
+                onClick={() => logoInputRef.current?.click()}
+              >
+                {hasLogo ? 'Change' : 'Add image'}
+              </Button>
+              {hasLogo && (
+                <Button size="small" className={css.swatch} onClick={() => onLogo(null)}>
+                  Remove
+                </Button>
+              )}
+            </div>
+          </Control>
         </div>
-        <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
-          A small image drawn with the caption. It stays on this device and is forgotten when you
-          close the app.
-        </Text>
       </fieldset>
     </>
   );

@@ -29,6 +29,7 @@ export {
   PADDINGS,
   parseStyle,
   TEMPLATES,
-  TEXT_SCALE,
+  TEXT_SWATCHES,
+  textScale,
   withTemplate,
 } from './model/style';

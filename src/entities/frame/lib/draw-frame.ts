@@ -8,6 +8,7 @@ import {
   rowHeight,
 } from '../model/caption';
 import type { FrameLayout, Rect } from '../model/layout';
+import { STRIP_HOLE_LANE } from '../model/spec';
 import { AMBER, type FontId, inkFor, type TextAlign } from '../model/style';
 
 import { FONT_FACES } from './fonts';
@@ -18,6 +19,8 @@ export type FrameLook = {
   font: FontId;
   /** Text size multiplier. */
   scale: number;
+  /** Lettering color chosen by the user. Unset lets the caption's tone and the margin decide. */
+  color?: string;
   align: TextAlign;
   /** A small image of the user's own, drawn with the caption. Never leaves the device. */
   logo?: CanvasImageSource & { width: number; height: number };
@@ -131,13 +134,15 @@ const drawStrips = (pen: Pen, strips: { top: Rect; bottom: Rect }) => {
   for (const band of [strips.top, strips.bottom])
     ctx.fillRect(band.x, band.y, band.width, band.height);
 
-  // Sprocket holes show the paper behind the film. They run along the outer edge of each band,
-  // leaving the inner half for the edge print.
+  // Sprocket holes show the paper behind the film. They run down the middle of the lane along
+  // the outer edge of each band; the inner lane is left for the edge print.
+  const lane = STRIP_HOLE_LANE * unit;
   const hole = { width: 30 * unit, height: 20 * unit, pitch: 58 * unit, radius: 4 * unit };
+  const inLane = (lane - hole.height) / 2;
   ctx.fillStyle = look.background;
   for (const [band, y] of [
-    [strips.top, strips.top.y + 8 * unit],
-    [strips.bottom, strips.bottom.y + strips.bottom.height - 8 * unit - hole.height],
+    [strips.top, strips.top.y + inLane],
+    [strips.bottom, strips.bottom.y + strips.bottom.height - lane + inLane],
   ] as const) {
     const count = Math.floor((band.width - hole.pitch / 2) / hole.pitch);
     const start = band.x + (band.width - (count - 1) * hole.pitch - hole.width) / 2;
@@ -200,8 +205,9 @@ export const drawFrame = (
   );
 
   const paper = inkFor(look.background);
-  const tone =
-    block.tone === 'amber'
+  const tone = look.color
+    ? { ink: look.color, subInk: look.color }
+    : block.tone === 'amber'
       ? { ink: AMBER, subInk: AMBER }
       : block.tone === 'light'
         ? { ink: '#ffffff', subInk: 'rgba(255, 255, 255, 0.86)' }
@@ -211,23 +217,43 @@ export const drawFrame = (
   if (strips) drawStrips(pen, strips);
   ctx.textBaseline = 'alphabetic';
 
+  // Read-outs and edge print are set like markings, with air between the letters. Condensed and
+  // segment faces run their words together without it.
+  const spaced = block.tone === 'amber';
+  const size = QUIET_SIZE * unit * look.scale;
+  if ('letterSpacing' in ctx) {
+    ctx.letterSpacing = `${spaced ? size * 0.06 : 0}px`;
+    ctx.wordSpacing = `${spaced ? size * 0.45 : 0}px`;
+  }
+
   if (block.placement === 'strip' && strips) {
     // Edge print: the first row runs along the lower band, a second one along the upper band.
+    // Each sits in the middle of its print lane, whatever the face's own proportions are.
     const inset = caption.x - strips.bottom.x;
-    const scale = unit * look.scale;
-    const band = (strip: Rect, row: CaptionRow, upper: boolean) => {
-      const height = rowHeight(row) * scale;
-      const y = upper ? strip.y + strip.height - height - 6 * unit : strip.y + 6 * unit;
-      drawRows(pen, [row], { x: strip.x + inset, y, width: strip.width - inset * 2, height });
+    const lane = STRIP_HOLE_LANE * unit;
+    const print = (strip: Rect, row: CaptionRow, upper: boolean) => {
+      const middle = upper
+        ? strip.y + lane + (strip.height - lane) / 2
+        : strip.y + (strip.height - lane) / 2;
+      ctx.textBaseline = 'middle';
+      drawRow(
+        pen,
+        row,
+        { x: strip.x + inset, y: strip.y, width: strip.width - inset * 2, height: strip.height },
+        middle,
+      );
+      ctx.textBaseline = 'alphabetic';
     };
-    if (block.rows[0]) band(strips.bottom, block.rows[0], false);
-    if (block.rows[1]) band(strips.top, block.rows[1], true);
+    if (block.rows[0]) print(strips.bottom, block.rows[0], false);
+    if (block.rows[1]) print(strips.top, block.rows[1], true);
     return;
   }
 
   if (block.placement === 'over' && block.rows.length > 0) {
-    // A soft shadow keeps light text readable over a bright sky without boxing it in.
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+    // A soft halo keeps text readable over a busy picture without boxing it in: dark under light
+    // lettering, light under dark.
+    const lightText = inkFor(pen.ink.startsWith('#') ? pen.ink : '#ffffff').ink === '#111111';
+    ctx.shadowColor = lightText ? 'rgba(0, 0, 0, 0.55)' : 'rgba(255, 255, 255, 0.6)';
     ctx.shadowBlur = 8 * unit;
     ctx.shadowOffsetY = 1 * unit;
   }

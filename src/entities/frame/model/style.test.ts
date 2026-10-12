@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { cropRect, DEFAULT_STYLE, inkFor, parseStyle, withTemplate } from './style';
+import { stripHeight } from './spec';
+import { cropRect, DEFAULT_STYLE, inkFor, parseStyle, textScale, withTemplate } from './style';
 
 describe('parseStyle', () => {
   it('when nothing was stored, it must return the default style', () => {
@@ -31,6 +32,7 @@ describe('parseStyle', () => {
       crop: 'pano',
       font: 'typewriter',
       textSize: 'l',
+      textColor: '#ffa630',
       align: 'right',
       text: 'Seoul',
     };
@@ -92,5 +94,26 @@ describe('cropRect', () => {
     const wide = { width: 6000, height: 1500 };
 
     expect(cropRect(wide, 'cinema')).toEqual({ x: 0, y: 0, width: 6000, height: 1500 });
+  });
+});
+
+describe('textScale', () => {
+  it('when the date stamp is used, its lettering must be smaller than a caption at the same size', () => {
+    expect(textScale({ template: 'stamp', textSize: 'm' })).toBeLessThan(
+      textScale({ template: 'center', textSize: 'm' }),
+    );
+  });
+
+  it('when a larger size is picked, every template must grow', () => {
+    for (const template of ['label', 'stamp', 'film'] as const)
+      expect(textScale({ template, textSize: 'l' })).toBeGreaterThan(
+        textScale({ template, textSize: 'm' }),
+      );
+  });
+});
+
+describe('stripHeight', () => {
+  it('when the text is larger, the film strip band must grow so the print does not crowd the holes', () => {
+    expect(stripHeight(1.25)).toBeGreaterThan(stripHeight(1));
   });
 });

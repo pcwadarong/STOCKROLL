@@ -6,7 +6,7 @@ import {
   frameSpec,
   type FrameStyle,
   type OutputPreset,
-  TEXT_SCALE,
+  textScale,
 } from '@/entities/frame';
 import { canvasToJpeg } from '@/shared/lib/save-file';
 
@@ -70,12 +70,13 @@ export const renderJpeg = async (
  * The lettering part of a style, in the form the drawing code takes.
  * @param style the look picked in the editor
  * @param logo the attached logo, if any
- * @returns margin color, font, text scale, alignment and logo
+ * @returns margin color, font, text scale and color, alignment and logo
  */
 export const lookOf = (style: FrameStyle, logo: ImageBitmap | null) => ({
   background: style.background,
   font: style.font,
-  scale: TEXT_SCALE[style.textSize],
+  scale: textScale(style),
+  color: style.textColor || undefined,
   align: style.align,
   logo: logo ?? undefined,
 });
