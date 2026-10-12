@@ -1,7 +1,7 @@
 import { HStack, Text } from '@seed-design/react';
 import { type DragEvent, useRef, useState } from 'react';
 
-import { OUTPUT_PRESETS, PAPERS } from '@/entities/frame';
+import { OUTPUT_PRESETS } from '@/entities/frame';
 import { systemOf, SYSTEMS } from '@/entities/recipe';
 import { canShareFiles } from '@/shared/lib/save-file';
 import { Button } from '@/shared/ui/Button';
@@ -23,6 +23,7 @@ import { FROM_EXIF } from '../lib/resolve-caption';
 import { useFrameEditor } from '../model/use-frame-editor';
 
 import { PhotoStrip } from './PhotoStrip';
+import { StylePanel } from './StylePanel';
 
 import * as css from './FrameEditor.css';
 
@@ -60,8 +61,8 @@ const AddLink = ({ to, children }: { to: string; children: string }) => (
  */
 export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
   const { canvasRef, store, library, resolved, outputSize, exportJpeg, saveAll } = useFrameEditor();
-  const { queue, current, bitmap, preset, paper, focalMode, detail, error } = store;
-  const { setPick, setPreset, setPaper, setFocalMode, setDetail } = store;
+  const { queue, current, bitmap, preset, style, logo, focalMode, detail, error } = store;
+  const { setPick, setPreset, updateStyle, setLogoFile, setFocalMode, setDetail } = store;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [shareable] = useState(canShareFiles);
@@ -250,23 +251,13 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
             </Text>
           </fieldset>
 
-          <fieldset className={css.group}>
-            <legend className={css.legend}>Margin</legend>
-            <SegmentedControl
-              aria-label="Margin color"
-              value={paper.id}
-              onValueChange={id => {
-                const next = PAPERS.find(item => item.id === id);
-                if (next) setPaper(next);
-              }}
-            >
-              {PAPERS.map(item => (
-                <SegmentedControlItem key={item.id} value={item.id}>
-                  {item.label}
-                </SegmentedControlItem>
-              ))}
-            </SegmentedControl>
-          </fieldset>
+          <StylePanel
+            style={style}
+            onChange={updateStyle}
+            hasLogo={logo !== null}
+            onLogo={file => void setLogoFile(file)}
+            positionApplies={preset.kind !== 'original'}
+          />
 
           <fieldset className={css.group}>
             <legend className={css.legend}>Focal length</legend>

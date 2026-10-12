@@ -1,9 +1,11 @@
+import type { FrameInfo } from '@/entities/frame';
 import { type Camera, type Film, gearLabel, type Lens, matchGear } from '@/entities/gear';
 import {
   type ExifInfo,
+  exposureParts,
   type FocalMode,
   formatCamera,
-  formatExposure,
+  formatDate,
   formatShutter,
   parseShutter,
 } from '@/entities/photo';
@@ -64,7 +66,7 @@ export const focalModeFor = (mode: FocalMode, exif: ExifInfo): FocalMode =>
  * @param exif shooting info read from the file
  * @param focalMode actual or 35mm-equivalent focal length
  * @param library registered gear and recipes
- * @returns selected option values, caption strings, exposure field values and the look field kind
+ * @returns selected option values, shooting info strings, exposure field values and the look field kind
  */
 export const resolveCaption = (
   picks: Picks,
@@ -118,12 +120,13 @@ export const resolveCaption = (
       shutter:
         picks.shutter ?? (exif.exposureTime ? formatShutter(exif.exposureTime).slice(0, -1) : ''),
     },
-    caption: {
-      leftPrimary: camera.text ? `Shot on ${camera.text}` : '',
-      leftSecondary: lens.text,
-      rightPrimary: formatExposure(merged, 'actual'),
-      rightSecondary:
-        lookField === 'film' ? (film?.name ?? '') : lookField === 'recipe' ? lookText : '',
-    },
+    /** Shooting info as strings, for the frame to arrange. Missing values are empty. */
+    info: {
+      camera: camera.text,
+      lens: lens.text,
+      look: lookField === 'film' ? (film?.name ?? '') : lookField === 'recipe' ? lookText : '',
+      ...exposureParts(merged, 'actual'),
+      date: formatDate(exif.takenAt),
+    } satisfies FrameInfo,
   };
 };

@@ -5,6 +5,9 @@ import type { Recipe } from '@/entities/recipe';
 
 import { focalModeFor, FROM_EXIF, resolveCaption } from './resolve-caption';
 
+const exposureOf = ({ info }: ReturnType<typeof resolveCaption>) =>
+  [info.iso, info.focal, info.aperture, info.shutter].filter(Boolean).join(' ');
+
 const gear = { isFavorite: false, status: 'active', mount: null, note: null } as const;
 const body = { bodyType: null } as const;
 const XT50: Camera = {
@@ -77,22 +80,22 @@ describe('resolveCaption', () => {
 
     expect(result.cameraValue).toBe('c1');
     expect(result.lensValue).toBe('l1');
-    expect(result.caption.leftPrimary).toBe('Shot on X-T50');
-    expect(result.caption.rightPrimary).toBe('ISO1250 72mm F5.6 1/250s');
+    expect(result.info.camera).toBe('X-T50');
+    expect(exposureOf(result)).toBe('ISO1250 72mm F5.6 1/250s');
   });
 
   it('when nothing is registered, it must fall back to the EXIF names', () => {
     const result = resolveCaption({}, FUJI_EXIF, 'actual', empty);
 
     expect(result.cameraValue).toBe(FROM_EXIF);
-    expect(result.caption.leftPrimary).toBe('Shot on FUJIFILM X-T50');
-    expect(result.caption.leftSecondary).toBe('XF16-80mmF4 R OIS WR');
+    expect(result.info.camera).toBe('FUJIFILM X-T50');
+    expect(result.info.lens).toBe('XF16-80mmF4 R OIS WR');
   });
 
   it('when the user clears the camera, it must print no camera and offer no look even though EXIF has one', () => {
     const result = resolveCaption({ camera: '' }, FUJI_EXIF, 'actual', library);
 
-    expect(result.caption.leftPrimary).toBe('');
+    expect(result.info.camera).toBe('');
     expect(result.lookField).toBe('none');
   });
 
@@ -101,13 +104,13 @@ describe('resolveCaption', () => {
 
     expect(result.lookField).toBe('recipe');
     expect(result.system).toBe('fujifilm');
-    expect(result.caption.rightSecondary).toBe('RICH COLOR');
+    expect(result.info.look).toBe('RICH COLOR');
   });
 
   it('when a plain simulation is picked, it must print the simulation name', () => {
     const result = resolveCaption({ look: 'sim:ETERNA / Cinema' }, FUJI_EXIF, 'actual', library);
 
-    expect(result.caption.rightSecondary).toBe('ETERNA / Cinema');
+    expect(result.info.look).toBe('ETERNA / Cinema');
   });
 
   it('when a Fujifilm simulation is still picked after switching to another camera system, it must not be printed', () => {
@@ -118,7 +121,7 @@ describe('resolveCaption', () => {
       library,
     );
 
-    expect(result.caption.rightSecondary).toBe('');
+    expect(result.info.look).toBe('');
     expect(result.lookValue).toBe('');
   });
 
@@ -131,14 +134,14 @@ describe('resolveCaption', () => {
     );
 
     expect(result.lookField).toBe('film');
-    expect(result.caption.rightSecondary).toBe('Kodak UltraMax 400');
+    expect(result.info.look).toBe('Kodak UltraMax 400');
   });
 
   it('when the file came from a scanner and no camera is picked, the look slot must still be film', () => {
     const result = resolveCaption({}, { scanner: 'NORITSU KOKI EZ Controller' }, 'actual', library);
 
     expect(result.lookField).toBe('film');
-    expect(result.caption.leftPrimary).toBe('');
+    expect(result.info.camera).toBe('');
   });
 
   it('when the camera belongs to another system, a recipe written for Fujifilm must not be printed', () => {
@@ -146,27 +149,25 @@ describe('resolveCaption', () => {
 
     expect(result.lookField).toBe('recipe');
     expect(result.system).toBe('canon');
-    expect(result.caption.rightSecondary).toBe('');
+    expect(result.info.look).toBe('');
   });
 
   it('when one exposure value is typed by hand, it must replace only that slot and keep the rest from EXIF', () => {
     const result = resolveCaption({ aperture: '8' }, FUJI_EXIF, 'actual', library);
 
-    expect(result.caption.rightPrimary).toBe('ISO1250 72mm F8 1/250s');
+    expect(exposureOf(result)).toBe('ISO1250 72mm F8 1/250s');
     expect(result.exposure).toEqual({ iso: '1250', focal: '72', aperture: '8', shutter: '1/250' });
   });
 
   it('when an exposure value is cleared or is not a number, that slot must be hidden instead of refilled from EXIF', () => {
     const result = resolveCaption({ iso: '', shutter: 'fast' }, FUJI_EXIF, 'actual', library);
 
-    expect(result.caption.rightPrimary).toBe('72mm F5.6');
+    expect(exposureOf(result)).toBe('72mm F5.6');
   });
 
   it('when a shutter speed is typed as a fraction or as seconds, it must be printed in shutter notation', () => {
-    expect(resolveCaption({ shutter: '1/60' }, {}, 'actual', library).caption.rightPrimary).toBe(
-      '1/60s',
-    );
-    expect(resolveCaption({ shutter: '2' }, {}, 'actual', library).caption.rightPrimary).toBe('2s');
+    expect(exposureOf(resolveCaption({ shutter: '1/60' }, {}, 'actual', library))).toBe('1/60s');
+    expect(exposureOf(resolveCaption({ shutter: '2' }, {}, 'actual', library))).toBe('2s');
   });
 });
 

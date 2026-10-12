@@ -13,6 +13,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
+      // Caption fonts are drawn on a canvas, which silently falls back to another face when the
+      // file is missing. Precache them so an installed app exports the same lettering offline.
+      workbox: { globPatterns: ['**/*.{js,css,html,woff2}'] },
       manifest: {
         name: 'STOCKROLL',
         short_name: 'STOCKROLL',

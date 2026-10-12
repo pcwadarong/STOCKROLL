@@ -53,21 +53,41 @@ export const parseShutter = (text: string) => {
 };
 
 /**
+ * Formats each exposure value on its own. Only present values are used; nothing is guessed — if
+ * 35mm equivalent is selected but EXIF has no equivalent value, the actual focal length is kept.
+ * @param info shooting info read from the file
+ * @param focalMode whether to show the actual or 35mm-equivalent focal length
+ * @returns strings like `ISO1250`, `72mm`, `F5.6`, `1/250s`. Empty for a missing value
+ */
+export const exposureParts = (info: ExifInfo, focalMode: FocalMode) => {
+  const focal = focalMode === '35mm' ? (info.focalLength35 ?? info.focalLength) : info.focalLength;
+  return {
+    iso: isPositive(info.iso) ? `ISO${Math.round(info.iso)}` : '',
+    focal: isPositive(focal) ? `${Math.round(focal)}mm` : '',
+    aperture: isPositive(info.aperture) ? `F${trimNumber(info.aperture)}` : '',
+    shutter: isPositive(info.exposureTime) ? formatShutter(info.exposureTime) : '',
+  };
+};
+
+/**
  * Joins ISO, focal length, aperture and shutter speed into one line.
- * Only present values are used; nothing is guessed — if 35mm equivalent is selected but EXIF
- * has no equivalent value, the actual focal length is kept.
  * @param info shooting info read from the file
  * @param focalMode whether to show the actual or 35mm-equivalent focal length
  * @returns a string like `ISO1250 72mm F5.6 1/250s`. Empty string when nothing is available
  */
 export const formatExposure = (info: ExifInfo, focalMode: FocalMode) => {
-  const focal = focalMode === '35mm' ? (info.focalLength35 ?? info.focalLength) : info.focalLength;
-  return [
-    isPositive(info.iso) ? `ISO${Math.round(info.iso)}` : '',
-    isPositive(focal) ? `${Math.round(focal)}mm` : '',
-    isPositive(info.aperture) ? `F${trimNumber(info.aperture)}` : '',
-    isPositive(info.exposureTime) ? formatShutter(info.exposureTime) : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const { iso, focal, aperture, shutter } = exposureParts(info, focalMode);
+  return [iso, focal, aperture, shutter].filter(Boolean).join(' ');
 };
+
+const two = (value: number) => String(value).padStart(2, '0');
+
+/**
+ * Formats the date a photo was taken. EXIF holds the camera's wall-clock time with no time zone,
+ * and it is read and printed in the same local terms, so the day on the frame is the day on the
+ * camera wherever the file is opened.
+ * @param date the date read from EXIF
+ * @returns a string like `2026/07/30`. Empty string when there is no date
+ */
+export const formatDate = (date: Date | undefined) =>
+  date ? `${date.getFullYear()}/${two(date.getMonth() + 1)}/${two(date.getDate())}` : '';

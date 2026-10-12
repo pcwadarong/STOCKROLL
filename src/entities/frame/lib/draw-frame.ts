@@ -1,29 +1,41 @@
-import type { FrameLayout } from '../model/layout';
-import type { Paper } from '../model/presets';
+import {
+  CAPTION_ROW_GAP,
+  type CaptionBlock,
+  type CaptionRow,
+  LOGO_HEIGHT,
+  logoInline,
+  logoRoom,
+  rowHeight,
+} from '../model/caption';
+import type { FrameLayout, Rect } from '../model/layout';
+import { AMBER, type FontId, inkFor, type TextAlign } from '../model/style';
 
-export type Caption = {
-  leftPrimary: string;
-  leftSecondary: string;
-  rightPrimary: string;
-  rightSecondary: string;
+import { FONT_FACES } from './fonts';
+
+/** How the caption is lettered. Colors come from the block's tone and the margin color. */
+export type FrameLook = {
+  background: string;
+  font: FontId;
+  /** Text size multiplier. */
+  scale: number;
+  align: TextAlign;
+  /** A small image of the user's own, drawn with the caption. Never leaves the device. */
+  logo?: CanvasImageSource & { width: number; height: number };
 };
 
-type Row = {
-  left: string;
-  right: string;
-  box: { x: number; width: number };
-  baseline: number;
-  size: number;
-  weight: number;
-  color: string;
-  minGap: number;
-};
-
-const FONT_STACK = 'system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif';
-const PRIMARY_SIZE = 27;
-const SECONDARY_SIZE = 22;
+const STRONG_SIZE = 27;
+const QUIET_SIZE = 22;
 const ROW_MIN_GAP = 32;
 const MIN_SHRINK = 0.62;
+const STRIP_COLOR = '#0b0b0c';
+
+type Pen = {
+  ctx: CanvasRenderingContext2D;
+  unit: number;
+  look: FrameLook;
+  ink: string;
+  subInk: string;
+};
 
 const ellipsize = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number) => {
   if (ctx.measureText(text).width <= maxWidth) return text;
@@ -32,72 +44,198 @@ const ellipsize = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number
   return end > 0 ? `${text.slice(0, end).trimEnd()}…` : '';
 };
 
-const drawRow = (ctx: CanvasRenderingContext2D, row: Row) => {
-  const { box } = row;
-  const font = (size: number) => `${row.weight} ${size}px ${FONT_STACK}`;
+const fontOf = (pen: Pen, strong: boolean, size: number) => {
+  const face = FONT_FACES[pen.look.font];
+  return `${strong ? face.strong : face.quiet} ${size}px ${face.family}`;
+};
+
+/** Sets the font, shrinking it until the text fits the width or the shrink limit is reached. */
+const fit = (
+  pen: Pen,
+  strong: boolean,
+  size: number,
+  natural: (font: string) => number,
+  room: number,
+) => {
+  pen.ctx.font = fontOf(pen, strong, size);
+  const width = natural(pen.ctx.font);
+  const shrink = width > room ? Math.max(MIN_SHRINK, room / width) : 1;
+  pen.ctx.font = fontOf(pen, strong, size * shrink);
+};
+
+const drawRow = (pen: Pen, row: CaptionRow, box: Rect, baseline: number) => {
+  const { ctx, unit, look } = pen;
+  const size = (row.kind === 'cells' || row.strong ? STRONG_SIZE : QUIET_SIZE) * unit * look.scale;
+  ctx.fillStyle = row.kind !== 'cells' && !row.strong ? pen.subInk : pen.ink;
+
+  if (row.kind === 'cells') {
+    // Each value is centered in an equal share of the line, so four values read as four columns.
+    const share = box.width / row.cells.length;
+    fit(
+      pen,
+      true,
+      size,
+      () => Math.max(...row.cells.map(cell => ctx.measureText(cell).width)),
+      share - ROW_MIN_GAP * unit,
+    );
+    ctx.textAlign = 'center';
+    row.cells.forEach((cell, index) => ctx.fillText(cell, box.x + share * (index + 0.5), baseline));
+    return;
+  }
+
+  if (row.kind === 'text') {
+    fit(pen, row.strong, size, () => ctx.measureText(row.text).width, box.width);
+    const x =
+      look.align === 'left'
+        ? box.x
+        : look.align === 'right'
+          ? box.x + box.width
+          : box.x + box.width / 2;
+    ctx.textAlign = look.align;
+    ctx.fillText(ellipsize(ctx, row.text, box.width), x, baseline);
+    return;
+  }
 
   // When left and right collide, shrink the text first, then ellipsize the left side only.
   // The right side (exposure values) is numeric — truncating it would show wrong information.
-  ctx.font = font(row.size);
-  const natural = ctx.measureText(row.left).width + ctx.measureText(row.right).width;
-  const available = box.width - (row.left && row.right ? row.minGap : 0);
-  const shrink = natural > available ? Math.max(MIN_SHRINK, available / natural) : 1;
-
-  ctx.font = font(row.size * shrink);
-  ctx.fillStyle = row.color;
-
+  const room = box.width - (row.left && row.right ? ROW_MIN_GAP * unit : 0);
+  fit(
+    pen,
+    row.strong,
+    size,
+    () => ctx.measureText(row.left).width + ctx.measureText(row.right).width,
+    room,
+  );
   const rightWidth = ctx.measureText(row.right).width;
-  const left = ellipsize(ctx, row.left, available - rightWidth);
-
   ctx.textAlign = 'left';
-  ctx.fillText(left, box.x, row.baseline);
+  ctx.fillText(ellipsize(ctx, row.left, room - rightWidth), box.x, baseline);
   ctx.textAlign = 'right';
-  ctx.fillText(row.right, box.x + box.width, row.baseline);
+  ctx.fillText(row.right, box.x + box.width, baseline);
+};
+
+/** Draws rows from the top of a box down, each on its own baseline. */
+const drawRows = (pen: Pen, rows: readonly CaptionRow[], box: Rect) => {
+  const scale = pen.unit * pen.look.scale;
+  let top = box.y;
+  for (const row of rows) {
+    const height = rowHeight(row) * scale;
+    // Text sits a little above the bottom of its row, like type on a ruled line.
+    drawRow(pen, row, box, top + height - 7 * scale);
+    top += height + CAPTION_ROW_GAP * scale;
+  }
+};
+
+const drawStrips = (pen: Pen, strips: { top: Rect; bottom: Rect }) => {
+  const { ctx, unit, look } = pen;
+  ctx.fillStyle = STRIP_COLOR;
+  for (const band of [strips.top, strips.bottom])
+    ctx.fillRect(band.x, band.y, band.width, band.height);
+
+  // Sprocket holes show the paper behind the film. They run along the outer edge of each band,
+  // leaving the inner half for the edge print.
+  const hole = { width: 30 * unit, height: 20 * unit, pitch: 58 * unit, radius: 4 * unit };
+  ctx.fillStyle = look.background;
+  for (const [band, y] of [
+    [strips.top, strips.top.y + 8 * unit],
+    [strips.bottom, strips.bottom.y + strips.bottom.height - 8 * unit - hole.height],
+  ] as const) {
+    const count = Math.floor((band.width - hole.pitch / 2) / hole.pitch);
+    const start = band.x + (band.width - (count - 1) * hole.pitch - hole.width) / 2;
+    for (let index = 0; index < count; index++) {
+      ctx.beginPath();
+      ctx.roundRect(start + index * hole.pitch, y, hole.width, hole.height, hole.radius);
+      ctx.fill();
+    }
+  }
+};
+
+const drawLogo = (pen: Pen, logo: NonNullable<FrameLook['logo']>, box: Rect, inline: boolean) => {
+  const { ctx, unit, look } = pen;
+  // Inline, the logo shares the rows' height; above them it has a line of its own.
+  const height = Math.min(LOGO_HEIGHT * unit * look.scale, inline ? box.height : Infinity);
+  const width = (logo.width / logo.height) * height;
+  const align = inline ? 'center' : look.align;
+  const x =
+    align === 'left'
+      ? box.x
+      : align === 'right'
+        ? box.x + box.width - width
+        : box.x + (box.width - width) / 2;
+  ctx.drawImage(logo, x, inline ? box.y + (box.height - height) / 2 : box.y, width, height);
 };
 
 /**
- * Draws margin, photo and caption onto the canvas per the computed layout. The caller sizes the canvas first.
+ * Draws margin, photo and caption onto the canvas per the computed layout. The caller sizes the
+ * canvas first and makes sure the font is loaded (`ensureFont`).
  * @param ctx target 2D context
  * @param image source photo
  * @param layout result of `computeLayout`
- * @param caption the four caption strings. Empty strings are not drawn
- * @param paper margin and text colors
+ * @param block caption rows and where they go. Empty strings are not drawn
+ * @param look margin color, lettering and the optional logo
  */
 export const drawFrame = (
   ctx: CanvasRenderingContext2D,
   image: CanvasImageSource,
   layout: FrameLayout,
-  caption: Caption,
-  paper: Paper,
+  block: CaptionBlock,
+  look: FrameLook,
 ) => {
-  const { canvas, photo, caption: box, unit } = layout;
+  const { canvas, photo, source, caption, strips, unit } = layout;
 
-  ctx.fillStyle = paper.background;
+  ctx.fillStyle = look.background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(image, photo.x, photo.y, photo.width, photo.height);
+  ctx.drawImage(
+    image,
+    source.x,
+    source.y,
+    source.width,
+    source.height,
+    photo.x,
+    photo.y,
+    photo.width,
+    photo.height,
+  );
 
+  const paper = inkFor(look.background);
+  const tone =
+    block.tone === 'amber'
+      ? { ink: AMBER, subInk: AMBER }
+      : block.tone === 'light'
+        ? { ink: '#ffffff', subInk: 'rgba(255, 255, 255, 0.86)' }
+        : paper;
+  const pen: Pen = { ctx, unit, look, ...tone };
+
+  if (strips) drawStrips(pen, strips);
   ctx.textBaseline = 'alphabetic';
-  drawRow(ctx, {
-    left: caption.leftPrimary,
-    right: caption.rightPrimary,
-    box,
-    baseline: box.y + PRIMARY_SIZE * unit,
-    size: PRIMARY_SIZE * unit,
-    weight: 600,
-    color: paper.ink,
-    minGap: ROW_MIN_GAP * unit,
-  });
-  drawRow(ctx, {
-    left: caption.leftSecondary,
-    right: caption.rightSecondary,
-    box,
-    baseline: box.y + box.height - 6 * unit,
-    size: SECONDARY_SIZE * unit,
-    weight: 400,
-    color: paper.subInk,
-    minGap: ROW_MIN_GAP * unit,
-  });
+
+  if (block.placement === 'strip' && strips) {
+    // Edge print: the first row runs along the lower band, a second one along the upper band.
+    const inset = caption.x - strips.bottom.x;
+    const scale = unit * look.scale;
+    const band = (strip: Rect, row: CaptionRow, upper: boolean) => {
+      const height = rowHeight(row) * scale;
+      const y = upper ? strip.y + strip.height - height - 6 * unit : strip.y + 6 * unit;
+      drawRows(pen, [row], { x: strip.x + inset, y, width: strip.width - inset * 2, height });
+    };
+    if (block.rows[0]) band(strips.bottom, block.rows[0], false);
+    if (block.rows[1]) band(strips.top, block.rows[1], true);
+    return;
+  }
+
+  if (block.placement === 'over' && block.rows.length > 0) {
+    // A soft shadow keeps light text readable over a bright sky without boxing it in.
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+    ctx.shadowBlur = 8 * unit;
+    ctx.shadowOffsetY = 1 * unit;
+  }
+  const room = logoRoom(block, Boolean(look.logo), look.scale) * unit;
+  drawRows(pen, block.rows, { ...caption, y: caption.y + room, height: caption.height - room });
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+
+  if (look.logo) drawLogo(pen, look.logo, caption, logoInline(block));
 };

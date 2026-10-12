@@ -1,9 +1,12 @@
 import {
-  type Caption,
+  type CaptionBlock,
   computeLayout,
   drawFrame,
+  ensureFont,
+  frameSpec,
+  type FrameStyle,
   type OutputPreset,
-  type Paper,
+  TEXT_SCALE,
 } from '@/entities/frame';
 import { canvasToJpeg } from '@/shared/lib/save-file';
 
@@ -27,25 +30,52 @@ export const decodePhoto = (file: Blob) =>
  * The canvas is emptied before returning: Safari counts canvas memory against a page-wide limit
  * and frees it late, which a batch of full-size exports would run into.
  * @param bitmap decoded photo
- * @param settings output preset, file detail, caption strings and margin color
+ * @param settings output preset, file detail, caption rows, the frame style and an optional logo
  * @returns the JPEG file contents
  */
 export const renderJpeg = async (
   bitmap: ImageBitmap,
-  settings: { preset: OutputPreset; detail: ExportDetail; caption: Caption; paper: Paper },
+  settings: {
+    preset: OutputPreset;
+    detail: ExportDetail;
+    block: CaptionBlock;
+    style: FrameStyle;
+    logo: ImageBitmap | null;
+  },
 ) => {
-  const { preset, detail, caption, paper } = settings;
-  const layout = computeLayout(bitmap, preset, detail);
+  const { preset, detail, block, style, logo } = settings;
+  const layout = computeLayout(
+    bitmap,
+    preset,
+    detail,
+    frameSpec(bitmap, style, block, Boolean(logo)),
+  );
+  // A canvas draws in the fallback face when the font file has not arrived yet.
+  await ensureFont(style.font);
   const canvas = document.createElement('canvas');
   canvas.width = layout.canvas.width;
   canvas.height = layout.canvas.height;
   try {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas is not available');
-    drawFrame(ctx, bitmap, layout, caption, paper);
+    drawFrame(ctx, bitmap, layout, block, lookOf(style, logo));
     return await canvasToJpeg(canvas, JPEG_QUALITY[detail]);
   } finally {
     canvas.width = 0;
     canvas.height = 0;
   }
 };
+
+/**
+ * The lettering part of a style, in the form the drawing code takes.
+ * @param style the look picked in the editor
+ * @param logo the attached logo, if any
+ * @returns margin color, font, text scale, alignment and logo
+ */
+export const lookOf = (style: FrameStyle, logo: ImageBitmap | null) => ({
+  background: style.background,
+  font: style.font,
+  scale: TEXT_SCALE[style.textSize],
+  align: style.align,
+  logo: logo ?? undefined,
+});

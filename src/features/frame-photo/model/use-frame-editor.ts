@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { computeLayout, drawFrame } from '@/entities/frame';
+import { buildCaption, computeLayout, drawFrame, ensureFont, frameSpec } from '@/entities/frame';
 import { cameraCollection, filmCollection, lensCollection } from '@/entities/gear';
 import { recipeCollection } from '@/entities/recipe';
 import { downloadBlob } from '@/shared/lib/save-file';
@@ -8,7 +8,7 @@ import { useCollection } from '@/shared/lib/use-collection';
 
 import { saveSummaryText } from '../lib/batch-text';
 import { outputFilename, outputFilenames } from '../lib/output-filename';
-import { decodePhoto, renderJpeg } from '../lib/render-jpeg';
+import { decodePhoto, lookOf, renderJpeg } from '../lib/render-jpeg';
 import { focalModeFor, resolveCaption } from '../lib/resolve-caption';
 
 import { type QueuedPhoto, useEditorStore } from './editor-store';
@@ -29,7 +29,7 @@ const NO_EXIF = {};
 export const useFrameEditor = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const store = useEditorStore();
-  const { queue, current, bitmap, preset, paper, focalMode, detail, setError } = store;
+  const { queue, current, bitmap, preset, style, logo, focalMode, detail, setError } = store;
 
   const cameras = useCollection(cameraCollection).items;
   const lenses = useCollection(lensCollection).items;
@@ -45,9 +45,31 @@ export const useFrameEditor = () => {
     [current, focalMode, library],
   );
 
-  const layout = useMemo(() => (bitmap ? computeLayout(bitmap, preset) : null), [bitmap, preset]);
+  const { info } = resolved;
+  const block = useMemo(
+    () => buildCaption(style.template, info, style.text),
+    [style.template, style.text, info],
+  );
+  const hasLogo = logo !== null;
+  const spec = useMemo(
+    () => (bitmap ? frameSpec(bitmap, style, block, hasLogo) : null),
+    [bitmap, style, block, hasLogo],
+  );
+  const layout = useMemo(
+    () => (bitmap && spec ? computeLayout(bitmap, preset, 'optimized', spec) : null),
+    [bitmap, preset, spec],
+  );
 
-  const { caption } = resolved;
+  // A canvas does not wait for web fonts, so the preview is drawn again once the font is in.
+  const [loadedFont, setLoadedFont] = useState(style.font);
+  useEffect(() => {
+    let current = true;
+    void ensureFont(style.font).then(() => current && setLoadedFont(style.font));
+    return () => {
+      current = false;
+    };
+  }, [style.font]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
@@ -55,8 +77,8 @@ export const useFrameEditor = () => {
     if (!canvas || !ctx || !bitmap || !layout) return;
     canvas.width = layout.canvas.width;
     canvas.height = layout.canvas.height;
-    drawFrame(ctx, bitmap, layout, caption, paper);
-  }, [bitmap, layout, paper, caption]);
+    drawFrame(ctx, bitmap, layout, block, lookOf(style, logo));
+  }, [bitmap, layout, block, style, logo, loadedFont]);
 
   const filenames = useMemo(
     () =>
@@ -72,8 +94,12 @@ export const useFrameEditor = () => {
     filenames[queue.items.indexOf(photo)] ?? outputFilename(photo.file.name, preset.id);
 
   /** The caption of any queued photo: its own picks and EXIF under the batch's focal mode. */
-  const captionOf = (photo: QueuedPhoto) =>
-    resolveCaption(photo.picks, photo.exif, focalModeFor(focalMode, photo.exif), library).caption;
+  const blockOf = (photo: QueuedPhoto) =>
+    buildCaption(
+      style.template,
+      resolveCaption(photo.picks, photo.exif, focalModeFor(focalMode, photo.exif), library).info,
+      style.text,
+    );
 
   /**
    * Exports the current photo as JPEG.
@@ -85,7 +111,7 @@ export const useFrameEditor = () => {
     try {
       // The preview stays at working size so typing stays fast; the file is drawn separately at
       // the chosen detail.
-      const blob = await renderJpeg(bitmap, { preset, detail, caption, paper });
+      const blob = await renderJpeg(bitmap, { preset, detail, block, style, logo });
       const filename = filenameOf(current);
       if (mode === 'download') {
         // Not awaited: the promise is about releasing the file, which nothing here waits for.
@@ -118,7 +144,7 @@ export const useFrameEditor = () => {
       if (stopped) break;
       try {
         const decoded = await decodePhoto(photo.file);
-        const settings = { preset, detail, caption: captionOf(photo), paper };
+        const settings = { preset, detail, block: blockOf(photo), style, logo };
         const blob = await renderJpeg(decoded, settings).finally(() => decoded.close());
         await downloadBlob(blob, filenameOf(photo), BATCH_DOWNLOAD_HOLD_MS);
         sent++;
@@ -138,7 +164,7 @@ export const useFrameEditor = () => {
     library,
     resolved,
     /** Pixel size of the file that export will write for the current photo at the current detail. */
-    outputSize: bitmap ? computeLayout(bitmap, preset, detail).canvas : null,
+    outputSize: bitmap && spec ? computeLayout(bitmap, preset, detail, spec).canvas : null,
     exportJpeg,
     saveAll,
   };

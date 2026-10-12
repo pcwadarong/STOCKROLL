@@ -13,6 +13,8 @@ export type ExifInfo = {
   aperture?: number;
   /** Exposure time (seconds) */
   exposureTime?: number;
+  /** When the photo was taken, as the camera's clock recorded it. */
+  takenAt?: Date;
 };
 
 export type FocalMode = 'actual' | '35mm';

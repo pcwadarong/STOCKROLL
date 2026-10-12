@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeLayout, type Size } from './layout';
+import { computeLayout, defaultSpec, type FrameSpec, type Size } from './layout';
 import { OUTPUT_PRESETS, type OutputPreset } from './presets';
 
 const preset = (id: string) => OUTPUT_PRESETS.find(p => p.id === id) as OutputPreset;
@@ -93,5 +93,82 @@ describe('computeLayout', () => {
     const layout = computeLayout({ width: 3000, height: 2000 }, preset('original'), 'full');
 
     expect(layout.photo.width).toBe(3000);
+  });
+});
+
+describe('computeLayout with a frame spec', () => {
+  const photo = { width: 3000, height: 2000 };
+  const preset = OUTPUT_PRESETS[0];
+  const spec = (patch: Partial<FrameSpec> = {}): FrameSpec => ({ ...defaultSpec(photo), ...patch });
+
+  it('when the photo position is top or bottom, the block must touch that margin', () => {
+    const top = computeLayout(photo, preset, 'optimized', spec({ position: 'top' }));
+    const bottom = computeLayout(photo, preset, 'optimized', spec({ position: 'bottom' }));
+
+    expect(top.photo.y).toBe(48);
+    expect(bottom.caption.y + bottom.caption.height).toBe(1440 - 48);
+  });
+
+  it('when there is no padding, the photo must run edge to edge while the caption keeps side room', () => {
+    const layout = computeLayout(photo, preset, 'optimized', spec({ margin: 0, position: 'top' }));
+
+    expect(layout.photo.x).toBe(0);
+    expect(layout.photo.width).toBe(1080);
+    expect(layout.caption.x).toBe(24);
+    expect(layout.caption.width).toBe(1080 - 48);
+  });
+
+  it('when the caption goes over the photo, it must lie inside the photo and take no room of its own', () => {
+    const below = computeLayout(photo, preset, 'optimized', spec());
+    const over = computeLayout(photo, preset, 'optimized', spec({ captionPlacement: 'over' }));
+
+    expect(over.photo.height).toBe(below.photo.height);
+    expect(over.caption.y).toBeGreaterThanOrEqual(over.photo.y);
+    expect(over.caption.y + over.caption.height).toBeLessThanOrEqual(
+      over.photo.y + over.photo.height,
+    );
+    // No caption below, so the photo alone is centered.
+    expect(over.photo.y).toBeGreaterThan(below.photo.y);
+  });
+
+  it('when there is no caption, the photo alone must be centered', () => {
+    const layout = computeLayout(photo, preset, 'optimized', spec({ captionHeight: 0 }));
+
+    expect(layout.photo.y).toBe(Math.round((1440 - layout.photo.height) / 2));
+    expect(layout.caption.height).toBe(0);
+  });
+
+  it('when the look has film strips, they must hug the photo above and below at its width', () => {
+    const layout = computeLayout(
+      photo,
+      preset,
+      'optimized',
+      spec({ strip: 72, captionPlacement: 'strip', captionHeight: 28 }),
+    );
+
+    expect(layout.strips).not.toBeNull();
+    expect(layout.strips!.top.y + layout.strips!.top.height).toBe(layout.photo.y);
+    expect(layout.strips!.bottom.y).toBe(layout.photo.y + layout.photo.height);
+    expect(layout.strips!.bottom.width).toBe(layout.photo.width);
+  });
+
+  it('when a wide cut is given, the drawn photo must take the shape of the cut, not of the file', () => {
+    const source = { x: 0, y: 438, width: 3000, height: 1125 };
+    const layout = computeLayout(photo, preset, 'optimized', spec({ source }));
+
+    expect(layout.source).toEqual(source);
+    expect(layout.photo.width / layout.photo.height).toBeCloseTo(3000 / 1125, 1);
+  });
+
+  it('when the original preset has no padding and no caption, the canvas must be exactly the photo', () => {
+    const layout = computeLayout(
+      photo,
+      OUTPUT_PRESETS[4],
+      'optimized',
+      spec({ margin: 0, captionHeight: 0 }),
+    );
+
+    expect(layout.canvas).toEqual({ width: 2048, height: 1365 });
+    expect(layout.photo).toEqual({ x: 0, y: 0, width: 2048, height: 1365 });
   });
 });

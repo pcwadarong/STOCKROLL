@@ -1,0 +1,96 @@
+import { describe, expect, it } from 'vitest';
+
+import { cropRect, DEFAULT_STYLE, inkFor, parseStyle, withTemplate } from './style';
+
+describe('parseStyle', () => {
+  it('when nothing was stored, it must return the default style', () => {
+    expect(parseStyle(null)).toEqual(DEFAULT_STYLE);
+    expect(parseStyle('not an object')).toEqual(DEFAULT_STYLE);
+  });
+
+  it('when a stored field is not a known value, that field alone must fall back to the default', () => {
+    const style = parseStyle({
+      template: 'hologram',
+      padding: 9,
+      background: 'red',
+      font: 'serif',
+    });
+
+    expect(style.template).toBe(DEFAULT_STYLE.template);
+    expect(style.padding).toBe(DEFAULT_STYLE.padding);
+    expect(style.background).toBe(DEFAULT_STYLE.background);
+    expect(style.font).toBe('serif');
+  });
+
+  it('when a full valid style was stored, it must come back unchanged', () => {
+    const stored = {
+      template: 'film',
+      background: '#1f4e3d',
+      padding: 0,
+      position: 'top',
+      crop: 'pano',
+      font: 'typewriter',
+      textSize: 'l',
+      align: 'right',
+      text: 'Seoul',
+    };
+
+    expect(parseStyle(stored)).toEqual(stored);
+  });
+});
+
+describe('withTemplate', () => {
+  it('when the date stamp is picked, the font must become the segment display', () => {
+    expect(withTemplate(DEFAULT_STYLE, 'stamp').font).toBe('digital');
+  });
+
+  it('when leaving the date stamp with its font untouched, ordinary lettering must come back', () => {
+    const stamp = withTemplate(DEFAULT_STYLE, 'stamp');
+
+    expect(withTemplate(stamp, 'center').font).toBe(DEFAULT_STYLE.font);
+  });
+
+  it('when moving between other templates, the chosen font must be kept', () => {
+    const style = { ...DEFAULT_STYLE, font: 'typewriter' as const };
+
+    expect(withTemplate(style, 'bar').font).toBe('typewriter');
+  });
+});
+
+describe('inkFor', () => {
+  it('when the margin is light, the text must be dark', () => {
+    expect(inkFor('#ffffff').ink).toBe('#111111');
+    expect(inkFor('#f4efe3').ink).toBe('#111111');
+  });
+
+  it('when the margin is dark or a deep color, the text must be light', () => {
+    expect(inkFor('#0b0b0c').ink).toBe('#f2f0ea');
+    expect(inkFor('#8e211e').ink).toBe('#f2f0ea');
+  });
+
+  it('when the color is not a hex value, it must be treated as the default margin', () => {
+    expect(inkFor('tomato')).toEqual(inkFor(DEFAULT_STYLE.background));
+  });
+});
+
+describe('cropRect', () => {
+  const portrait = { width: 3000, height: 4000 };
+
+  it('when no cut is chosen, the whole photo must be used', () => {
+    expect(cropRect(portrait, 'none')).toEqual({ x: 0, y: 0, width: 3000, height: 4000 });
+  });
+
+  it('when a wide cut is chosen, it must take a full-width band from the middle of the photo', () => {
+    const rect = cropRect(portrait, '16:9');
+
+    expect(rect.width).toBe(3000);
+    expect(rect.height).toBe(Math.round(3000 / (16 / 9)));
+    expect(rect.y).toBe(Math.round((4000 - rect.height) / 2));
+  });
+
+  it('when the photo is already wider than the cut, it must be left whole', () => {
+    const wide = { width: 6000, height: 1500 };
+
+    expect(cropRect(wide, 'cinema')).toEqual({ x: 0, y: 0, width: 6000, height: 1500 });
+  });
+});

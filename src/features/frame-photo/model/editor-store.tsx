@@ -1,6 +1,7 @@
 import {
   createContext,
   type ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -8,7 +9,13 @@ import {
   useState,
 } from 'react';
 
-import { DEFAULT_PAPER, DEFAULT_PRESET, type OutputPreset, type Paper } from '@/entities/frame';
+import {
+  DEFAULT_PRESET,
+  DEFAULT_STYLE,
+  type FrameStyle,
+  type OutputPreset,
+  parseStyle,
+} from '@/entities/frame';
 import { type ExifInfo, type FocalMode, readExif } from '@/entities/photo';
 
 import { openErrorText, type SaveProgress } from '../lib/batch-text';
@@ -40,6 +47,18 @@ export type QueuedPhoto = QueueItem & {
   browserCapture: boolean;
 };
 
+const STYLE_KEY = 'stockroll:frame-style';
+const LOGO_DECODE_HEIGHT = 320;
+
+const readStoredStyle = (): FrameStyle => {
+  try {
+    const stored = localStorage.getItem(STYLE_KEY);
+    return stored ? parseStyle(JSON.parse(stored)) : DEFAULT_STYLE;
+  } catch {
+    return DEFAULT_STYLE;
+  }
+};
+
 // Wide enough for the strip on a 3× phone screen, and about 70KB decoded instead of about 96MB.
 const THUMBNAIL_WIDTH = 160;
 
@@ -52,7 +71,10 @@ type EditorStore = {
   /** The current photo's full-size decode finished with an error, so `bitmap` will stay null. */
   decodeFailed: boolean;
   preset: OutputPreset;
-  paper: Paper;
+  /** The look of the frame, shared by every photo and remembered on this device. */
+  style: FrameStyle;
+  /** A small image of the user's own drawn with the caption. Kept in memory only. */
+  logo: ImageBitmap | null;
   focalMode: FocalMode;
   detail: ExportDetail;
   error: string;
@@ -72,7 +94,10 @@ type EditorStore = {
   /** Copies the current photo's camera, lens, film and look picks to every photo. */
   applyGearToAll: () => void;
   setPreset: (preset: OutputPreset) => void;
-  setPaper: (paper: Paper) => void;
+  /** Changes some fields of the style, keeping the rest. */
+  updateStyle: (patch: Partial<FrameStyle>) => void;
+  /** Attaches a logo from an image file, or removes it with `null`. */
+  setLogoFile: (file: File | null) => Promise<void>;
   setFocalMode: (mode: FocalMode) => void;
   setDetail: (detail: ExportDetail) => void;
   setError: (message: string) => void;
@@ -101,7 +126,8 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
   const [bitmap, setBitmap] = useState<ImageBitmap | null>(null);
   const [decodeFailed, setDecodeFailed] = useState(false);
   const [preset, setPreset] = useState<OutputPreset>(DEFAULT_PRESET);
-  const [paper, setPaper] = useState<Paper>(DEFAULT_PAPER);
+  const [style, setStyle] = useState<FrameStyle>(readStoredStyle);
+  const [logo, setLogo] = useState<ImageBitmap | null>(null);
   const [focalMode, setFocalMode] = useState<FocalMode>('actual');
   const [detail, setDetail] = useState<ExportDetail>('optimized');
   const [error, setError] = useState('');
@@ -252,6 +278,33 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
+  const updateStyle = useCallback(
+    (patch: Partial<FrameStyle>) => setStyle(previous => ({ ...previous, ...patch })),
+    [],
+  );
+
+  // The look is the user's signature, so it outlives the session. It holds no photo data.
+  useEffect(() => {
+    try {
+      localStorage.setItem(STYLE_KEY, JSON.stringify(style));
+    } catch {
+      // Storage can be full or blocked (private mode); the style then lasts for this session only.
+    }
+  }, [style]);
+
+  const setLogoFile = useCallback(async (file: File | null) => {
+    if (!file) return setLogo(null);
+    try {
+      // Drawn at about 44px on a 1080 canvas; a few times that covers full-size exports.
+      setLogo(
+        await createImageBitmap(file, { resizeHeight: LOGO_DECODE_HEIGHT, resizeQuality: 'high' }),
+      );
+    } catch {
+      setError('Could not read that image. Try a PNG or JPEG.');
+    }
+  }, []);
+  useEffect(() => () => logo?.close(), [logo]);
+
   const store = useMemo<EditorStore>(
     () => ({
       queue,
@@ -259,7 +312,8 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
       bitmap,
       decodeFailed,
       preset,
-      paper,
+      style,
+      logo,
       focalMode,
       detail,
       error,
@@ -268,7 +322,8 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
       saving,
       ...actions,
       setPreset,
-      setPaper,
+      updateStyle,
+      setLogoFile,
       setFocalMode,
       setDetail,
       setError,
@@ -279,7 +334,8 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
       bitmap,
       decodeFailed,
       preset,
-      paper,
+      style,
+      logo,
       focalMode,
       detail,
       error,
@@ -287,6 +343,8 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
       reading,
       saving,
       actions,
+      updateStyle,
+      setLogoFile,
     ],
   );
 

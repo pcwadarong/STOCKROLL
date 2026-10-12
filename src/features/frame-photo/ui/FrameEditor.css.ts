@@ -190,3 +190,31 @@ export const action = style({ flex: '1 1 7rem' });
 export const actionWide = style({ flex: '1 1 100%' });
 
 export const hiddenInput = style({ display: 'none' });
+
+// Names a control that has no label of its own (segmented controls, chip groups).
+export const controlLabel = style([labelText, { fontSize: vars.$fontSize.t2 }]);
+
+export const colorRow = style({
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  gap: vars.$dimension.x2,
+});
+
+export const colorField = style({
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: vars.$dimension.x2,
+  marginRight: 'auto',
+});
+
+// The native color well, squared off to sit with the label buttons beside it.
+export const colorInput = style({
+  width: vars.$dimension.x10,
+  height: vars.$dimension.x8,
+  padding: 0,
+  border: `1px solid ${vars.$color.stroke.neutralWeak}`,
+  borderRadius: vars.$radius.r1,
+  background: 'none',
+  cursor: 'pointer',
+});

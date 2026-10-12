@@ -13,6 +13,7 @@ const TAGS = [
   'FocalLengthIn35mmFormat',
   'FNumber',
   'ExposureTime',
+  'DateTimeOriginal',
 ];
 
 const text = (value: unknown) =>
@@ -49,5 +50,9 @@ export const readExif = async (file: Blob): Promise<ExifInfo> => {
     focalLength35: number(raw.FocalLengthIn35mmFormat),
     aperture: number(raw.FNumber),
     exposureTime: number(raw.ExposureTime),
+    takenAt:
+      raw.DateTimeOriginal instanceof Date && !Number.isNaN(raw.DateTimeOriginal.getTime())
+        ? raw.DateTimeOriginal
+        : undefined,
   };
 };
