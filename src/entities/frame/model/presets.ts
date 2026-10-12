@@ -18,13 +18,3 @@ export const OUTPUT_PRESETS = [
 ] as const satisfies readonly OutputPreset[];
 
 export const DEFAULT_PRESET: OutputPreset = OUTPUT_PRESETS[0];
-
-/** Margin (paper) color of the exported image. Independent of the editor's black theme. */
-export type Paper = { id: string; label: string; background: string; ink: string; subInk: string };
-
-export const PAPERS = [
-  { id: 'white', label: 'White', background: '#ffffff', ink: '#111111', subInk: '#77756f' },
-  { id: 'black', label: 'Black', background: '#0b0b0c', ink: '#f2f0ea', subInk: '#8d8a83' },
-] as const satisfies readonly Paper[];
-
-export const DEFAULT_PAPER: Paper = PAPERS[0];

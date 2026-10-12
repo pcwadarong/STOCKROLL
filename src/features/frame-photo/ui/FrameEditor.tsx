@@ -1,7 +1,7 @@
 import { HStack, Text } from '@seed-design/react';
 import { type DragEvent, useRef, useState } from 'react';
 
-import { OUTPUT_PRESETS, PAPERS } from '@/entities/frame';
+import { OUTPUT_PRESETS, usesShootingInfo } from '@/entities/frame';
 import { systemOf, SYSTEMS } from '@/entities/recipe';
 import { canShareFiles } from '@/shared/lib/save-file';
 import { Button } from '@/shared/ui/Button';
@@ -23,6 +23,7 @@ import { FROM_EXIF } from '../lib/resolve-caption';
 import { useFrameEditor } from '../model/use-frame-editor';
 
 import { PhotoStrip } from './PhotoStrip';
+import { FrameSection, StyleSection, TextSection } from './StylePanel';
 
 import * as css from './FrameEditor.css';
 
@@ -60,8 +61,8 @@ const AddLink = ({ to, children }: { to: string; children: string }) => (
  */
 export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
   const { canvasRef, store, library, resolved, outputSize, exportJpeg, saveAll } = useFrameEditor();
-  const { queue, current, bitmap, preset, paper, focalMode, detail, error } = store;
-  const { setPick, setPreset, setPaper, setFocalMode, setDetail } = store;
+  const { queue, current, bitmap, preset, style, logo, focalMode, detail, error } = store;
+  const { setPick, setPreset, updateStyle, setLogoFile, setFocalMode, setDetail } = store;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [shareable] = useState(canShareFiles);
@@ -208,6 +209,180 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
             </fieldset>
           )}
 
+          <StyleSection style={style} onChange={updateStyle} />
+
+          {style.template === 'text' && (
+            <TextSection
+              style={style}
+              onChange={updateStyle}
+              hasImage={logo !== null}
+              onImage={file => void setLogoFile(file)}
+            />
+          )}
+
+          {/* Templates that print no shooting info have nothing to ask about it. The values typed
+              here are kept and come back with a template that uses them. */}
+          {usesShootingInfo(style.template) && (
+            <>
+              <fieldset className={css.group}>
+                <legend className={css.legend}>Info</legend>
+                {many && (
+                  <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
+                    These choices belong to the photo in the preview. Every photo starts from its
+                    own EXIF.
+                  </Text>
+                )}
+                {!signedIn && (
+                  <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
+                    Sign in to pick from your own cameras, lenses, films and recipes.
+                  </Text>
+                )}
+                {scanner && (
+                  <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
+                    This file was written by a scanner ({scanner}), so it has no camera info. Enter
+                    the camera and film yourself.
+                  </Text>
+                )}
+                <div className={css.field}>
+                  <PickField
+                    size="medium"
+                    label="Camera"
+                    indicator={
+                      picks.camera === undefined && resolved.cameraValue ? 'Auto' : undefined
+                    }
+                    value={resolved.cameraValue || NONE}
+                    options={gearOptions(library.cameras, resolved.exifCamera)}
+                    onChange={pick('camera')}
+                  />
+                  {signedIn && <AddLink to="/library/cameras/new">Add camera</AddLink>}
+                </div>
+
+                <div className={css.field}>
+                  <PickField
+                    size="medium"
+                    label="Lens"
+                    indicator={picks.lens === undefined && resolved.lensValue ? 'Auto' : undefined}
+                    value={resolved.lensValue || NONE}
+                    options={gearOptions(library.lenses, resolved.exifLens)}
+                    onChange={pick('lens')}
+                  />
+                  {signedIn && <AddLink to="/library/lenses/new">Add lens</AddLink>}
+                </div>
+
+                <div className={css.field}>
+                  <div className={css.exposure}>
+                    {EXPOSURE_FIELDS.map(({ key, label, inputMode }) => (
+                      <TextField
+                        key={key}
+                        size="medium"
+                        label={label}
+                        indicator={picks[key] !== undefined ? 'Manual' : undefined}
+                        value={resolved.exposure[key]}
+                        onValueChange={({ value }) => setPick(key, value)}
+                      >
+                        <TextFieldInput inputMode={inputMode} placeholder="—" />
+                      </TextField>
+                    ))}
+                  </div>
+                  {EXPOSURE_FIELDS.some(({ key }) => picks[key] !== undefined) && hasExif && (
+                    <Button
+                      className={css.fieldAction}
+                      variant="plain"
+                      onClick={() => EXPOSURE_FIELDS.forEach(({ key }) => setPick(key, undefined))}
+                    >
+                      Reset exposure to EXIF
+                    </Button>
+                  )}
+                </div>
+
+                {resolved.lookField === 'film' && (
+                  <div className={css.field}>
+                    <PickField
+                      size="medium"
+                      label="Film"
+                      value={resolved.filmValue || NONE}
+                      options={[
+                        NONE_OPTION,
+                        ...library.films.map(film => ({ value: film.id, label: film.name })),
+                      ]}
+                      onChange={pick('film')}
+                    />
+                    {signedIn && <AddLink to="/library/films/new">Add film</AddLink>}
+                  </div>
+                )}
+
+                {resolved.lookField === 'recipe' && (
+                  <div className={css.field}>
+                    <PickField
+                      size="medium"
+                      label={SYSTEMS[resolved.system].lookLabel}
+                      description="A label for your records. It does not change the photo's colors."
+                      value={resolved.lookValue || NONE}
+                      options={[
+                        NONE_OPTION,
+                        ...library.recipes
+                          .filter(recipe => systemOf(recipe) === resolved.system)
+                          .map(recipe => ({
+                            value: `recipe:${recipe.id}`,
+                            label: `${recipe.name} (recipe)`,
+                          })),
+                        ...SYSTEMS[resolved.system].baseLooks.map(name => ({
+                          value: `sim:${name}`,
+                          label: name,
+                        })),
+                      ]}
+                      onChange={pick('look')}
+                    />
+                    {signedIn && <AddLink to="/recipes">Manage recipes</AddLink>}
+                  </div>
+                )}
+
+                {resolved.lookField === 'none' && hasPhoto && (
+                  <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
+                    Pick a camera to add its film or recipe.
+                  </Text>
+                )}
+
+                {many && (
+                  <Button
+                    className={css.fieldAction}
+                    variant="plain"
+                    onClick={() => setAsking('apply')}
+                  >
+                    Apply to all photos
+                  </Button>
+                )}
+              </fieldset>
+
+              <fieldset className={css.group}>
+                <legend className={css.legend}>Focal length</legend>
+                <SegmentedControl
+                  aria-label="Focal length display"
+                  value={focalMode}
+                  onValueChange={mode => setFocalMode(mode === '35mm' ? '35mm' : 'actual')}
+                >
+                  <SegmentedControlItem value="actual">Actual</SegmentedControlItem>
+                  <SegmentedControlItem value="35mm" disabled={!has35mm}>
+                    35mm equiv.
+                  </SegmentedControlItem>
+                </SegmentedControl>
+                {!has35mm && (
+                  <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
+                    {hasPhoto
+                      ? 'This file has no 35mm-equivalent focal length recorded, so only the actual value is available.'
+                      : '35mm equivalent becomes available when the opened photo records it.'}
+                  </Text>
+                )}
+              </fieldset>
+            </>
+          )}
+
+          <FrameSection
+            style={style}
+            onChange={updateStyle}
+            positionApplies={preset.kind !== 'original'}
+          />
+
           <fieldset className={css.group}>
             <legend className={css.legend}>Output</legend>
             {/* Five ratios overflow a SegmentedControl in the narrow panel; chips wrap instead. */}
@@ -248,173 +423,6 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
                 ? 'Keeps the photo at its own resolution, up to the largest image a browser can draw. Larger file.'
                 : 'Sized for posting. Smaller file, quick to upload.'}
             </Text>
-          </fieldset>
-
-          <fieldset className={css.group}>
-            <legend className={css.legend}>Margin</legend>
-            <SegmentedControl
-              aria-label="Margin color"
-              value={paper.id}
-              onValueChange={id => {
-                const next = PAPERS.find(item => item.id === id);
-                if (next) setPaper(next);
-              }}
-            >
-              {PAPERS.map(item => (
-                <SegmentedControlItem key={item.id} value={item.id}>
-                  {item.label}
-                </SegmentedControlItem>
-              ))}
-            </SegmentedControl>
-          </fieldset>
-
-          <fieldset className={css.group}>
-            <legend className={css.legend}>Focal length</legend>
-            <SegmentedControl
-              aria-label="Focal length display"
-              value={focalMode}
-              onValueChange={mode => setFocalMode(mode === '35mm' ? '35mm' : 'actual')}
-            >
-              <SegmentedControlItem value="actual">Actual</SegmentedControlItem>
-              <SegmentedControlItem value="35mm" disabled={!has35mm}>
-                35mm equiv.
-              </SegmentedControlItem>
-            </SegmentedControl>
-            {!has35mm && (
-              <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
-                {hasPhoto
-                  ? 'This file has no 35mm-equivalent focal length recorded, so only the actual value is available.'
-                  : '35mm equivalent becomes available when the opened photo records it.'}
-              </Text>
-            )}
-          </fieldset>
-
-          <fieldset className={css.group}>
-            <legend className={css.legend}>Info</legend>
-            {many && (
-              <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
-                These choices belong to the photo in the preview. Every photo starts from its own
-                EXIF.
-              </Text>
-            )}
-            {!signedIn && (
-              <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
-                Sign in to pick from your own cameras, lenses, films and recipes.
-              </Text>
-            )}
-            {scanner && (
-              <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
-                This file was written by a scanner ({scanner}), so it has no camera info. Enter the
-                camera and film yourself.
-              </Text>
-            )}
-            <div className={css.field}>
-              <PickField
-                size="medium"
-                label="Camera"
-                indicator={picks.camera === undefined && resolved.cameraValue ? 'Auto' : undefined}
-                value={resolved.cameraValue || NONE}
-                options={gearOptions(library.cameras, resolved.exifCamera)}
-                onChange={pick('camera')}
-              />
-              {signedIn && <AddLink to="/library/cameras/new">Add camera</AddLink>}
-            </div>
-
-            <div className={css.field}>
-              <PickField
-                size="medium"
-                label="Lens"
-                indicator={picks.lens === undefined && resolved.lensValue ? 'Auto' : undefined}
-                value={resolved.lensValue || NONE}
-                options={gearOptions(library.lenses, resolved.exifLens)}
-                onChange={pick('lens')}
-              />
-              {signedIn && <AddLink to="/library/lenses/new">Add lens</AddLink>}
-            </div>
-
-            <div className={css.field}>
-              <div className={css.exposure}>
-                {EXPOSURE_FIELDS.map(({ key, label, inputMode }) => (
-                  <TextField
-                    key={key}
-                    size="medium"
-                    label={label}
-                    indicator={picks[key] !== undefined ? 'Manual' : undefined}
-                    value={resolved.exposure[key]}
-                    onValueChange={({ value }) => setPick(key, value)}
-                  >
-                    <TextFieldInput inputMode={inputMode} placeholder="—" />
-                  </TextField>
-                ))}
-              </div>
-              {EXPOSURE_FIELDS.some(({ key }) => picks[key] !== undefined) && hasExif && (
-                <Button
-                  className={css.fieldAction}
-                  variant="plain"
-                  onClick={() => EXPOSURE_FIELDS.forEach(({ key }) => setPick(key, undefined))}
-                >
-                  Reset exposure to EXIF
-                </Button>
-              )}
-            </div>
-
-            {resolved.lookField === 'film' && (
-              <div className={css.field}>
-                <PickField
-                  size="medium"
-                  label="Film"
-                  value={resolved.filmValue || NONE}
-                  options={[
-                    NONE_OPTION,
-                    ...library.films.map(film => ({ value: film.id, label: film.name })),
-                  ]}
-                  onChange={pick('film')}
-                />
-                {signedIn && <AddLink to="/library/films/new">Add film</AddLink>}
-              </div>
-            )}
-
-            {resolved.lookField === 'recipe' && (
-              <div className={css.field}>
-                <PickField
-                  size="medium"
-                  label={SYSTEMS[resolved.system].lookLabel}
-                  description="A label for your records. It does not change the photo's colors."
-                  value={resolved.lookValue || NONE}
-                  options={[
-                    NONE_OPTION,
-                    ...library.recipes
-                      .filter(recipe => systemOf(recipe) === resolved.system)
-                      .map(recipe => ({
-                        value: `recipe:${recipe.id}`,
-                        label: `${recipe.name} (recipe)`,
-                      })),
-                    ...SYSTEMS[resolved.system].baseLooks.map(name => ({
-                      value: `sim:${name}`,
-                      label: name,
-                    })),
-                  ]}
-                  onChange={pick('look')}
-                />
-                {signedIn && <AddLink to="/recipes">Manage recipes</AddLink>}
-              </div>
-            )}
-
-            {resolved.lookField === 'none' && hasPhoto && (
-              <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
-                Pick a camera to add its film or recipe.
-              </Text>
-            )}
-
-            {many && (
-              <Button
-                className={css.fieldAction}
-                variant="plain"
-                onClick={() => setAsking('apply')}
-              >
-                Apply to all photos
-              </Button>
-            )}
           </fieldset>
         </div>
 

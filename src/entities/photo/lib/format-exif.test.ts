@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  exposureParts,
   formatCamera,
+  formatDate,
   formatExposure,
   formatShutter,
   isScannerDevice,
@@ -96,5 +98,33 @@ describe('formatExposure', () => {
   it('when some values are missing, it must skip them and join only the present ones', () => {
     expect(formatExposure({ aperture: 4 }, 'actual')).toBe('F4');
     expect(formatExposure({}, 'actual')).toBe('');
+  });
+});
+
+describe('exposureParts', () => {
+  it('when every value exists, it must format each one on its own', () => {
+    expect(
+      exposureParts({ iso: 1250, focalLength: 72, aperture: 5.6, exposureTime: 1 / 250 }, 'actual'),
+    ).toEqual({ iso: 'ISO1250', focal: '72mm', aperture: 'F5.6', shutter: '1/250s' });
+  });
+
+  it('when a value is missing, its part must be empty rather than a default', () => {
+    expect(exposureParts({ iso: 400 }, 'actual')).toEqual({
+      iso: 'ISO400',
+      focal: '',
+      aperture: '',
+      shutter: '',
+    });
+  });
+});
+
+describe('formatDate', () => {
+  it('when a date was recorded, it must print the day as the camera clock had it', () => {
+    expect(formatDate(new Date(2026, 6, 30, 23, 59))).toBe('2026/07/30');
+    expect(formatDate(new Date(2026, 0, 1, 0, 0))).toBe('2026/01/01');
+  });
+
+  it('when there is no date, it must print nothing', () => {
+    expect(formatDate(undefined)).toBe('');
   });
 });
