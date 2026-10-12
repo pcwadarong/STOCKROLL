@@ -122,7 +122,47 @@ describe('parseRecipeText (Fujifilm)', () => {
   });
 });
 
+describe('parseRecipeText (settings the form has no field for)', () => {
+  it('when an unknown setting follows a known one on a line, it must not join its value', () => {
+    expect(parseRecipeText('fujifilm', 'Clarity: -2 ISO: 400')).toEqual({
+      settings: { clarity: '-2' },
+      unread: ['ISO: 400'],
+    });
+  });
+
+  it('when an unknown setting follows a white balance, it must keep the shift and drop the rest', () => {
+    expect(parseRecipeText('fujifilm', 'White Balance: Auto, R: +3 B: -5 ISO: 400')).toEqual({
+      settings: { whiteBalance: 'Auto', wbShiftR: '+3', wbShiftB: '-5' },
+      unread: ['ISO: 400'],
+    });
+  });
+
+  it('when a value itself opens with a colon phrase, it must be kept whole', () => {
+    expect(parseRecipeText('other', 'Anything else: Note: use with ND').settings).toEqual({
+      extra: 'Note: use with ND',
+    });
+  });
+});
+
 describe('parseRecipeText (other systems)', () => {
+  it('when fields share a name apart from a bracketed remark, each must get its own value', () => {
+    const text = 'Contrast: +2\nContrast (highlight): -1\nContrast (shadow): +3';
+    expect(parseRecipeText('ricoh', text).settings).toEqual({
+      contrast: '+2',
+      contrastHighlight: '-1',
+      contrastShadow: '+3',
+    });
+  });
+
+  it('when a field label carries a long dash, it must be read with a dash or a hyphen', () => {
+    expect(parseRecipeText('canon', 'Sharpness — strength: 4').settings).toEqual({
+      sharpness: '4',
+    });
+    expect(parseRecipeText('canon', 'Sharpness - fineness: 2').settings).toEqual({
+      sharpnessFineness: '2',
+    });
+  });
+
   it('when a line uses a field label of that system, it must fill that field', () => {
     expect(
       parseRecipeText('ricoh', 'Image control: Positive Film\nSaturation: +2').settings,

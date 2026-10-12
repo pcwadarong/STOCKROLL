@@ -1,5 +1,5 @@
 import type { RecipeSettings } from './recipe';
-import { type FUJI_SIMULATIONS, type RecipeSystem, SYSTEMS } from './systems';
+import { type FUJI_SIMULATIONS, type RecipeSystem, writtenLabels } from './systems';
 
 /** What a pasted recipe text yielded. */
 export type ParsedRecipeText = {
@@ -188,15 +188,11 @@ const FUJI_READERS: readonly Reader[] = [
 ];
 
 // Other systems are read by their own field labels only: "Saturation: +2" lands in Saturation.
+// The labels are the ones `recipeLines` writes, so two fields never answer to the same name.
 const genericReaders = (system: RecipeSystem): Reader[] =>
-  SYSTEMS[system].fields.map(field => ({
-    labels: [
-      field.label
-        .replace(/\(.*?\)/g, '')
-        .trim()
-        .toLowerCase(),
-    ],
-    read: put(field.key),
+  Object.entries(writtenLabels(system)).map(([key, label]) => ({
+    labels: [label.toLowerCase()],
+    read: put(key),
   }));
 
 const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -209,9 +205,28 @@ const buildMatcher = (readers: readonly Reader[]) => {
   const alternatives = readers
     .flatMap(reader => reader.labels)
     .sort((a, b) => b.length - a.length)
-    .map(label => escape(label).replace(/[\s-]+/g, '[\\s-]*'));
+    // Pasted dashes are flattened to hyphens before matching, so a label's own dash is too.
+    .map(label => escape(label).replace(/[\s\-\u2013\u2014]+/g, '[\\s-]*'));
   const pattern = new RegExp(`(?<![a-z])(?:${alternatives.join('|')})(?![a-z])`, 'gi');
   return { byLabel, pattern };
+};
+
+// "R: +3" and "H: -1" are parts of a white balance or tone curve value, not settings of their own.
+const VALUE_PARTS = /^(r|b|red|blue|h|s)$/i;
+const NAMED_PART = /\s+([a-z][a-z .-]*?)\s*[:=]/gi;
+
+/**
+ * Cuts a value where a setting this system does not know begins. Known labels already end a
+ * value; without this, "Clarity: -2 ISO: 400" would store "-2 ISO: 400" as the clarity.
+ * @returns the value proper, and the unknown remainder to report as unread
+ */
+const splitStray = (segment: string): [value: string, stray: string] => {
+  for (const match of segment.matchAll(NAMED_PART)) {
+    // Something has to come before it: "Label: Auto: note" opens with the value itself.
+    if (VALUE_PARTS.test(match[1]!) || !tidy(segment.slice(0, match.index))) continue;
+    return [segment.slice(0, match.index), tidy(segment.slice(match.index))];
+  }
+  return [segment, ''];
 };
 
 /**
@@ -246,10 +261,13 @@ export const parseRecipeText = (system: RecipeSystem, text: string): ParsedRecip
       match => match.index === 0 || /^\s*[:=]/.test(line.slice(match.index + match[0].length)),
     );
 
+    const strays: string[] = [];
     labels.forEach((match, index) => {
       const start = match.index + match[0].length;
       const end = labels[index + 1]?.index ?? line.length;
-      byLabel.get(squash(match[0]))?.read(line.slice(start, end), settings);
+      const [value, stray] = splitStray(line.slice(start, end));
+      byLabel.get(squash(match[0]))?.read(value, settings);
+      if (stray) strays.push(stray);
     });
 
     if (system === 'fujifilm' && labels.length === 0) {
@@ -261,6 +279,7 @@ export const parseRecipeText = (system: RecipeSystem, text: string): ParsedRecip
     }
 
     if (JSON.stringify(settings) === before) unread.push(line);
+    else unread.push(...strays);
   }
 
   return { settings, unread };

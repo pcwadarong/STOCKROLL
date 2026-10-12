@@ -302,3 +302,24 @@ export const systemOfCamera = (cameraName: string): RecipeSystem =>
   (Object.keys(SYSTEMS) as RecipeSystem[]).find(id =>
     SYSTEMS[id].cameraPattern?.test(cameraName),
   ) ?? 'other';
+
+const withoutRemark = (label: string) => label.replace(/\s*\(.*?\)/g, '').trim();
+
+/**
+ * Names a system's fields the way recipes are written out and read back in: without the
+ * bracketed remark a form label may carry, unless dropping it would make two fields share a name
+ * (Ricoh's "Contrast", "Contrast (highlight)" and "Contrast (shadow)" keep theirs).
+ * @param system camera system
+ * @returns the written label per field key
+ */
+export const writtenLabels = (system: RecipeSystem): Record<string, string> => {
+  const fields = SYSTEMS[system].fields;
+  const uses = (short: string) =>
+    fields.filter(field => withoutRemark(field.label) === short).length;
+  return Object.fromEntries(
+    fields.map(field => {
+      const short = withoutRemark(field.label);
+      return [field.key, uses(short) === 1 ? short : field.label];
+    }),
+  );
+};

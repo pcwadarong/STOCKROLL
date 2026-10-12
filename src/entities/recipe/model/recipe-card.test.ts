@@ -1,10 +1,33 @@
 import { describe, expect, it } from 'vitest';
 
-import { recipeCardLayout } from './recipe-card';
+import { CARD_TEXT, type MeasureText, recipeCardLayout, wrapText } from './recipe-card';
 
+// Every character half as wide as the type is tall: enough to make widths predictable.
+const measure: MeasureText = (text, style) => text.length * CARD_TEXT[style].size * 0.5;
 const lines = (count: number) =>
   Array.from({ length: count }, (_, index) => ({ label: `L${index}`, value: `V${index}` }));
-const base = { name: 'Afternoon Street', sub: 'Fujifilm', lines: lines(4) };
+const base = { name: 'Afternoon Street', sub: 'Fujifilm', lines: lines(4), measure };
+
+describe('wrapText', () => {
+  const byLetters = (text: string) => text.length;
+
+  it('when the text fits, it must stay on one line', () => {
+    expect(wrapText('Classic Neg.', 20, byLetters)).toEqual(['Classic Neg.']);
+  });
+
+  it('when the text is too wide, it must break at spaces and drop nothing', () => {
+    const wrapped = wrapText('+1/3 to +2/3 (typically)', 12, byLetters);
+    expect(wrapped.length).toBeGreaterThan(1);
+    expect(wrapped.every(line => line.length <= 12)).toBe(true);
+    expect(wrapped.join(' ')).toBe('+1/3 to +2/3 (typically)');
+  });
+
+  it('when one word alone is too wide, it must be cut inside the word and drop nothing', () => {
+    const wrapped = wrapText('Supercalifragilistic', 6, byLetters);
+    expect(wrapped.every(line => line.length <= 6)).toBe(true);
+    expect(wrapped.join('')).toBe('Supercalifragilistic');
+  });
+});
 
 describe('recipeCardLayout', () => {
   it('when the photo is landscape, it must span the inner width and keep its proportions', () => {
@@ -40,5 +63,26 @@ describe('recipeCardLayout', () => {
     const long = recipeCardLayout({ ...base, lines: lines(9) });
     expect(long.height).toBeGreaterThan(short.height);
     expect(long.cells.at(-1)!.value.y).toBeLessThan(long.height);
+  });
+
+  it('when a value is too wide for its column, it must wrap in full and push later rows down', () => {
+    const long = 'Auto white priority with a long remark that cannot fit one column at all';
+    const plain = recipeCardLayout({ ...base, lines: lines(4) });
+    const wrapped = recipeCardLayout({
+      ...base,
+      lines: [{ label: 'White balance', value: long }, ...lines(3)],
+    });
+    expect(wrapped.cells[0]!.value.lines.length).toBeGreaterThan(1);
+    expect(wrapped.cells[0]!.value.lines.join(' ')).toBe(long);
+    expect(wrapped.cells[2]!.label.y).toBeGreaterThan(plain.cells[2]!.label.y);
+    expect(wrapped.height).toBeGreaterThan(plain.height);
+  });
+
+  it('when the name is too wide, it must wrap in full and move the settings down', () => {
+    const name = 'A very long recipe name that goes on and on past the edge of the card';
+    const layout = recipeCardLayout({ ...base, name });
+    expect(layout.title.lines.length).toBeGreaterThan(1);
+    expect(layout.title.lines.join(' ')).toBe(name);
+    expect(layout.rule.y).toBeGreaterThan(recipeCardLayout(base).rule.y);
   });
 });

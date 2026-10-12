@@ -45,6 +45,5 @@ export {
   versionSlots,
   versionsOf,
 } from './model/recipe';
-export { type CardLayout, recipeCardLayout } from './model/recipe-card';
 export { formatRecipeText, type RecipeLine, recipeLines } from './model/recipe-lines';
 export { FUJI_SIMULATIONS, type RecipeSystem, systemOfCamera, SYSTEMS } from './model/systems';

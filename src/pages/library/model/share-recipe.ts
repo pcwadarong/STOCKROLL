@@ -2,7 +2,6 @@ import {
   drawRecipeCard,
   formatRecipeText,
   type Recipe,
-  recipeCardLayout,
   recipeLines,
   recipePhotoUrl,
   type RecipeSettings,
@@ -56,12 +55,11 @@ export const shareRecipeCard = async (
     const canvas = document.createElement('canvas');
     drawRecipeCard(
       canvas,
-      recipeCardLayout({
+      {
         name: recipe.name,
         sub: `${SYSTEMS[system].label} · ${versionLabel}`,
         lines: recipeLines(system, settings),
-        photo,
-      }),
+      },
       photo,
     );
     const blob = await canvasToJpeg(canvas, CARD_QUALITY);

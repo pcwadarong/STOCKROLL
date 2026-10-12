@@ -76,8 +76,22 @@ describe('formatRecipeText', () => {
       ).toEqual(settings);
   });
 
+  it('when a Canon recipe with dashed labels is pasted back, it must give the same settings', () => {
+    const settings = { sharpness: '4', sharpnessFineness: '2', sharpnessThreshold: '3' };
+    expect(parseRecipeText('canon', formatRecipeText('x', 'canon', settings)).settings).toEqual(
+      settings,
+    );
+  });
+
   it('when a Ricoh recipe is pasted back, it must give the same settings', () => {
-    const settings = { simulation: 'Positive Film', saturation: '+2', toning: 'Sepia' };
+    const settings = {
+      simulation: 'Positive Film',
+      saturation: '+2',
+      contrast: '+2',
+      contrastHighlight: '-1',
+      contrastShadow: '+3',
+      toning: 'Sepia',
+    };
     expect(parseRecipeText('ricoh', formatRecipeText('x', 'ricoh', settings)).settings).toEqual(
       settings,
     );

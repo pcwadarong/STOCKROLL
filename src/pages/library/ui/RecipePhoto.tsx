@@ -26,6 +26,8 @@ type RecipePhotoProps = {
 export const RecipePhoto = ({ recipe, onChanged }: RecipePhotoProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState<string | null>(null);
+  // A link that could not be made is not the same as one still on its way.
+  const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   // Replacing keeps the same path, so the path alone cannot tell the effect to fetch a new URL.
@@ -34,8 +36,16 @@ export const RecipePhoto = ({ recipe, onChanged }: RecipePhotoProps) => {
   useEffect(() => {
     let active = true;
     recipePhotoUrl(recipe.photoPath).then(
-      next => active && setUrl(next),
-      () => active && setUrl(null),
+      next => {
+        if (!active) return;
+        setUrl(next);
+        setLoadFailed(false);
+      },
+      () => {
+        if (!active) return;
+        setUrl(null);
+        setLoadFailed(true);
+      },
     );
     return () => {
       active = false;
@@ -60,7 +70,11 @@ export const RecipePhoto = ({ recipe, onChanged }: RecipePhotoProps) => {
       {recipe.photoPath && url && (
         <img className={css.photo} src={url} alt={`Example shot with ${recipe.name}`} />
       )}
-      {recipe.photoPath && !url && <p className={css.note}>Loading the photo…</p>}
+      {recipe.photoPath && !url && (
+        <p className={css.note} role="status">
+          {loadFailed ? 'The photo could not be shown. Reload to try again.' : 'Loading the photo…'}
+        </p>
+      )}
 
       {error && <ErrorText>{error}</ErrorText>}
 

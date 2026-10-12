@@ -1,5 +1,5 @@
 import type { RecipeSettings } from './recipe';
-import { type RecipeSystem, SYSTEMS } from './systems';
+import { type RecipeSystem, SYSTEMS, writtenLabels } from './systems';
 
 /** One setting as it is written out for reading: a label and its value. */
 export type RecipeLine = { label: string; value: string };
@@ -56,10 +56,8 @@ const fujiLines = (settings: RecipeSettings): RecipeLine[] => {
 export const recipeLines = (system: RecipeSystem, settings: RecipeSettings): RecipeLine[] =>
   system === 'fujifilm'
     ? fujiLines(settings)
-    : SYSTEMS[system].fields.flatMap(field => {
-        const value = filled(settings, field.key);
-        // Bracketed remarks are for the form; the paste reader matches labels without them.
-        const label = field.label.replace(/\s*\(.*?\)/g, '').trim();
+    : Object.entries(writtenLabels(system)).flatMap(([key, label]) => {
+        const value = filled(settings, key);
         return value ? [{ label, value }] : [];
       });
 
