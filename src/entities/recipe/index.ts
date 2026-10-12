@@ -2,9 +2,24 @@ export {
   deleteRecipe,
   recipePhotoPath,
   recipePhotoUrl,
+  recipePhotoUrls,
   removeRecipePhoto,
   uploadRecipePhoto,
 } from './api/recipe-photo';
+export {
+  assignSlot,
+  clearSlot,
+  filledSlots,
+  isSimulationSlot,
+  type Kit,
+  KIT_SLOTS,
+  KIT_SYSTEM,
+  kitCollection,
+  type KitSlot,
+  liveSlots,
+  nextEmptySlot,
+  slotOfRecipe,
+} from './model/kit';
 export { type ParsedRecipeText, parseRecipeText } from './model/parse-recipe-text';
 export {
   blankSettings,

@@ -141,3 +141,26 @@ export const recipePhotoUrl = async (path: string | null | undefined) => {
   if (error) throw new Error(error.message);
   return data.signedUrl;
 };
+
+/**
+ * Creates temporary links to several example photos in one request, for screens that show
+ * recipes by picture. Like `recipePhotoUrl`, the links last an hour and must not be stored.
+ * @param paths `photoPath` values of the recipes to show
+ * @returns a signed URL per path; a path whose file is missing is left out. Empty when signed out
+ * or Supabase is not configured
+ * @throws when the request itself fails
+ */
+export const recipePhotoUrls = async (paths: readonly string[]) => {
+  if (paths.length === 0 || !supabase) return {};
+  const { data: auth } = await supabase.auth.getSession();
+  if (!auth.session) return {};
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrls([...paths], SIGNED_URL_SECONDS);
+  if (error) throw new Error(error.message);
+  return Object.fromEntries(
+    data.flatMap(item =>
+      item.path && item.signedUrl && !item.error ? [[item.path, item.signedUrl]] : [],
+    ),
+  ) as Record<string, string>;
+};
