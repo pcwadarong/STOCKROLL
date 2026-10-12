@@ -5,6 +5,7 @@ export {
   removeRecipePhoto,
   uploadRecipePhoto,
 } from './api/recipe-photo';
+export { type ParsedRecipeText, parseRecipeText } from './model/parse-recipe-text';
 export {
   blankSettings,
   DETAIL_FIELDS,

@@ -38,6 +38,8 @@ import {
 } from '../model/recipe-actions';
 import { useRecipeLibrary } from '../model/use-recipe-library';
 
+import { PasteSettings } from './PasteSettings';
+
 import * as css from './LibraryPage.css';
 
 /**
@@ -180,7 +182,13 @@ const RecipeEditForm = ({
       )}
 
       {editsSettings && (
-        <RecordForm fields={SYSTEMS[system].fields} values={values} onChange={change} />
+        <>
+          <PasteSettings
+            system={system}
+            onFill={settings => setValues(prev => ({ ...prev, ...settings }))}
+          />
+          <RecordForm fields={SYSTEMS[system].fields} values={values} onChange={change} />
+        </>
       )}
 
       <div className={css.actions}>
