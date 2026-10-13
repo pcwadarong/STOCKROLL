@@ -1,4 +1,14 @@
-import type { FontId } from '../model/style';
+/** A face that text can be drawn in on a canvas. */
+export type FontId = 'sans' | 'grotesk' | 'serif' | 'typewriter' | 'display' | 'digital';
+
+export const FONTS = [
+  { value: 'sans', label: 'System sans' },
+  { value: 'grotesk', label: 'Barlow' },
+  { value: 'serif', label: 'Serif' },
+  { value: 'typewriter', label: 'Courier Prime' },
+  { value: 'display', label: 'Anton' },
+  { value: 'digital', label: 'Segment display' },
+] as const satisfies readonly { value: FontId; label: string }[];
 
 type FontFace = {
   /** CSS font-family value used when drawing. */
@@ -57,7 +67,7 @@ const ready = new Map<FontId, Promise<void>>();
  * Makes a font usable on a canvas. A canvas does not wait for web fonts: text drawn before the
  * file arrives is silently set in the fallback face, so every draw and every export waits on this
  * first. Resolves even when loading fails (offline, blocked), leaving the fallback face.
- * @param font the font picked for the caption
+ * @param font the font about to be drawn in
  * @returns a promise that settles once the font is ready or has failed to load
  */
 export const ensureFont = (font: FontId) => {

@@ -1,3 +1,5 @@
+import { FONT_FACES, type FontId } from '@/shared/lib/canvas-fonts';
+
 import {
   CAPTION_ROW_GAP,
   type CaptionBlock,
@@ -7,9 +9,7 @@ import {
 } from '../model/caption';
 import type { FrameLayout, Rect } from '../model/layout';
 import { STRIP_HOLE_LANE } from '../model/spec';
-import { AMBER, type FontId, inkFor, type TextAlign } from '../model/style';
-
-import { FONT_FACES } from './fonts';
+import { AMBER, inkFor, type TextAlign } from '../model/style';
 
 /** How the caption is lettered. Colors come from the block's tone and the margin color. */
 export type FrameLook = {
@@ -72,7 +72,8 @@ const drawRow = (pen: Pen, row: CaptionRow, box: Rect, baseline: number) => {
 
   if (row.kind === 'mark') {
     // The image is fitted into a square by its longer side, then image and text are placed as
-    // one group, so they stay together whichever way the line is aligned.
+    // one group, so they stay together whichever way the line is aligned. The image sits on the
+    // outside: before the text, or after it when the group is pushed to the right.
     const logo = row.image ? look.logo : undefined;
     const side = logo ? MARK_IMAGE * unit * look.scale : 0;
     const gap = logo && row.text ? 18 * unit * look.scale : 0;
@@ -88,16 +89,18 @@ const drawRow = (pen: Pen, row: CaptionRow, box: Rect, baseline: number) => {
           ? box.x + box.width - width
           : box.x + (box.width - width) / 2;
     const top = baseline;
+    const imageLast = look.align === 'right';
     if (logo) {
       const fitted = side / Math.max(logo.width, logo.height);
       const [w, h] = [logo.width * fitted, logo.height * fitted];
-      ctx.drawImage(logo, x + (side - w) / 2, top + (side - h) / 2, w, h);
+      const imageX = imageLast ? x + width - side : x;
+      ctx.drawImage(logo, imageX + (side - w) / 2, top + (side - h) / 2, w, h);
     }
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(
       label,
-      x + side + gap,
+      imageLast ? x : x + side + gap,
       top + (logo ? side : rowHeight(row) * unit * look.scale) / 2,
     );
     ctx.textBaseline = 'alphabetic';
@@ -135,18 +138,25 @@ const drawRow = (pen: Pen, row: CaptionRow, box: Rect, baseline: number) => {
   // When left and right collide, shrink the text first, then ellipsize the left side only.
   // The right side (exposure values) is numeric — truncating it would show wrong information.
   const room = box.width - (row.left && row.right ? ROW_MIN_GAP * unit : 0);
-  fit(
-    pen,
-    row.strong,
-    size,
-    () => ctx.measureText(row.left).width + ctx.measureText(row.right).width,
-    room,
-  );
+  // Each side has its own weight: a camera name can share a row with a quieter look.
+  const set = (side: boolean, shrink = 1) => {
+    ctx.font = fontOf(pen, side, (side ? STRONG_SIZE : QUIET_SIZE) * unit * look.scale * shrink);
+    ctx.fillStyle = side ? pen.ink : pen.subInk;
+  };
+  const rightStrong = row.rightStrong ?? row.strong;
+  set(row.strong);
+  const leftNatural = ctx.measureText(row.left).width;
+  set(rightStrong);
+  const natural = leftNatural + ctx.measureText(row.right).width;
+  const shrink = natural > room ? Math.max(MIN_SHRINK, room / natural) : 1;
+
+  set(rightStrong, shrink);
   const rightWidth = ctx.measureText(row.right).width;
-  ctx.textAlign = 'left';
-  ctx.fillText(ellipsize(ctx, row.left, room - rightWidth), box.x, baseline);
   ctx.textAlign = 'right';
   ctx.fillText(row.right, box.x + box.width, baseline);
+  set(row.strong, shrink);
+  ctx.textAlign = 'left';
+  ctx.fillText(ellipsize(ctx, row.left, room - rightWidth), box.x, baseline);
 };
 
 /** Draws rows from the top of a box down, each on its own baseline. */

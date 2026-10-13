@@ -26,6 +26,20 @@ export type PhotoQueue<T extends QueueItem> = { items: readonly T[]; currentId: 
 export const GEAR_PICK_KEYS = ['camera', 'lens', 'film', 'look'] as const;
 
 /**
+ * The most photos the editor holds at once. Each one keeps its file and a thumbnail in memory,
+ * and a save run walks all of them.
+ */
+export const MAX_PHOTOS = 50;
+
+/**
+ * How many more photos fit in the queue.
+ * @param queue the opened photos
+ * @returns the room left, never below zero
+ */
+export const roomLeft = <T extends QueueItem>(queue: PhotoQueue<T>) =>
+  Math.max(0, MAX_PHOTOS - queue.items.length);
+
+/**
  * Makes an empty queue.
  * @returns a queue with no photos and no current photo
  */
@@ -43,18 +57,24 @@ export const currentPhoto = <T extends QueueItem>(queue: PhotoQueue<T>): T | nul
   queue.items.find(item => item.id === queue.currentId) ?? null;
 
 /**
- * Adds newly opened photos to the end of the queue and shows the first of them, so opening files
- * always visibly does something.
+ * Adds newly opened photos to the end of the queue. By default the first of them is shown, so
+ * opening files always visibly does something; photos that trickle in after the first of their
+ * batch are added without taking the preview.
  * @param queue the opened photos
  * @param added photos to append, in the order they were chosen
+ * @param show whether the first added photo becomes the current one. A queue with no current
+ * photo shows it either way
  * @returns the longer queue, or the same queue when nothing was added
  */
 export const appendPhotos = <T extends QueueItem>(
   queue: PhotoQueue<T>,
   added: readonly T[],
+  show = true,
 ): PhotoQueue<T> => {
   const [first] = added;
-  return first ? { items: [...queue.items, ...added], currentId: first.id } : queue;
+  if (!first) return queue;
+  const keep = !show && currentPhoto(queue) !== null;
+  return { items: [...queue.items, ...added], currentId: keep ? queue.currentId : first.id };
 };
 
 /**

@@ -1,3 +1,4 @@
+import { currentMark, drawMark, markLines, overlayArea } from '@/entities/mark';
 import {
   drawRecipeCard,
   formatRecipeText,
@@ -8,6 +9,7 @@ import {
   systemOf,
   SYSTEMS,
 } from '@/entities/recipe';
+import { ensureFont } from '@/shared/lib/canvas-fonts';
 import { canShareFiles, canvasToJpeg, downloadBlob } from '@/shared/lib/save-file';
 
 const CARD_QUALITY = 0.92;
@@ -33,8 +35,8 @@ const loadPhoto = async (path: string | null | undefined) => {
 };
 
 /**
- * Renders a recipe as an image — its example photo, name and settings — and hands it to the
- * share sheet where the browser has one, otherwise to the browser's downloads. The image is made
+ * Renders a recipe as an image — its example photo, name and settings, with the user's own text
+ * laid over it — and hands it to the share sheet where the browser has one, otherwise to the browser's downloads. The image is made
  * on the device; nothing is uploaded.
  * @param recipe recipe to render
  * @param settings settings of the version on screen
@@ -50,10 +52,13 @@ export const shareRecipeCard = async (
   versionLabel: string,
 ): Promise<'shared' | 'downloaded' | 'cancelled'> => {
   const system = systemOf(recipe);
+  const { mark, image } = currentMark();
+  // A canvas draws in the fallback face when the font file has not arrived yet.
+  await ensureFont(mark.font);
   const photo = await loadPhoto(recipe.photoPath);
   try {
     const canvas = document.createElement('canvas');
-    drawRecipeCard(
+    const layout = drawRecipeCard(
       canvas,
       {
         name: recipe.name,
@@ -62,6 +67,19 @@ export const shareRecipeCard = async (
       },
       photo,
     );
+    const context = canvas.getContext('2d');
+    if (context)
+      drawMark(
+        context,
+        // A card has no template place for the text, and its photo carries no shooting date.
+        overlayArea(mark.area, false) ?? 'image',
+        { photo: layout.photo, whole: { x: 0, y: 0, width: layout.width, height: layout.height } },
+        // The card is laid out 1080 wide, the width the mark's own dimensions are given for.
+        1,
+        mark,
+        markLines(mark),
+        image,
+      );
     const blob = await canvasToJpeg(canvas, CARD_QUALITY);
     const filename = `${recipe.name.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'recipe'}.jpg`;
 

@@ -1,21 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import {
-  computeLayout,
-  drawFrame,
-  effectiveStyle,
-  ensureFont,
-  frameCaption,
-  frameSpec,
-} from '@/entities/frame';
+import { computeLayout, drawFrame, frameSpec } from '@/entities/frame';
 import { cameraCollection, filmCollection, lensCollection } from '@/entities/gear';
+import { markLines, useMark } from '@/entities/mark';
 import { recipeCollection } from '@/entities/recipe';
+import { ensureFont } from '@/shared/lib/canvas-fonts';
 import { downloadBlob } from '@/shared/lib/save-file';
 import { useCollection } from '@/shared/lib/use-collection';
 
 import { saveSummaryText } from '../lib/batch-text';
 import { outputFilename, outputFilenames } from '../lib/output-filename';
-import { decodePhoto, lookOf, renderJpeg } from '../lib/render-jpeg';
+import {
+  captionOf,
+  captionScale,
+  decodePhoto,
+  drawOwnText,
+  fontsOf,
+  lookOf,
+  renderJpeg,
+} from '../lib/render-jpeg';
 import { focalModeFor, resolveCaption } from '../lib/resolve-caption';
 
 import { type QueuedPhoto, useEditorStore } from './editor-store';
@@ -36,7 +39,9 @@ const NO_EXIF = {};
 export const useFrameEditor = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const store = useEditorStore();
-  const { queue, current, bitmap, preset, style, logo, focalMode, detail, setError } = store;
+  const { queue, current, bitmap, preset, style, focalMode, detail, setError } = store;
+  const { mark, image } = useMark();
+  const own = useMemo(() => ({ mark, image }), [mark, image]);
 
   const cameras = useCollection(cameraCollection).items;
   const lenses = useCollection(lensCollection).items;
@@ -53,27 +58,33 @@ export const useFrameEditor = () => {
   );
 
   const { info } = resolved;
-  const hasLogo = logo !== null;
-  const block = useMemo(() => frameCaption(style, info, hasLogo), [style, info, hasLogo]);
+  // A date line is this photo's own date, so the lines are worked out per photo.
+  const takenAt = current?.exif.takenAt;
+  const lines = useMemo(() => markLines(mark, takenAt), [mark, takenAt]);
+  const block = useMemo(() => captionOf(style, info, own, lines), [style, info, own, lines]);
   const spec = useMemo(
-    () => (bitmap ? frameSpec(bitmap, style, block) : null),
-    [bitmap, style, block],
+    () => (bitmap ? frameSpec(bitmap, style, block, captionScale(style, own)) : null),
+    [bitmap, style, block, own],
   );
   const layout = useMemo(
     () => (bitmap && spec ? computeLayout(bitmap, preset, 'optimized', spec) : null),
     [bitmap, preset, spec],
   );
 
-  // A canvas does not wait for web fonts, so the preview is drawn again once the font is in.
-  const { font } = effectiveStyle(style);
-  const [loadedFont, setLoadedFont] = useState(font);
+  // A canvas does not wait for web fonts, so the preview is drawn again once the fonts are in.
+  const fonts = fontsOf(style, own).join(' ');
+  const [loadedFonts, setLoadedFonts] = useState('');
   useEffect(() => {
     let current = true;
-    void ensureFont(font).then(() => current && setLoadedFont(font));
+    void Promise.all(fontsOf(style, own).map(ensureFont)).then(
+      () => current && setLoadedFonts(fonts),
+    );
     return () => {
       current = false;
     };
-  }, [font]);
+    // The joined names stand for the style and text settings: only a change of font matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fonts]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -82,8 +93,9 @@ export const useFrameEditor = () => {
     if (!canvas || !ctx || !bitmap || !layout) return;
     canvas.width = layout.canvas.width;
     canvas.height = layout.canvas.height;
-    drawFrame(ctx, bitmap, layout, block, lookOf(style, logo));
-  }, [bitmap, layout, block, style, logo, loadedFont]);
+    drawFrame(ctx, bitmap, layout, block, lookOf(style, own));
+    drawOwnText(ctx, layout, style, own, lines);
+  }, [bitmap, layout, block, style, own, lines, loadedFonts]);
 
   const filenames = useMemo(
     () =>
@@ -98,13 +110,9 @@ export const useFrameEditor = () => {
   const filenameOf = (photo: QueuedPhoto) =>
     filenames[queue.items.indexOf(photo)] ?? outputFilename(photo.file.name, preset.id);
 
-  /** The caption of any queued photo: its own picks and EXIF under the batch's focal mode. */
-  const blockOf = (photo: QueuedPhoto) =>
-    frameCaption(
-      style,
-      resolveCaption(photo.picks, photo.exif, focalModeFor(focalMode, photo.exif), library).info,
-      hasLogo,
-    );
+  /** The shooting info of any queued photo: its own picks and EXIF under the batch's focal mode. */
+  const infoOf = (photo: QueuedPhoto) =>
+    resolveCaption(photo.picks, photo.exif, focalModeFor(focalMode, photo.exif), library).info;
 
   /**
    * Exports the current photo as JPEG.
@@ -116,7 +124,7 @@ export const useFrameEditor = () => {
     try {
       // The preview stays at working size so typing stays fast; the file is drawn separately at
       // the chosen detail.
-      const blob = await renderJpeg(bitmap, { preset, detail, block, style, logo });
+      const blob = await renderJpeg(bitmap, { preset, detail, block, style, own, lines });
       const filename = filenameOf(current);
       if (mode === 'download') {
         // Not awaited: the promise is about releasing the file, which nothing here waits for.
@@ -132,13 +140,13 @@ export const useFrameEditor = () => {
   };
 
   /**
-   * Exports every queued photo as JPEG, one after another, with the shared output settings and
+   * Exports the chosen queued photos as JPEG, one after another, with the shared output settings and
    * each photo's own caption. Only one photo is in memory at any moment: decode, draw, encode,
    * close the bitmap, download, let the file go, then the next. A photo that fails to export is
    * skipped and named in the summary. Whether the browser kept each download cannot be known.
    */
-  const saveAll = async () => {
-    const photos = queue.items;
+  const savePhotos = async (ids: readonly string[]) => {
+    const photos = queue.items.filter(photo => ids.includes(photo.id));
     if (photos.length === 0 || store.saving) return;
     await store.startSaving(photos.length);
     const failed: string[] = [];
@@ -149,7 +157,16 @@ export const useFrameEditor = () => {
       if (stopped) break;
       try {
         const decoded = await decodePhoto(photo.file);
-        const settings = { preset, detail, block: blockOf(photo), style, logo };
+        // Caption and date line are the photo's own, not the previewed photo's.
+        const ownLines = markLines(mark, photo.exif.takenAt);
+        const settings = {
+          preset,
+          detail,
+          block: captionOf(style, infoOf(photo), own, ownLines),
+          style,
+          own,
+          lines: ownLines,
+        };
         const blob = await renderJpeg(decoded, settings).finally(() => decoded.close());
         await downloadBlob(blob, filenameOf(photo), BATCH_DOWNLOAD_HOLD_MS);
         sent++;
@@ -171,6 +188,6 @@ export const useFrameEditor = () => {
     /** Pixel size of the file that export will write for the current photo at the current detail. */
     outputSize: bitmap && spec ? computeLayout(bitmap, preset, detail, spec).canvas : null,
     exportJpeg,
-    saveAll,
+    savePhotos,
   };
 };

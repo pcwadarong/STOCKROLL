@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 
+import { MarkFields } from '@/entities/mark';
 import {
   MAX_VERSIONS,
   RECIPE_FIELDS,
@@ -155,7 +156,7 @@ export const RecipeDetailPage = () => {
         },
         {
           label: 'Save as image',
-          hint: 'A card with the photo and the settings.',
+          hint: 'A card with the photo, the settings and your own text.',
           onSelect: () =>
             run(
               () =>
@@ -229,6 +230,13 @@ export const RecipeDetailPage = () => {
             </EmptyState>
           )}
         </Panel>
+
+        {/* The same text the frame editor uses, drawn on the card that "Save as image" makes. */}
+        {selected && (
+          <Panel title="Text on the image">
+            <MarkFields dated={false} />
+          </Panel>
+        )}
       </SignInGate>
 
       <ConfirmDialog

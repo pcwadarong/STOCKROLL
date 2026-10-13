@@ -29,9 +29,9 @@ export const EMPTY_INFO: FrameInfo = {
 };
 
 export type CaptionRow =
-  /** Two strings pushed to the two ends of the line. */
-  | { kind: 'sides'; left: string; right: string; strong: boolean }
-  /** One string placed by the style's alignment. */
+  /** Two strings pushed to the two ends of the line. `rightStrong` defaults to `strong`. */
+  | { kind: 'sides'; left: string; right: string; strong: boolean; rightStrong?: boolean }
+  /** One string placed by the look's alignment. */
   | { kind: 'text'; text: string; strong: boolean }
   /** Short values spread evenly across the line. */
   | { kind: 'cells'; cells: string[] }
@@ -57,31 +57,41 @@ const text = (value: string, strong: boolean): CaptionRow[] =>
   value ? [{ kind: 'text', text: value, strong }] : [];
 
 /**
- * Lays the shooting info out as rows for a template. Rows with nothing to say are left out, so a
- * film scan with no exposure data gets a shorter caption rather than blank lines.
- * The Text template shows no shooting info: only the user's own line and image.
+ * Lays the shooting info out as rows for a template, with the user's own text in the place that
+ * template keeps for it. Rows with nothing to say are left out, so a film scan with no exposure
+ * data gets a shorter caption rather than blank lines. A template with room for one line gets the
+ * user's lines joined into one; Bar has no place for them. The Text template shows no shooting
+ * info: only the user's lines and image.
  * @param template the look picked
  * @param info shooting info as strings
- * @param ownText the user's free line. Used by the Text template only
+ * @param own the user's own lines, at most two, none of them empty
  * @param hasImage whether the user attached an image. Used by the Text template only
  * @returns where the caption goes, its tone, and its rows from top to bottom
  */
 export const buildCaption = (
   template: FrameTemplate,
   info: FrameInfo,
-  ownText = '',
+  own: readonly string[] = [],
   hasImage = false,
 ): CaptionBlock => {
+  const oneLine = join(own, ' · ');
   switch (template) {
-    case 'label':
-      return {
-        placement: 'below',
-        tone: 'paper',
-        rows: [
-          ...sides(info.camera ? `Shot on ${info.camera}` : '', join(exposure(info), ' '), true),
-          ...sides(info.lens, info.look, false),
-        ],
-      };
+    case 'label': {
+      const camera = info.camera ? `Shot on ${info.camera}` : '';
+      const values = join(exposure(info), ' ');
+      // The user's line goes at the bottom of the right column. With a look already there the
+      // column is three deep, so the exposure moves up a row and the left column stays level
+      // with the lower two.
+      const rows: CaptionRow[] =
+        oneLine && info.look
+          ? [
+              ...sides('', values, true),
+              { kind: 'sides', left: camera, right: info.look, strong: true, rightStrong: false },
+              ...sides(info.lens, oneLine, false),
+            ]
+          : [...sides(camera, values, true), ...sides(info.lens, info.look || oneLine, false)];
+      return { placement: 'below', tone: 'paper', rows };
+    }
     case 'center':
     case 'overlay':
       return {
@@ -90,6 +100,9 @@ export const buildCaption = (
         rows: [
           ...text(join([info.camera, info.lens], ' · '), true),
           ...text(join([...exposure(info), info.look], ' · '), false),
+          ...(template === 'center'
+            ? own.flatMap(line => text(line, false))
+            : text(oneLine, false)),
         ],
       };
     case 'bar': {
@@ -104,7 +117,7 @@ export const buildCaption = (
       // Two columns that both sit on the bottom edge: what and when on the left, the exposure
       // read-out on the right. The shorter column is padded at the top, not the bottom.
       const left = [info.date, info.camera, info.lens].filter(Boolean);
-      const right = [info.aperture, info.shutter, info.iso].filter(Boolean);
+      const right = [info.aperture, info.shutter, info.iso, oneLine].filter(Boolean);
       const height = Math.max(left.length, right.length);
       const pad = (column: string[]) => [
         ...Array<string>(height - column.length).fill(''),
@@ -122,26 +135,32 @@ export const buildCaption = (
         })),
       };
     }
-    case 'film':
-      return {
-        placement: 'strip',
-        tone: 'amber',
-        rows: sides(
-          (info.look || info.camera).toUpperCase(),
-          join(exposure(info), '  ').toUpperCase(),
-          false,
-        ),
-      };
+    case 'film': {
+      const edge = sides(
+        (info.look || info.camera).toUpperCase(),
+        join(exposure(info), '  ').toUpperCase(),
+        false,
+      );
+      // The first row is printed on the lower strip and the second on the upper one, so the
+      // user's line keeps the second place even when there is no shooting info to print.
+      const upper = sides('', oneLine.toUpperCase(), false);
+      const lower: CaptionRow[] =
+        edge.length > 0 || upper.length === 0
+          ? edge
+          : [{ kind: 'sides', left: '', right: '', strong: false }];
+      return { placement: 'strip', tone: 'amber', rows: [...lower, ...upper] };
+    }
     case 'text': {
-      const line = ownText.trim();
+      const [first = '', second = ''] = own;
       return {
         placement: 'below',
         tone: 'paper',
-        rows: line || hasImage ? [{ kind: 'mark', text: line, image: hasImage }] : [],
+        rows: [
+          ...(first || hasImage ? [{ kind: 'mark' as const, text: first, image: hasImage }] : []),
+          ...text(second, false),
+        ],
       };
     }
-    case 'none':
-      return { placement: 'below', tone: 'paper', rows: [] };
   }
 };
 

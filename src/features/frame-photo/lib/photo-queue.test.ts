@@ -5,9 +5,11 @@ import {
   applyGearPicksToAll,
   currentPhoto,
   emptyQueue,
+  MAX_PHOTOS,
   type PhotoQueue,
   type QueueItem,
   removePhoto,
+  roomLeft,
   selectPhoto,
   setPhotoPick,
 } from './photo-queue';
@@ -46,6 +48,16 @@ describe('appendPhotos', () => {
 
   it('when more photos are opened later, it must show the first newly opened photo', () => {
     expect(appendPhotos(queueOf(['a', 'b'], 'a'), [photo('c'), photo('d')]).currentId).toBe('c');
+  });
+
+  it('when a later photo of a batch arrives, it must join the end without taking the preview', () => {
+    const queue = appendPhotos(queueOf(['a', 'b'], 'a'), [photo('c')], false);
+    expect(ids(queue)).toEqual(['a', 'b', 'c']);
+    expect(queue.currentId).toBe('a');
+  });
+
+  it('when a later photo arrives after every photo was removed, it must be shown', () => {
+    expect(appendPhotos(emptyQueue<QueueItem>(), [photo('c')], false).currentId).toBe('c');
   });
 
   it('when nothing could be opened, it must leave the queue and the current photo unchanged', () => {
@@ -154,5 +166,22 @@ describe('applyGearPicksToAll', () => {
   it('when the source photo is not in the queue, it must change nothing', () => {
     const queue = queueOf(['a', 'b'], 'a');
     expect(applyGearPicksToAll(queue, 'gone')).toBe(queue);
+  });
+});
+
+describe('roomLeft', () => {
+  const queueOf = (count: number) => ({
+    items: Array.from({ length: count }, (_, index) => ({ id: `p${index}`, picks: {} })),
+    currentId: null,
+  });
+
+  it('when the queue is below the limit, it must report how many more photos fit', () => {
+    expect(roomLeft(queueOf(0))).toBe(MAX_PHOTOS);
+    expect(roomLeft(queueOf(MAX_PHOTOS - 3))).toBe(3);
+  });
+
+  it('when the queue is at the limit, it must report no room and never a negative number', () => {
+    expect(roomLeft(queueOf(MAX_PHOTOS))).toBe(0);
+    expect(roomLeft(queueOf(MAX_PHOTOS + 2))).toBe(0);
   });
 });
