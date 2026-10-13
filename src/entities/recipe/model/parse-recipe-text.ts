@@ -1,6 +1,6 @@
 import { closestEntry } from '@/shared/lib/closest-match';
 
-import { KOREAN_LABELS, KOREAN_SIMULATIONS, KOREAN_WORDS } from './paste-korean';
+import { KOREAN_LABELS, KOREAN_PARTICLES, KOREAN_SIMULATIONS, KOREAN_WORDS } from './paste-korean';
 import type { RecipeSettings } from './recipe';
 import { FUJI_RANGES, type FUJI_SIMULATIONS, type RecipeSystem, writtenLabels } from './systems';
 
@@ -130,11 +130,26 @@ const findWord = (value: string, words: Words, alike?: Words) => {
   );
 };
 
+/**
+ * Reads a value into fields that are each picked from a short list, and hands back the words it
+ * had no use for — "Strong, Tiny" fills the strength and reports "Tiny", instead of the size the
+ * form cannot hold being dropped without a word.
+ */
 const picked =
-  (key: string, words: Words, alike?: Words): Sink =>
+  (...fields: readonly (readonly [key: string, words: Words, alike?: Words])[]): Sink =>
   (value, put) => {
-    const found = findWord(value, words, alike);
-    if (found?.value) put(key, found.value, found.guessed ? found.token : undefined);
+    const used = fields.flatMap(([key, words, alike]) => {
+      const found = findWord(value, words, alike);
+      if (!found?.value) return [];
+      put(key, found.value, found.guessed ? found.token : undefined);
+      return [found.token];
+    });
+    // Nothing recognized: the caller reports the whole setting, name included.
+    if (used.length === 0) return undefined;
+    return value
+      .split(NOT_WORD)
+      .filter(token => token && !used.includes(token))
+      .join(' ');
   };
 
 // Spellings recipes use for each film simulation.
@@ -257,14 +272,11 @@ const FUJI_READERS: readonly Reader[] = [
   },
   {
     labels: ['grain effect', 'grain', ...KOREAN_LABELS.grain],
-    read: (value, put) => {
-      picked('grainStrength', LEVELS, LEVELS_ALIKE)(value, put);
-      picked('grainSize', SIZES, SIZES_ALIKE)(value, put);
-    },
+    read: picked(['grainStrength', LEVELS, LEVELS_ALIKE], ['grainSize', SIZES, SIZES_ALIKE]),
   },
   {
     labels: ['grain size', 'grain roughness', ...KOREAN_LABELS.grainSize],
-    read: picked('grainSize', SIZES, SIZES_ALIKE),
+    read: picked(['grainSize', SIZES, SIZES_ALIKE]),
   },
   {
     labels: [
@@ -278,7 +290,7 @@ const FUJI_READERS: readonly Reader[] = [
       'fx blue',
       ...KOREAN_LABELS.colorChromeFxBlue,
     ],
-    read: picked('colorChromeFxBlue', LEVELS, LEVELS_ALIKE),
+    read: picked(['colorChromeFxBlue', LEVELS, LEVELS_ALIKE]),
   },
   {
     labels: [
@@ -288,7 +300,7 @@ const FUJI_READERS: readonly Reader[] = [
       'cce',
       ...KOREAN_LABELS.colorChrome,
     ],
-    read: picked('colorChrome', LEVELS, LEVELS_ALIKE),
+    read: picked(['colorChrome', LEVELS, LEVELS_ALIKE]),
   },
   {
     labels: ['white balance', 'wb', ...KOREAN_LABELS.whiteBalance],
@@ -522,6 +534,18 @@ const outOfRange = (key: string, value: string) => {
 const looksLikeValue = (text: string) =>
   VALUE_START.test(text.trim()) || lookUp(text, WHITE_BALANCES)?.guessed === false;
 
+// A Korean name may carry a particle, as nouns do in a sentence. It counts as one only when it
+// ends the word, so the first syllable of a following word is not mistaken for it.
+const PARTICLE = new RegExp(`^(${KOREAN_PARTICLES.join('|')})(?=[\\s:=]|$)`);
+const ENDS_IN_HANGUL = new RegExp(`[${HANGUL}]$`);
+
+/** Where a setting's value begins: after its name, and after a particle on a Korean name. */
+const valueStart = (line: string, match: RegExpMatchArray) => {
+  const end = match.index! + match[0].length;
+  const particle = ENDS_IN_HANGUL.test(match[0]) ? line.slice(end).match(PARTICLE) : null;
+  return end + (particle?.[0].length ?? 0);
+};
+
 /** Longest a line of its own may be and still be guessed at; anything longer is prose. */
 const BARE_GUESS_LENGTH = 24;
 
@@ -586,7 +610,7 @@ export const parseRecipeText = (system: RecipeSystem, text: string): ParsedRecip
     // A label counts when it opens the line or is followed by a colon. A label word in the
     // middle of a sentence ("the color is muted") names no setting.
     const labels = [...line.matchAll(pattern)].filter(match => {
-      const after = line.slice(match.index + match[0].length);
+      const after = line.slice(valueStart(line, match));
       if (/^\s*[:=]/.test(after)) return true;
       if (match.index !== 0) return false;
       return !byLabel.get(squash(match[0]))?.free || looksLikeValue(after);
@@ -594,11 +618,12 @@ export const parseRecipeText = (system: RecipeSystem, text: string): ParsedRecip
 
     const strays: string[] = [];
     labels.forEach((match, index) => {
-      const start = match.index + match[0].length;
+      const start = valueStart(line, match);
       const end = labels[index + 1]?.index ?? line.length;
       const [value, stray] = splitStray(line.slice(start, end));
       const label = squash(match[0]);
       const misspelled = fixed.get(label);
+      const writesBefore = writes;
       const unused = byLabel
         .get(label)
         ?.read(
@@ -607,7 +632,10 @@ export const parseRecipeText = (system: RecipeSystem, text: string): ParsedRecip
             ? (key, found) => store(key, found, { kind: 'label', from: misspelled })
             : valuePut,
         );
-      if (unused) strays.push(unused);
+      // A setting that was named but whose value could not be used is reported with its name,
+      // so it is not lost just because another setting on the line was read.
+      if (writes === writesBefore) strays.push(tidy(line.slice(match.index, start) + value));
+      else if (unused) strays.push(unused);
       if (stray) strays.push(stray);
     });
 

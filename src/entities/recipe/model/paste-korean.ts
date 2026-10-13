@@ -60,3 +60,6 @@ export const KOREAN_WORDS = {
   red: ['레드', '빨강'],
   blue: ['블루', '파랑'],
 } as const;
+
+/** Particles that may follow a setting's name in a sentence. */
+export const KOREAN_PARTICLES = ['은', '는', '이', '가', '을', '를', '도'] as const;

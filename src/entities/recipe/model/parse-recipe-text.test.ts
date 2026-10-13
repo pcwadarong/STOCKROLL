@@ -395,6 +395,30 @@ describe('parseRecipeText (loose ways of writing)', () => {
   });
 });
 
+describe('parseRecipeText (parts of a value it cannot use)', () => {
+  const read = (text: string) => parseRecipeText('fujifilm', text);
+
+  it('when one part of a paired value is unknown, it must fill the known part and report the other', () => {
+    expect(read('Grain Effect: Strong, Tiny')).toEqual({
+      settings: { grainStrength: 'Strong' },
+      flags: [],
+      unread: ['Tiny'],
+    });
+  });
+
+  it('when every part of a paired value is known, it must report nothing', () => {
+    expect(read('Grain Effect: Weak / Large').unread).toEqual([]);
+  });
+
+  it('when a setting on a shared line has a value it cannot use, it must report that setting', () => {
+    expect(read('Color: +3  Grain Effect: Tiny  Film Simulation: Kodachrome 64')).toEqual({
+      settings: { color: '+3' },
+      flags: [],
+      unread: ['Grain Effect: Tiny', 'Film Simulation: Kodachrome 64'],
+    });
+  });
+});
+
 describe('parseRecipeText (other systems)', () => {
   it('when fields share a name apart from a bracketed remark, each must get its own value', () => {
     const text = 'Contrast: +2\nContrast (highlight): -1\nContrast (shadow): +3';

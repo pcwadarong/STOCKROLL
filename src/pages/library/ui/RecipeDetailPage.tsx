@@ -85,6 +85,8 @@ export const RecipeDetailPage = () => {
     label: `v${version.version}`,
     hint: version.id === history[0]?.id ? 'Latest' : (version.settings.simulation ?? undefined),
     to: `/recipes/${recipe.id}?v=${version.version}`,
+    // Switching versions stays on this screen, so Back should leave it in one step.
+    replace: true,
     current: version.id === selected?.id,
   }));
 

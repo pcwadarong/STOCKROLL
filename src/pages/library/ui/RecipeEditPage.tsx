@@ -108,6 +108,8 @@ const RecipeEditForm = ({
   });
   // Fields of pasted text that need a second look, with the remark to show under each.
   const [guessed, setGuessed] = useState<Record<string, string>>({});
+  // Counts the times the settings were replaced wholesale, which makes a shown paste result stale.
+  const [wipes, setWipes] = useState(0);
   const [source, setSource] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -152,6 +154,7 @@ const RecipeEditForm = ({
     if (!chosen) return;
     // Copied settings replace everything, pasted guesses included.
     setGuessed({});
+    setWipes(count => count + 1);
     setValues(prev => ({
       ...prev,
       ...blankSettings(),
@@ -189,7 +192,7 @@ const RecipeEditForm = ({
       {error && <ErrorText>{error}</ErrorText>}
 
       {/* First on the form: pasting is the quickest way in, and it was easy to miss lower down. */}
-      {editsSettings && <PasteSettings system={system} onFill={fill} />}
+      {editsSettings && <PasteSettings system={system} wipes={wipes} onFill={fill} />}
 
       {editsDetails && (
         <RecordForm

@@ -19,6 +19,11 @@ export type ActionMenuItem = {
   hint?: string;
   /** In-app path the entry leads to. Give either this or `onSelect`. */
   to?: string;
+  /**
+   * Swaps the current history entry instead of adding one. For entries that switch what the
+   * same screen shows, so Back leaves the screen rather than stepping through every switch.
+   */
+  replace?: boolean;
   onSelect?: () => void;
   /** Shown but not usable, with the hint saying why. */
   disabled?: boolean;
@@ -59,7 +64,7 @@ export const ActionMenu = ({ label, variant = 'secondary', heading, items }: Act
       <MenuContent>
         <MenuGroup>
           {heading && <MenuGroupLabel>{heading}</MenuGroupLabel>}
-          {items.map(({ label: name, hint, to, onSelect, disabled, tone, current }) => (
+          {items.map(({ label: name, hint, to, replace, onSelect, disabled, tone, current }) => (
             <MenuItem
               key={name}
               label={current ? `${name} ✓` : name}
@@ -67,7 +72,7 @@ export const ActionMenu = ({ label, variant = 'secondary', heading, items }: Act
               disabled={disabled}
               tone={tone === 'danger' ? 'critical' : undefined}
               aria-current={current ? 'true' : undefined}
-              onClick={() => (to ? void navigate(to) : onSelect?.())}
+              onClick={() => (to ? void navigate(to, { replace }) : onSelect?.())}
             />
           ))}
         </MenuGroup>

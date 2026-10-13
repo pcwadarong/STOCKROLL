@@ -77,6 +77,24 @@ describe('parseRecipeText (Korean)', () => {
     expect(parseRecipeText('fujifilm', '컬러 크롬 효과: 약간만').settings).toEqual({});
   });
 
+  it('when a setting name carries a particle, it must still read the value after it', () => {
+    const { settings, unread } = parseRecipeText(
+      'fujifilm',
+      '필름 시뮬레이션은 클래식 네거티브\n하이라이트는 -1\n섀도우도: +2\n그레인 효과를 강',
+    );
+    expect(settings).toEqual({
+      simulation: 'Classic Neg.',
+      highlight: '-1',
+      shadow: '+2',
+      grainStrength: 'Strong',
+    });
+    expect(unread).toEqual([]);
+  });
+
+  it('when a syllable after the name is the start of another word, it must not be taken for a particle', () => {
+    expect(parseRecipeText('fujifilm', '컬러 이건 좀 진하게').settings).toEqual({});
+  });
+
   it('when a Korean word is misspelled, it must not be guessed at', () => {
     const { settings, flags } = parseRecipeText('fujifilm', '필름 시뮬레이션: 클래식 크름');
     expect(settings).toEqual({});
