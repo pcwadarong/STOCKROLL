@@ -21,7 +21,7 @@ export {
   nextEmptySlot,
   slotOfRecipe,
 } from './model/kit';
-export { type ParsedRecipeText, parseRecipeText } from './model/parse-recipe-text';
+export { type ParsedRecipeText, parseRecipeText, type PasteFlag } from './model/parse-recipe-text';
 export {
   blankSettings,
   DETAIL_FIELDS,

@@ -70,9 +70,15 @@ export const RecipeListPage = () => {
         <Panel
           title="All recipes"
           action={
-            <Button variant="primary" size="small" to="/recipes/new">
-              + New recipe
-            </Button>
+            <div className={css.toolbar}>
+              {/* The same form as a new recipe: its paste box is the first thing on it. */}
+              <Button size="small" to="/recipes/new">
+                Paste a recipe
+              </Button>
+              <Button variant="primary" size="small" to="/recipes/new">
+                + New recipe
+              </Button>
+            </div>
           }
         >
           {failed && <ErrorText>{MESSAGES.loadFailed}</ErrorText>}
@@ -92,7 +98,8 @@ export const RecipeListPage = () => {
 
           {ready && recipes.length === 0 && (
             <EmptyState title="No recipe registered">
-              Start a new recipe for any camera. Your recipes are visible only to you.
+              Start a new recipe for any camera, or paste one as text. Your recipes are visible only
+              to you.
             </EmptyState>
           )}
 

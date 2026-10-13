@@ -5,6 +5,7 @@ import {
   blankSettings,
   DETAIL_FIELDS,
   hasSettings,
+  type ParsedRecipeText,
   type Recipe,
   RECIPE_FIELDS,
   type RecipeSettings,
@@ -38,7 +39,7 @@ import {
 } from '../model/recipe-actions';
 import { useRecipeLibrary } from '../model/use-recipe-library';
 
-import { PasteSettings } from './PasteSettings';
+import { flagText, PasteSettings } from './PasteSettings';
 
 import * as css from './LibraryPage.css';
 
@@ -105,6 +106,8 @@ const RecipeEditForm = ({
     note: recipe?.note ?? '',
     ...initial,
   });
+  // Fields of pasted text that need a second look, with the remark to show under each.
+  const [guessed, setGuessed] = useState<Record<string, string>>({});
   const [source, setSource] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -113,7 +116,27 @@ const RecipeEditForm = ({
   const editsDetails = mode === 'new' || mode === 'details';
   const editsSettings = mode !== 'details';
 
-  const change = (key: string, value: string) =>
+  const fill = ({ settings, flags }: ParsedRecipeText) => {
+    setValues(prev => ({ ...prev, ...settings }));
+    // A field filled again loses its old remark; it gets a new one only if it is flagged again.
+    setGuessed(prev => ({
+      ...Object.fromEntries(Object.entries(prev).filter(([key]) => !(key in settings))),
+      // A field can carry two remarks (a misspelled name and an unusual number, say).
+      ...flags.reduce<Record<string, string>>(
+        (notes, flag) => ({
+          ...notes,
+          [flag.key]: [notes[flag.key], flagText(flag)].filter(Boolean).join(' · '),
+        }),
+        {},
+      ),
+    }));
+  };
+
+  const change = (key: string, value: string) => {
+    // Editing a field is the check the remark asked for. Switching system starts over.
+    setGuessed(prev =>
+      key === 'system' ? {} : Object.fromEntries(Object.entries(prev).filter(([k]) => k !== key)),
+    );
     setValues(prev =>
       // Settings belong to a system. Changing it starts the settings over, so values from the
       // old system are not saved under the new one.
@@ -121,17 +144,20 @@ const RecipeEditForm = ({
         ? { ...prev, ...blankSettings(), system: value }
         : { ...prev, [key]: value },
     );
+  };
 
   const copyFrom = (value: string) => {
     setSource(value);
     const chosen = sources.find(item => item.value === value);
-    if (chosen)
-      setValues(prev => ({
-        ...prev,
-        ...blankSettings(),
-        ...chosen.settings,
-        system: chosen.system,
-      }));
+    if (!chosen) return;
+    // Copied settings replace everything, pasted guesses included.
+    setGuessed({});
+    setValues(prev => ({
+      ...prev,
+      ...blankSettings(),
+      ...chosen.settings,
+      system: chosen.system,
+    }));
   };
 
   const submit = async () => {
@@ -162,6 +188,9 @@ const RecipeEditForm = ({
       <p className={css.note}>{EXPLANATIONS[mode](version?.version ?? 0, nextVersion)}</p>
       {error && <ErrorText>{error}</ErrorText>}
 
+      {/* First on the form: pasting is the quickest way in, and it was easy to miss lower down. */}
+      {editsSettings && <PasteSettings system={system} onFill={fill} />}
+
       {editsDetails && (
         <RecordForm
           fields={mode === 'new' ? RECIPE_FIELDS : DETAIL_FIELDS}
@@ -174,7 +203,7 @@ const RecipeEditForm = ({
         <PickField
           label="Copy settings from"
           indicator="Optional"
-          description="Fills in the settings below from another recipe so you can adjust them. The other recipe is not changed."
+          description="Fills the fields below. The other recipe stays as it is."
           value={source}
           options={sources}
           onChange={copyFrom}
@@ -183,11 +212,12 @@ const RecipeEditForm = ({
 
       {editsSettings && (
         <>
-          <PasteSettings
-            system={system}
-            onFill={settings => setValues(prev => ({ ...prev, ...settings }))}
+          <RecordForm
+            fields={SYSTEMS[system].fields}
+            values={values}
+            onChange={change}
+            notes={guessed}
           />
-          <RecordForm fields={SYSTEMS[system].fields} values={values} onChange={change} />
         </>
       )}
 

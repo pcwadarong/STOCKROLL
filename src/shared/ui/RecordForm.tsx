@@ -13,14 +13,19 @@ type RecordFormProps = {
   fields: readonly RecordField[];
   values: RecordValues;
   onChange: (key: string, value: string) => void;
+  /**
+   * A remark per field key, shown in red under that field — for a value that needs a second
+   * look before saving.
+   */
+  notes?: Readonly<Record<string, string>>;
 };
 
 /**
  * Renders one input per field definition, with a heading above each group of fields.
  * Holds no state of its own.
- * @param props field definitions, current values and a change handler
+ * @param props field definitions, current values, a change handler and optional per-field notes
  */
-export const RecordForm = ({ fields, values, onChange }: RecordFormProps) => (
+export const RecordForm = ({ fields, values, onChange, notes }: RecordFormProps) => (
   <div className={css.root}>
     {fields.map((field, index) => {
       const value = values[field.key];
@@ -28,31 +33,42 @@ export const RecordForm = ({ fields, values, onChange }: RecordFormProps) => (
       // A heading opens each run of fields that share a group.
       const startsGroup = field.group !== undefined && field.group !== fields[index - 1]?.group;
 
+      const control =
+        field.type === 'select' ? (
+          <PickField
+            label={field.label}
+            indicator={field.required ? undefined : 'Optional'}
+            description={field.hint}
+            value={text}
+            options={field.options ?? []}
+            onChange={next => onChange(field.key, next)}
+          />
+        ) : (
+          <TextField
+            label={field.label}
+            indicator={field.required ? undefined : 'Optional'}
+            description={field.hint}
+            value={text}
+            onValueChange={({ value: next }) => onChange(field.key, next)}
+          >
+            <TextFieldInput
+              placeholder={field.placeholder}
+              inputMode={field.type === 'number' ? 'numeric' : undefined}
+            />
+          </TextField>
+        );
+      const note = notes?.[field.key];
+
       return (
         <Fragment key={field.key}>
           {startsGroup && <h4 className={`${labelTitle} ${css.heading}`}>{field.group}</h4>}
-          {field.type === 'select' ? (
-            <PickField
-              label={field.label}
-              indicator={field.required ? undefined : 'Optional'}
-              description={field.hint}
-              value={text}
-              options={field.options ?? []}
-              onChange={next => onChange(field.key, next)}
-            />
+          {note ? (
+            <div className={css.flagged}>
+              {control}
+              <p className={css.note}>{note}</p>
+            </div>
           ) : (
-            <TextField
-              label={field.label}
-              indicator={field.required ? undefined : 'Optional'}
-              description={field.hint}
-              value={text}
-              onValueChange={({ value: next }) => onChange(field.key, next)}
-            >
-              <TextFieldInput
-                placeholder={field.placeholder}
-                inputMode={field.type === 'number' ? 'numeric' : undefined}
-              />
-            </TextField>
+            control
           )}
         </Fragment>
       );
