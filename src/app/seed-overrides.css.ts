@@ -23,6 +23,9 @@ globalStyle(`html .seed-chip__label${checked}`, { color: beige });
 
 // Segmented control: outlined track, green selected segment.
 globalStyle('html .seed-segmented-control__root', { boxShadow: RULE });
+// SEED gives every segment a minimum width, which makes four of them wider than the editor's
+// panel. Segments share the track equally instead; their labels are short.
+globalStyle('html .seed-segmented-control__item', { minWidth: 0 });
 globalStyle('html .seed-segmented-control__indicator', { background: GREEN, boxShadow: 'none' });
 globalStyle(`html .seed-segmented-control__item${checked}`, { color: beige });
 // SEED paints hovered and pressed segments light gray with a selector that carries a `:not()`,
