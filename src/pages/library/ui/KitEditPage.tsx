@@ -28,7 +28,7 @@ import { ErrorText } from '@/shared/ui/ErrorText';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Panel } from '@/shared/ui/Panel';
 import { PageShell } from '@/widgets/page-shell';
-import { TextField, TextFieldInput } from 'seed-design/ui/text-field';
+import { TextField, TextFieldInput, TextFieldTextarea } from 'seed-design/ui/text-field';
 
 import { useRecipeLibrary } from '../model/use-recipe-library';
 import { useRecipePhotos } from '../model/use-recipe-photos';
@@ -42,7 +42,7 @@ type FormProps = {
   kit: Kit | undefined;
   /** Recipes a kit can hold. */
   recipes: readonly Recipe[];
-  onSave: (name: string, slots: Kit['slots']) => Promise<unknown>;
+  onSave: (name: string, slots: Kit['slots'], note: string | null) => Promise<unknown>;
   onDelete: () => Promise<unknown>;
   onCancel: () => void;
 };
@@ -50,6 +50,7 @@ type FormProps = {
 const KitEditForm = ({ kit, recipes, onSave, onDelete, onCancel }: FormProps) => {
   const photoOf = useRecipePhotos(recipes);
   const [name, setName] = useState(kit?.name ?? '');
+  const [note, setNote] = useState(kit?.note ?? '');
   const [slots, setSlots] = useState(() =>
     liveSlots(kit?.slots, new Set(recipes.map(recipe => recipe.id))),
   );
@@ -83,7 +84,7 @@ const KitEditForm = ({ kit, recipes, onSave, onDelete, onCancel }: FormProps) =>
 
   const save = () =>
     name.trim()
-      ? void run(() => onSave(name.trim(), slots), MESSAGES.saveFailed)
+      ? void run(() => onSave(name.trim(), slots, note.trim() || null), MESSAGES.saveFailed)
       : setError(MESSAGES.fillIn(['Kit name']));
 
   return (
@@ -92,6 +93,14 @@ const KitEditForm = ({ kit, recipes, onSave, onDelete, onCancel }: FormProps) =>
         {error && <ErrorText>{error}</ErrorText>}
         <TextField label="Kit name" value={name} onValueChange={({ value }) => setName(value)}>
           <TextFieldInput placeholder="Five days in Tokyo" />
+        </TextField>
+        <TextField
+          label="Note"
+          indicator="Optional"
+          value={note}
+          onValueChange={({ value }) => setNote(value)}
+        >
+          <TextFieldTextarea autoresize />
         </TextField>
 
         <KitStrip
@@ -240,7 +249,7 @@ export const KitEditPage = () => {
             key={kit?.id ?? 'new'}
             kit={kit}
             recipes={recipes.filter(recipe => systemOf(recipe) === KIT_SYSTEM)}
-            onSave={(name, slots) => kits.save({ id: kit?.id, name, slots }).then(done)}
+            onSave={(name, slots, note) => kits.save({ id: kit?.id, name, slots, note }).then(done)}
             onDelete={() => (kit ? kits.remove(kit.id).then(done) : Promise.resolve())}
             onCancel={goBack}
           />

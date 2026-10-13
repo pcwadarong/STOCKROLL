@@ -13,12 +13,14 @@ export {
   filledSlots,
   isSimulationSlot,
   type Kit,
+  KIT_ORDER,
   KIT_SLOTS,
   KIT_SYSTEM,
   kitCollection,
   type KitSlot,
   liveSlots,
   nextEmptySlot,
+  recipeIdsOf,
   slotOfRecipe,
 } from './model/kit';
 export { type ParsedRecipeText, parseRecipeText, type PasteFlag } from './model/parse-recipe-text';
@@ -30,6 +32,7 @@ export {
   MAX_VERSIONS,
   type Recipe,
   RECIPE_FIELDS,
+  RECIPE_ORDER,
   RECIPE_STATES,
   recipeCollection,
   recipeFields,

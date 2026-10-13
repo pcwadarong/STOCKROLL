@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Navigate, NavLink, useNavigate, useParams } from 'react-router';
 
 import {
-  arrangeGear,
   CAMERA_DEFAULTS,
   CAMERA_FIELDS,
   CAMERA_FILTERS,
@@ -10,7 +9,9 @@ import {
   FILM_DEFAULTS,
   FILM_FIELDS,
   FILM_FILTERS,
+  FILM_ORDER,
   filmCollection,
+  GEAR_ORDER,
   LENS_DEFAULTS,
   LENS_FIELDS,
   LENS_FILTERS,
@@ -18,28 +19,33 @@ import {
   statusNote,
 } from '@/entities/gear';
 import { SignInGate } from '@/features/auth';
-import type { Collection, Row } from '@/shared/api/collection';
+import type { Collection, ListOrder, Row } from '@/shared/api/collection';
 import { MESSAGES } from '@/shared/config/messages';
-import type { ListFilter } from '@/shared/lib/pick-filter';
+import { activePicks, type ListFilter } from '@/shared/lib/pick-filter';
 import {
   missingRequired,
   normalizeRecord,
   type RecordField,
   type RecordValues,
 } from '@/shared/lib/record-field';
-import { useCollection } from '@/shared/lib/use-collection';
+import { useCollectionPage } from '@/shared/lib/use-collection-page';
+import { useDebounced } from '@/shared/lib/use-debounced';
 import { useGoBack } from '@/shared/lib/use-go-back';
+import { useRecord } from '@/shared/lib/use-record';
 import { Button } from '@/shared/ui/Button';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorText } from '@/shared/ui/ErrorText';
 import { formatCount, MetaList } from '@/shared/ui/MetaList';
+import { NoteText } from '@/shared/ui/NoteText';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Panel } from '@/shared/ui/Panel';
 import { RecordForm } from '@/shared/ui/RecordForm';
 import { PageShell } from '@/widgets/page-shell';
 
-import { ItemList, type ListFact, ListFilters } from './LibraryList';
+import { LIST_STEP, SEARCH_DELAY_MS } from '../model/list-steps';
+
+import { ItemList, type ListFact, ListFilters, ListMore } from './LibraryList';
 
 import * as css from './LibraryPage.css';
 
@@ -55,11 +61,14 @@ type Section = {
   facts: (item: GearRow, label: (key: string) => string) => ListFact[];
   /** Dropdowns that narrow this section's list. */
   filters: readonly ListFilter[];
+  order: readonly ListOrder[];
   /** Second line of the summary: gear counts what is in use, film counts favorites. */
-  count: { label: string; of: (item: GearRow) => boolean };
+  count: { label: string; holding: Readonly<Record<string, string>> };
 };
 
-const IN_USE = { label: 'In use', of: (item: GearRow) => item.status === 'active' };
+const LIST_ID = 'gear-list';
+
+const IN_USE = { label: 'In use', holding: { status: 'active' } };
 
 const SECTIONS: Record<string, Section> = {
   cameras: {
@@ -75,6 +84,7 @@ const SECTIONS: Record<string, Section> = {
       item.mount && String(item.mount),
     ],
     filters: CAMERA_FILTERS,
+    order: GEAR_ORDER,
     count: IN_USE,
   },
   lenses: {
@@ -85,6 +95,7 @@ const SECTIONS: Record<string, Section> = {
     defaults: LENS_DEFAULTS,
     facts: item => [item.mount && `${item.mount} mount`],
     filters: LENS_FILTERS,
+    order: GEAR_ORDER,
     count: IN_USE,
   },
   films: {
@@ -99,7 +110,8 @@ const SECTIONS: Record<string, Section> = {
       label('kind'),
     ],
     filters: FILM_FILTERS,
-    count: { label: 'Favorites', of: item => item.isFavorite === true },
+    order: FILM_ORDER,
+    count: { label: 'Favorites', holding: { isFavorite: 'true' } },
   },
 };
 
@@ -187,11 +199,212 @@ const GearForm = ({ section, initial, onSave, onDelete, onDone }: GearFormProps)
   );
 };
 
+/** What a section's list is narrowed to. It belongs to the section it was set in. */
+type Narrowing = { kind: string; values: Record<string, string>; query: string };
+
+const Waiting = ({ status }: { status: 'loading' | 'missing' | 'error' }) =>
+  status === 'error' ? (
+    <ErrorText>{MESSAGES.loadFailed}</ErrorText>
+  ) : (
+    <EmptyState title={status === 'loading' ? 'Loading' : 'Not found'}>
+      {status === 'loading' ? 'One moment.' : 'This item no longer exists.'}
+    </EmptyState>
+  );
+
+type GearListProps = {
+  kind: string;
+  section: Section;
+  picks: Record<string, string>;
+  query: string;
+  onPick: (key: string, value: string) => void;
+  onSearch: (query: string) => void;
+};
+
+const GearList = ({ kind, section, picks, query, onPick, onSearch }: GearListProps) => {
+  const list = useCollectionPage(section.collection, {
+    filters: activePicks(picks),
+    search: useDebounced(query, SEARCH_DELAY_MS),
+    order: section.order,
+    step: LIST_STEP,
+    tallies: { counted: section.count.holding },
+  });
+  const [listError, setListError] = useState('');
+  const registered = list.counts.total ?? 0;
+
+  const toggleFavorite = (itemId: string) => {
+    const item = list.rows.find(candidate => candidate.id === itemId);
+    if (!item) return;
+    setListError('');
+    list
+      .save({ ...item, isFavorite: item.isFavorite !== true })
+      .catch(() => setListError(MESSAGES.saveFailed));
+  };
+
+  return (
+    <Panel
+      title={section.title}
+      action={
+        registered > 0 && (
+          <Button variant="primary" size="small" to={`/library/${kind}/new`}>
+            + Add {section.singular}
+          </Button>
+        )
+      }
+    >
+      {list.status === 'error' && <ErrorText>{MESSAGES.loadFailed}</ErrorText>}
+
+      {list.status === 'ready' && (
+        <MetaList
+          rows={[
+            { label: 'Registered', value: formatCount(registered) },
+            { label: section.count.label, value: formatCount(list.counts.counted ?? 0) },
+          ]}
+        />
+      )}
+
+      {list.status === 'ready' && registered === 0 && (
+        <EmptyState
+          title={`No ${section.singular} registered`}
+          action={
+            <Button variant="primary" to={`/library/${kind}/new`}>
+              + Add {section.singular}
+            </Button>
+          }
+        >
+          Your {section.title.toLowerCase()} will appear here. Register a {section.singular} to use
+          it in Frame.
+        </EmptyState>
+      )}
+
+      {registered > 0 && (
+        <>
+          <ListFilters
+            filters={section.filters}
+            picks={picks}
+            onPick={onPick}
+            search={{
+              label: `Search ${section.title.toLowerCase()}`,
+              value: query,
+              onChange: onSearch,
+            }}
+          />
+
+          {listError && <ErrorText>{listError}</ErrorText>}
+
+          {list.status === 'ready' && list.total === 0 && (
+            <EmptyState title="Nothing here">No {section.singular} matches this view.</EmptyState>
+          )}
+
+          {list.rows.length > 0 && (
+            <ItemList
+              id={LIST_ID}
+              rows={list.rows.map(item => ({
+                id: item.id,
+                to: `/library/${kind}/${item.id}`,
+                title: item.name,
+                facts: section.facts(item, optionLabel(section.fields, item)),
+                note: statusNote(item),
+                favorite: item.isFavorite === true,
+              }))}
+              onToggleFavorite={toggleFavorite}
+            />
+          )}
+
+          {list.moreFailed && <ErrorText>{MESSAGES.loadFailed}</ErrorText>}
+          <ListMore
+            listId={LIST_ID}
+            shown={list.rows.length}
+            total={list.total}
+            step={list.step}
+            loading={list.loadingMore}
+            onMore={() => void list.more()}
+          />
+        </>
+      )}
+    </Panel>
+  );
+};
+
+const GearDetail = ({ kind, section, id }: { kind: string; section: Section; id: string }) => {
+  const { item, status } = useRecord(section.collection, id);
+
+  return (
+    <Panel
+      title={item?.name ?? section.title}
+      action={
+        item && (
+          <Button variant="primary" size="small" to={`/library/${kind}/${item.id}/edit`}>
+            Edit
+          </Button>
+        )
+      }
+    >
+      {item ? (
+        <>
+          <MetaList
+            rows={section.fields.flatMap(field => {
+              const value = item[field.key];
+              // The note is shown whole below: a row here would cut it to one line.
+              if (field.type === 'multiline') return [];
+              if (value === null || value === undefined || value === '') return [];
+              return [
+                {
+                  label: field.label,
+                  value: optionLabel(section.fields, item)(field.key) || String(value),
+                },
+              ];
+            })}
+          />
+          {typeof item.note === 'string' && item.note && <NoteText>{item.note}</NoteText>}
+          <div className={css.actions}>
+            <Button to={`/library/${kind}`}>All {section.title.toLowerCase()}</Button>
+          </div>
+        </>
+      ) : (
+        status !== 'ready' && <Waiting status={status} />
+      )}
+    </Panel>
+  );
+};
+
+type GearEditProps = { kind: string; section: Section; id: string; onDone: () => void };
+
+const GearEdit = ({ kind, section, id, onDone }: GearEditProps) => {
+  const navigate = useNavigate();
+  const isNew = id === 'new';
+  const { item, status } = useRecord(section.collection, isNew ? undefined : id);
+
+  return (
+    <Panel title={isNew ? `Add ${section.singular}` : `Edit ${section.singular}`}>
+      {!isNew && !item ? (
+        status !== 'ready' && <Waiting status={status} />
+      ) : (
+        <GearForm
+          key={`${kind}:${id}`}
+          section={section}
+          initial={item ?? section.defaults}
+          onSave={values => section.collection.save(values as GearRow)}
+          onDelete={
+            item
+              ? () =>
+                  section.collection
+                    .remove(item.id)
+                    .then(() => navigate(`/library/${kind}`, { replace: true }))
+              : undefined
+          }
+          onDone={onDone}
+        />
+      )}
+    </Panel>
+  );
+};
+
 /**
  * Gear library: lists registered cameras, lenses and films, shows one read-only, and hosts the
  * form for adding or editing one. Opening an item never lands in the form directly.
- * @param props `editing` is set by the `/:id/edit` route Gear you no longer use keeps its place in the record: change its status rather
- * than deleting it. Delete exists for entries made by mistake.
+ * Gear you no longer use keeps its place in the record: change its status rather than deleting
+ * it. Delete exists for entries made by mistake.
+ * @param props `editing` is set by the `/:id/edit` route
  */
 export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean }) => {
   const { kind: kindParam = 'cameras', id } = useParams();
@@ -202,37 +415,19 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
   // Leaving the form of an existing item returns to its detail; a new item returns to the list.
   const goBack = useGoBack(id && id !== 'new' ? `/library/${kind}/${id}` : `/library/${kind}`);
   const section = SECTIONS[kind]!;
-  const { items, status, save, remove } = useCollection(section.collection);
-  const navigate = useNavigate();
-  // Picked filters belong to the section they were picked in; another section starts unfiltered.
-  const [picked, setPicked] = useState<{ kind: string; values: Record<string, string> }>({
-    kind,
-    values: {},
-  });
-  const picks = picked.kind === kind ? picked.values : {};
-  const shown = arrangeGear(items, picks);
-  const [listError, setListError] = useState('');
+  // Kept here rather than in the list, so the filters and the search are still set when the
+  // user comes back from an item. Another section starts unfiltered.
+  const [narrowing, setNarrowing] = useState<Narrowing>({ kind, values: {}, query: '' });
+  const { values: picks, query } = narrowing.kind === kind ? narrowing : { values: {}, query: '' };
 
-  const pick = (key: string, value: string) =>
-    setPicked(previous => ({
-      kind,
-      values: { ...(previous.kind === kind ? previous.values : {}), [key]: value },
-    }));
-
-  const toggleFavorite = (itemId: string) => {
-    const item = items.find(candidate => candidate.id === itemId);
-    if (!item) return;
-    setListError('');
-    save({ ...item, isFavorite: item.isFavorite !== true }).catch(() =>
-      setListError(MESSAGES.saveFailed),
-    );
-  };
+  const narrow = (change: (current: Narrowing) => Partial<Narrowing>) =>
+    setNarrowing(previous => {
+      const current = previous.kind === kind ? previous : { kind, values: {}, query: '' };
+      return { ...current, ...change(current) };
+    });
 
   // `/library/:kind/:id` shows an item read-only; the form is `/new` or `/:id/edit`.
   const editing = id === 'new' || (id !== undefined && editRoute);
-  const viewing = id !== undefined && !editing;
-  const current = id && id !== 'new' ? items.find(item => item.id === id) : undefined;
-  const waitingForItem = id !== undefined && id !== 'new' && !current;
 
   if (!known) return <Navigate to="/library/cameras" replace />;
 
@@ -250,132 +445,22 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
       </nav>
 
       <SignInGate what="cameras, lenses and films">
-        {viewing ? (
-          <Panel
-            title={current?.name ?? section.title}
-            action={
-              current && (
-                <Button variant="primary" size="small" to={`/library/${kind}/${current.id}/edit`}>
-                  Edit
-                </Button>
-              )
+        {id === undefined ? (
+          <GearList
+            key={kind}
+            kind={kind}
+            section={section}
+            picks={picks}
+            query={query}
+            onPick={(key, value) =>
+              narrow(current => ({ values: { ...current.values, [key]: value } }))
             }
-          >
-            {current ? (
-              <>
-                <MetaList
-                  rows={section.fields.flatMap(field => {
-                    const value = current[field.key];
-                    if (value === null || value === undefined || value === '') return [];
-                    return [
-                      {
-                        label: field.label,
-                        value: optionLabel(section.fields, current)(field.key) || String(value),
-                      },
-                    ];
-                  })}
-                />
-                <div className={css.actions}>
-                  <Button to={`/library/${kind}`}>All {section.title.toLowerCase()}</Button>
-                </div>
-              </>
-            ) : (
-              <EmptyState title={status === 'loading' ? 'Loading' : 'Not found'}>
-                {status === 'loading' ? 'One moment.' : 'This item no longer exists.'}
-              </EmptyState>
-            )}
-          </Panel>
+            onSearch={next => narrow(() => ({ query: next }))}
+          />
         ) : editing ? (
-          <Panel title={id === 'new' ? `Add ${section.singular}` : `Edit ${section.singular}`}>
-            {waitingForItem ? (
-              <EmptyState title={status === 'loading' ? 'Loading' : 'Not found'}>
-                {status === 'loading' ? 'One moment.' : 'This item no longer exists.'}
-              </EmptyState>
-            ) : (
-              <GearForm
-                key={`${kind}:${id}`}
-                section={section}
-                initial={current ?? section.defaults}
-                onSave={values => save(values as GearRow)}
-                onDelete={
-                  current
-                    ? () =>
-                        remove(current.id).then(() =>
-                          navigate(`/library/${kind}`, { replace: true }),
-                        )
-                    : undefined
-                }
-                onDone={goBack}
-              />
-            )}
-          </Panel>
+          <GearEdit key={`${kind}:${id}`} kind={kind} section={section} id={id} onDone={goBack} />
         ) : (
-          <Panel
-            title={section.title}
-            action={
-              items.length > 0 && (
-                <Button variant="primary" size="small" to={`/library/${kind}/new`}>
-                  + Add {section.singular}
-                </Button>
-              )
-            }
-          >
-            {status === 'error' && <ErrorText>{MESSAGES.loadFailed}</ErrorText>}
-
-            {status === 'ready' && (
-              <MetaList
-                rows={[
-                  { label: 'Registered', value: formatCount(items.length) },
-                  {
-                    label: section.count.label,
-                    value: formatCount(items.filter(section.count.of).length),
-                  },
-                ]}
-              />
-            )}
-
-            {status === 'ready' && items.length === 0 && (
-              <EmptyState
-                title={`No ${section.singular} registered`}
-                action={
-                  <Button variant="primary" to={`/library/${kind}/new`}>
-                    + Add {section.singular}
-                  </Button>
-                }
-              >
-                Your {section.title.toLowerCase()} will appear here. Register a {section.singular}{' '}
-                to use it in Frame.
-              </EmptyState>
-            )}
-
-            {items.length > 0 && (
-              <>
-                <ListFilters filters={section.filters} picks={picks} onPick={pick} />
-
-                {listError && <ErrorText>{listError}</ErrorText>}
-
-                {shown.length === 0 && (
-                  <EmptyState title="Nothing here">
-                    No {section.singular} matches this view.
-                  </EmptyState>
-                )}
-
-                {shown.length > 0 && (
-                  <ItemList
-                    rows={shown.map(item => ({
-                      id: item.id,
-                      to: `/library/${kind}/${item.id}`,
-                      title: item.name,
-                      facts: section.facts(item, optionLabel(section.fields, item)),
-                      note: statusNote(item),
-                      favorite: item.isFavorite === true,
-                    }))}
-                    onToggleFavorite={toggleFavorite}
-                  />
-                )}
-              </>
-            )}
-          </Panel>
+          <GearDetail key={`${kind}:${id}`} kind={kind} section={section} id={id} />
         )}
       </SignInGate>
     </PageShell>

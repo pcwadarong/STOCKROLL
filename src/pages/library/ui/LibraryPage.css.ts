@@ -68,6 +68,9 @@ export const filterBar = style({
   gap: vars.$dimension.x2,
 });
 
+// The search box takes a line of its own above the dropdowns.
+export const filterSearch = style({ gridColumn: '1 / -1' });
+
 // As tall as the dropdowns it sits beside (SEED's medium select is x10).
 export const favoritesToggle = style({ gap: vars.$dimension.x1_5, minHeight: vars.$dimension.x10 });
 
@@ -83,6 +86,19 @@ export const rowWithAction = style({
   borderBottom: `1px solid ${vars.$color.stroke.neutralSubtle}`,
   // The panel's own edge closes the list; a rule under the last row would double it.
   selectors: { '&:last-child': { borderBottom: 0 } },
+});
+
+// Under a list that is not shown whole: the count on the left, the button that continues it on
+// the right.
+export const listMore = style({
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: vars.$dimension.x3,
+  // As tall as the button, so the row does not jump when the spinner takes its place.
+  minHeight: '2rem',
+  color: vars.$color.fg.neutralSubtle,
 });
 
 export const rowLink = style([row, { borderBottom: 0 }]);

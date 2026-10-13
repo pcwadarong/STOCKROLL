@@ -16,6 +16,7 @@ import { ActionMenu, type ActionMenuItem } from '@/shared/ui/ActionMenu';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorText } from '@/shared/ui/ErrorText';
+import { NoteText } from '@/shared/ui/NoteText';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Panel } from '@/shared/ui/Panel';
 import { PageShell } from '@/widgets/page-shell';
@@ -175,9 +176,7 @@ export const RecipeDetailPage = () => {
       <div className={css.detailHeader}>
         <PageHeader
           title={recipe.name}
-          lead={[SYSTEMS[system].label, STATE_LABELS[recipe.state], recipe.note]
-            .filter(Boolean)
-            .join(' · ')}
+          lead={[SYSTEMS[system].label, STATE_LABELS[recipe.state]].filter(Boolean).join(' · ')}
         />
         <div className={css.toolbar}>
           {versionItems.length > 0 && (
@@ -222,6 +221,7 @@ export const RecipeDetailPage = () => {
           }
         >
           <RecipePhoto recipe={recipe} onChanged={reload} />
+          {recipe.note && <NoteText>{recipe.note}</NoteText>}
           {selected ? (
             <SettingsView system={system} settings={selected.settings} />
           ) : (
