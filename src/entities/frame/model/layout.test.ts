@@ -163,12 +163,21 @@ describe('computeLayout with a frame spec', () => {
   it('when the original preset has no padding and no caption, the canvas must be exactly the photo', () => {
     const layout = computeLayout(
       photo,
-      OUTPUT_PRESETS[4],
+      OUTPUT_PRESETS.find(item => item.kind === 'original')!,
       'optimized',
       spec({ margin: 0, captionHeight: 0 }),
     );
 
     expect(layout.canvas).toEqual({ width: 2048, height: 1365 });
     expect(layout.photo).toEqual({ x: 0, y: 0, width: 2048, height: 1365 });
+  });
+
+  it('when the preset is landscape, the photo must be fitted whole inside the wide canvas', () => {
+    const wide = OUTPUT_PRESETS.find(item => item.id === '16x9')!;
+    const layout = computeLayout(photo, wide, 'optimized', spec());
+    expect(layout.canvas).toEqual({ width: 1920, height: 1080 });
+    expect(layout.photo.width / layout.photo.height).toBeCloseTo(1.5, 2);
+    expect(layout.photo.y).toBeGreaterThanOrEqual(0);
+    expect(layout.photo.y + layout.photo.height).toBeLessThanOrEqual(1080);
   });
 });

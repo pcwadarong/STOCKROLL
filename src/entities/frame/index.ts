@@ -17,6 +17,7 @@ export {
   type FrameStyle,
   type FrameTemplate,
   hasOwnPlace,
+  inkFor,
   type Lettering,
   letteringFor,
   PADDING_UNITS,

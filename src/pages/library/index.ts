@@ -1,4 +1,5 @@
 export { LibraryPage } from './ui/LibraryPage';
+export { RecipeCardPage } from './ui/RecipeCardPage';
 export { RecipeDetailPage } from './ui/RecipeDetailPage';
 export { RecipeEditPage } from './ui/RecipeEditPage';
 export { RecipeListPage } from './ui/RecipeListPage';

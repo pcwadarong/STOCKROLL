@@ -5,8 +5,8 @@ import { FONTS } from '@/shared/lib/canvas-fonts';
 import { Control, ImagePick, SwatchRow } from '@/shared/ui/Control';
 import { controls } from '@/shared/ui/Control.css';
 import { ErrorText } from '@/shared/ui/ErrorText';
+import { Segments } from '@/shared/ui/Options';
 import { PickField } from '@/shared/ui/PickField';
-import { SegmentedControl, SegmentedControlItem } from 'seed-design/ui/segmented-control';
 import { TextField, TextFieldInput } from 'seed-design/ui/text-field';
 
 import {
@@ -33,23 +33,6 @@ const pickFrom =
     if (match) apply(match.value);
   };
 
-type SegmentsProps<T extends string> = {
-  label: string;
-  value: T;
-  options: readonly { value: T; label: string }[];
-  onChange: (value: T) => void;
-};
-
-const Segments = <T extends string>({ label, value, options, onChange }: SegmentsProps<T>) => (
-  <SegmentedControl aria-label={label} value={value} onValueChange={pickFrom(options, onChange)}>
-    {options.map(item => (
-      <SegmentedControlItem key={item.value} value={item.value}>
-        {item.label}
-      </SegmentedControlItem>
-    ))}
-  </SegmentedControl>
-);
-
 type MarkFieldsProps = {
   /**
    * Given when the picture is drawn by a template that has a place for the text: where that
@@ -59,15 +42,21 @@ type MarkFieldsProps = {
   template?: { hint: string; lettered: boolean; controls?: ReactNode };
   /** False where pictures record no shooting date, so a date line is left out. */
   dated?: boolean;
+  /**
+   * The screen's own control for where the text goes, shown instead of the diagram. For a picture
+   * that offers only a few places of its own and keeps that choice itself.
+   */
+  place?: ReactNode;
 };
 
 /**
  * The settings of the user's own text: what it says, then where it goes, then how it looks.
  * Placement and look are offered once there is something to place. The same text is used by
  * every screen that exports a picture, so this reads and writes the shared setting itself.
- * @param props what the screen's picture can do with the text: a template place, a shooting date
+ * @param props what the screen's picture can do with the text: a template place, a shooting
+ * date, a place control of its own
  */
-export const MarkFields = ({ template, dated = true }: MarkFieldsProps) => {
+export const MarkFields = ({ template, dated = true, place }: MarkFieldsProps) => {
   const { mark, image, update, setImageFile } = useMark();
   const [error, setError] = useState('');
 
@@ -134,12 +123,14 @@ export const MarkFields = ({ template, dated = true }: MarkFieldsProps) => {
       {hasMark(mark, image !== null) && (
         <>
           <Control label="Place">
-            <PlacePicker
-              area={area}
-              position={position}
-              templateHint={template?.hint}
-              onChange={update}
-            />
+            {place ?? (
+              <PlacePicker
+                area={area}
+                position={position}
+                templateHint={template?.hint}
+                onChange={update}
+              />
+            )}
             {placedByTemplate && template?.controls}
           </Control>
 

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 
-import { MarkFields } from '@/entities/mark';
 import {
   MAX_VERSIONS,
   RECIPE_FIELDS,
@@ -22,7 +21,7 @@ import { Panel } from '@/shared/ui/Panel';
 import { PageShell } from '@/widgets/page-shell';
 
 import { removeVersion } from '../model/recipe-actions';
-import { copyRecipeText, shareRecipeCard } from '../model/share-recipe';
+import { copyRecipeText } from '../model/share-recipe';
 import { useRecipeLibrary } from '../model/use-recipe-library';
 
 import { RecipePhoto } from './RecipePhoto';
@@ -40,8 +39,9 @@ const STATE_LABELS = Object.fromEntries(
 /**
  * One recipe, read-only: its photo and settings as one sheet. Three menus at the top right hold
  * everything else — which version is shown, the ways to change the recipe, and the ways to share
- * it. What to do with a version — fix it, build the next one from it, or branch into a new
- * recipe — is chosen there, before any editing starts.
+ * it. Saving as an image has a screen of its own, where the card is previewed. What to do with a
+ * version — fix it, build the next one from it, or branch into a new recipe — is chosen there,
+ * before any editing starts.
  */
 export const RecipeDetailPage = () => {
   const { id = '' } = useParams();
@@ -157,16 +157,8 @@ export const RecipeDetailPage = () => {
         },
         {
           label: 'Save as image',
-          hint: 'A card with the photo, the settings and your own text.',
-          onSelect: () =>
-            run(
-              () =>
-                shareRecipeCard(recipe, selected.settings, `v${selected.version}`).then(outcome =>
-                  // A download is only handed over: the browser does not say whether it was kept.
-                  setNotice(outcome === 'downloaded' ? "Sent to your browser's downloads." : ''),
-                ),
-              'Could not make the image. Try again.',
-            ),
+          hint: 'Opens the card to add your own text and save it.',
+          to: `/recipes/${recipe.id}/card?v=${selected.version}`,
         },
       ]
     : [];
@@ -230,13 +222,6 @@ export const RecipeDetailPage = () => {
             </EmptyState>
           )}
         </Panel>
-
-        {/* The same text the frame editor uses, drawn on the card that "Save as image" makes. */}
-        {selected && (
-          <Panel title="Text on the image">
-            <MarkFields dated={false} />
-          </Panel>
-        )}
       </SignInGate>
 
       <ConfirmDialog

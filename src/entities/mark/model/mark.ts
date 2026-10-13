@@ -376,6 +376,25 @@ export const planMark = ({
 };
 
 /**
+ * How much room to keep free under a block so a mark set just below it (`below`, `below-right`)
+ * fits whole, the gap between the two included. For whoever lays the picture out before the mark
+ * is drawn.
+ * @param size the mark's size step
+ * @param lineCount how many lines the mark prints
+ * @param hasImage whether an image is attached
+ * @param unit length of 1px on a 1080-wide picture
+ * @returns the height to reserve, 0 when the mark draws nothing
+ */
+export const markRoomBelow = (size: MarkSize, lineCount: number, hasImage: boolean, unit = 1) => {
+  if (lineCount === 0 && !hasImage) return 0;
+  const scale = unit * SIZE_SCALE[size];
+  return (
+    OUTSIDE_GAP * unit +
+    Math.max(hasImage ? IMAGE_HEIGHT * scale : 0, lineCount * TEXT_SIZE * scale * LINE)
+  );
+};
+
+/**
  * Picks a text color that reads on what is behind the mark: dark on a light patch, light on a
  * dark one.
  * @param pixels RGBA bytes of the patch behind the mark

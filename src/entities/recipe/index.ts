@@ -7,6 +7,29 @@ export {
   uploadRecipePhoto,
 } from './api/recipe-photo';
 export { drawRecipeCard } from './lib/draw-recipe-card';
+export {
+  CARD_ALIGNS,
+  CARD_AUTO_RATIO,
+  CARD_BACKGROUND_SWATCHES,
+  CARD_BELOW_PLACES,
+  CARD_DESIGNS,
+  CARD_DETAILS,
+  CARD_DIM,
+  CARD_GAP_UNITS,
+  CARD_GAPS,
+  CARD_INK_SWATCHES,
+  CARD_PADDING_UNITS,
+  CARD_PADDINGS,
+  CARD_PHOTO_PLACES,
+  CARD_TEXT_PLACES,
+  CARD_TEXT_SIZE,
+  type CardOwnPlace,
+  cardOwnSpot,
+  type CardStyle,
+  DEFAULT_CARD_STYLE,
+  MAX_CARD_PHOTOS,
+  parseCardStyle,
+} from './model/card-style';
 export { type ParsedRecipeText, parseRecipeText, type PasteFlag } from './model/parse-recipe-text';
 export {
   blankSettings,
@@ -30,6 +53,7 @@ export {
   versionSlots,
   versionsOf,
 } from './model/recipe';
+export { photoAtCorner } from './model/recipe-card';
 export { formatRecipeText, type RecipeLine, recipeLines } from './model/recipe-lines';
 export {
   assignSlot,

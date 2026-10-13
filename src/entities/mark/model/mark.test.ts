@@ -8,6 +8,7 @@ import {
   type Mark,
   markFromLegacyStyle,
   markLines,
+  markRoomBelow,
   overlayArea,
   parseMark,
   planMark,
@@ -270,6 +271,30 @@ describe('planMark', () => {
 
     expect(box.width).toBeCloseTo(photo.width - 64);
     expect(size).toBeLessThan(plan()!.size);
+  });
+});
+
+describe('markRoomBelow', () => {
+  it('when the mark draws nothing, it must ask for no room', () => {
+    expect(markRoomBelow('m', 0, false)).toBe(0);
+  });
+
+  it('when that room is kept under a block, a mark below it must fit whole and end at its foot', () => {
+    const room = markRoomBelow('l', 2, true);
+    const whole = { x: 0, y: 0, width: 1080, height: 1000 };
+    const block = { x: 64, y: 64, width: 952, height: 1000 - 64 - 64 - room };
+    const placed = planMark({
+      area: 'image',
+      areas: { block, whole },
+      unit: 1,
+      position: 'below-right',
+      size: 'l',
+      lineEms: [8, 6],
+      image: { width: 200, height: 100 },
+    })!;
+    expect(placed.box.y).toBeGreaterThan(block.y + block.height);
+    expect(placed.box.y + placed.box.height).toBeCloseTo(1000 - 64, 5);
+    expect(placed.box.x + placed.box.width).toBeCloseTo(block.x + block.width, 5);
   });
 });
 
