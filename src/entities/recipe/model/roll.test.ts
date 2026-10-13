@@ -3,13 +3,14 @@ import { describe, expect, it } from 'vitest';
 import {
   assignSlot,
   clearSlot,
+  copyName,
   filledSlots,
   isSimulationSlot,
-  KIT_SLOTS,
   liveSlots,
   nextEmptySlot,
+  ROLL_SLOTS,
   slotOfRecipe,
-} from './kit';
+} from './roll';
 
 describe('assignSlot', () => {
   it('when a recipe is put into an empty slot, it must leave the other slots as they were', () => {
@@ -63,12 +64,12 @@ describe('nextEmptySlot', () => {
   });
 
   it('when only an earlier slot is free, it must wrap around to it', () => {
-    const full = Object.fromEntries(KIT_SLOTS.map(slot => [slot, slot]));
+    const full = Object.fromEntries(ROLL_SLOTS.map(slot => [slot, slot]));
     expect(nextEmptySlot(clearSlot(full, 'C2'), 'FS3')).toBe('C2');
   });
 
   it('when every slot is taken, it must stay on the given slot', () => {
-    const full = Object.fromEntries(KIT_SLOTS.map(slot => [slot, slot]));
+    const full = Object.fromEntries(ROLL_SLOTS.map(slot => [slot, slot]));
     expect(nextEmptySlot(full, 'C4')).toBe('C4');
   });
 });
@@ -96,10 +97,16 @@ describe('liveSlots', () => {
 });
 
 describe('slotOfRecipe and filledSlots', () => {
-  it('when a recipe is in the kit, it must report its slot and count it', () => {
+  it('when a recipe is in the roll, it must report its slot and count it', () => {
     const slots = { C3: 'a', C5: 'b', FS1: 'ACROS' } as const;
     expect(slotOfRecipe(slots, 'b')).toBe('C5');
     expect(slotOfRecipe(slots, 'z')).toBeUndefined();
     expect(filledSlots(slots)).toBe(3);
+  });
+});
+
+describe('copyName', () => {
+  it('when a roll is copied, it must start under a name that differs from the original', () => {
+    expect(copyName('Autumn')).toBe('Autumn (copy)');
   });
 });
