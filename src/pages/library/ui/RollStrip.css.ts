@@ -178,8 +178,13 @@ export const dock = style({
   backgroundRepeat: 'no-repeat',
   backgroundSize: `100% calc(${DOCK_GAP} + ${DOCK_RADIUS})`,
   '@media': {
-    // The installed app pins its bar over the page; stay below it.
-    [COMPACT_STANDALONE_MEDIA_QUERY]: { top: COMPACT_APP_BAR_HEIGHT },
+    // The installed app pins its bar over the page; stay below it. That bar's height already
+    // includes the notch, so only the plain gap is kept here.
+    [COMPACT_STANDALONE_MEDIA_QUERY]: {
+      top: COMPACT_APP_BAR_HEIGHT,
+      paddingTop: vars.$dimension.x2,
+      backgroundSize: `100% calc(${vars.$dimension.x2} + ${DOCK_RADIUS})`,
+    },
     // A phone on its side has no height to spare for a pinned strip.
     [SHORT_COMPACT_MEDIA_QUERY]: { position: 'static' },
   },
