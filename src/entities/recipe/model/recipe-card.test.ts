@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CARD_TEXT,
+  cardExportScale,
   type MeasureText,
+  photoAtCorner,
   photoCells,
   recipeCardLayout,
   recipeCoverLayout,
@@ -421,5 +423,68 @@ describe('recipeCoverLayout', () => {
       { x: 0, y: 675, width: 540, height: 675 },
       { x: 540, y: 675, width: 540, height: 675 },
     ]);
+  });
+});
+
+describe('photoAtCorner', () => {
+  const photo = { width: 3000, height: 2000 };
+  const grid = (textFirst: boolean) =>
+    recipeCardLayout({
+      ...base,
+      textFirst,
+      photos: [photo, photo, photo],
+      canvas: { width: 1080, height: 1350 },
+    });
+
+  it('when the card has no photo, it must give nothing', () => {
+    expect(photoAtCorner(recipeCardLayout(base), 'top-left')).toBeUndefined();
+  });
+
+  it('when the card has one photo, every corner must be that photo', () => {
+    const layout = recipeCardLayout({ ...base, photos: [photo] });
+    expect(photoAtCorner(layout, 'bottom-right')).toEqual(layout.photos[0]!.box);
+  });
+
+  it('when the corner cell of a grid holds the text, it must give a photo and not that cell', () => {
+    const last = grid(false);
+    const boxes = last.photos.map(item => item.box);
+    // The text is bottom right: the nearest photo corner belongs to one of its neighbours.
+    const picked = photoAtCorner(last, 'bottom-right')!;
+    expect(boxes).toContainEqual(picked);
+    expect(picked.x + picked.width <= last.title.x || picked.y + picked.height < last.title.y).toBe(
+      true,
+    );
+
+    const first = grid(true);
+    expect(first.photos.map(item => item.box)).toContainEqual(photoAtCorner(first, 'top-left'));
+  });
+
+  it('when the corner cell of a grid holds a photo, it must give that photo', () => {
+    const layout = grid(false);
+    expect(photoAtCorner(layout, 'top-left')).toEqual(layout.photos[0]!.box);
+  });
+});
+
+describe('cardExportScale', () => {
+  const box = { x: 0, y: 0, width: 1000, height: 500 };
+  const card = (sourceWidth: number) => ({
+    width: 1080,
+    height: 1350,
+    photos: [{ box, source: { x: 0, y: 0, width: sourceWidth, height: sourceWidth / 2 } }],
+  });
+
+  it('when a photo is drawn smaller than it is, the card must grow until it is pixel for pixel', () => {
+    expect(cardExportScale(card(2000))).toBe(2);
+  });
+
+  it('when no photo has detail to spare, the card must stay at its working size', () => {
+    expect(cardExportScale(card(800))).toBe(1);
+    expect(cardExportScale({ width: 1080, height: 1350, photos: [] })).toBe(1);
+  });
+
+  it('when full detail would exceed what a browser can draw, the card must stop at that limit', () => {
+    const scale = cardExportScale(card(8000));
+    expect(scale).toBeLessThan(8);
+    expect(1080 * scale * 1350 * scale).toBeLessThanOrEqual(16_000_000 + 1);
   });
 });

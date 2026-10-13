@@ -12,8 +12,8 @@ export {
   CARD_AUTO_RATIO,
   CARD_BACKGROUND_SWATCHES,
   CARD_BELOW_PLACES,
-  CARD_BLACK,
   CARD_DESIGNS,
+  CARD_DETAILS,
   CARD_DIM,
   CARD_GAP_UNITS,
   CARD_GAPS,
@@ -66,5 +66,6 @@ export {
   versionSlots,
   versionsOf,
 } from './model/recipe';
+export { photoAtCorner } from './model/recipe-card';
 export { formatRecipeText, type RecipeLine, recipeLines } from './model/recipe-lines';
 export { FUJI_SIMULATIONS, type RecipeSystem, systemOfCamera, SYSTEMS } from './model/systems';

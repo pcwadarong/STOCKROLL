@@ -17,6 +17,7 @@ describe('parseCardStyle', () => {
       textPlace: 'top-right',
       textSize: 80,
       dim: 25,
+      detail: 'full',
       ratio: '4x5',
       background: '#0b0b0c',
       titleColor: '#ff0000',

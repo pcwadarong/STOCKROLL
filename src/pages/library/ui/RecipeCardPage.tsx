@@ -7,6 +7,7 @@ import {
   CARD_ALIGNS,
   CARD_BACKGROUND_SWATCHES,
   CARD_DESIGNS,
+  CARD_DETAILS,
   CARD_DIM,
   CARD_GAPS,
   CARD_INK_SWATCHES,
@@ -263,6 +264,21 @@ export const RecipeCardPage = () => {
           </fieldset>
 
           <fieldset className={bench.group}>
+            <legend className={bench.legend}>File</legend>
+            <Segments
+              label="File size"
+              value={style.detail}
+              options={CARD_DETAILS}
+              onChange={detail => update({ detail })}
+            />
+            <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
+              {style.detail === 'full'
+                ? 'Keeps the photos as sharp as they were opened, up to the largest image a browser can draw. Larger file. The preview does not change.'
+                : 'Sized for posting. Smaller file, quick to upload.'}
+            </Text>
+          </fieldset>
+
+          <fieldset className={bench.group}>
             <legend className={bench.legend}>Colors</legend>
             <div className={controls}>
               <Control label="Background">
@@ -283,7 +299,10 @@ export const RecipeCardPage = () => {
                   onChange={titleColor => update({ titleColor })}
                 />
               </Control>
-              <Control label="Settings" hint="Auto picks dark or light to suit what is behind.">
+              <Control
+                label="Settings"
+                hint="Auto picks dark or light to suit what is behind the text."
+              >
                 <SwatchRow
                   label="Color of the settings"
                   value={style.textColor}

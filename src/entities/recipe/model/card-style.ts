@@ -20,6 +20,8 @@ export type CardOwnPlace =
 /** `sheet` gives the text a place of its own beside the photos; `cover` sets it over them. */
 export type CardDesign = 'sheet' | 'cover';
 export type CardPadding = 's' | 'm' | 'l';
+/** `optimized` saves the card at its working size; `full` at the detail its photos have. */
+export type CardDetail = 'optimized' | 'full';
 export type CardGap = 'none' | 's' | 'm' | 'l';
 
 /** How a recipe card looks. One style for every recipe, remembered on this device. */
@@ -48,6 +50,8 @@ export type CardStyle = {
   textSize: number;
   /** `cover`: how much the photos are darkened under the text, in percent. */
   dim: number;
+  /** How large the saved file is. The preview is always drawn at the working size. */
+  detail: CardDetail;
 };
 
 /** Most photos a card can show. */
@@ -57,6 +61,11 @@ export const CARD_DESIGNS = [
   { value: 'sheet', label: 'Beside' },
   { value: 'cover', label: 'Over' },
 ] as const satisfies readonly { value: CardDesign; label: string }[];
+
+export const CARD_DETAILS = [
+  { value: 'optimized', label: 'Optimized' },
+  { value: 'full', label: 'Full size' },
+] as const satisfies readonly { value: CardDetail; label: string }[];
 
 export const CARD_ALIGNS = [
   { value: 'left', label: 'Left' },
@@ -111,17 +120,11 @@ export const CARD_BELOW_PLACES = [
   { value: 'below-right', label: 'Right' },
 ] as const satisfies readonly { value: CardOwnPlace; label: string }[];
 
-/**
- * The black offered as a card color. Also what photos darkened under the text are taken for when
- * a text color is picked automatically.
- */
-export const CARD_BLACK = '#0b0b0c';
-
 /** Card colors offered beside the color picker. */
 export const CARD_BACKGROUND_SWATCHES = [
   { value: BRAND.ivory, label: 'Ivory' },
   { value: '#ffffff', label: 'White' },
-  { value: CARD_BLACK, label: 'Black' },
+  { value: '#0b0b0c', label: 'Black' },
 ] as const;
 
 /** Text colors offered beside the color picker. The empty value picks from the background. */
@@ -145,6 +148,7 @@ export const DEFAULT_CARD_STYLE: CardStyle = {
   textPlace: 'bottom-left',
   textSize: 60,
   dim: 40,
+  detail: 'optimized',
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -191,6 +195,7 @@ export const parseCardStyle = (stored: unknown): CardStyle => {
     textPlace: oneOf(CARD_TEXT_PLACES, raw.textPlace, base.textPlace),
     textSize: within(raw.textSize, CARD_TEXT_SIZE, base.textSize),
     dim: within(raw.dim, CARD_DIM, base.dim),
+    detail: oneOf(CARD_DETAILS, raw.detail, base.detail),
   };
 };
 

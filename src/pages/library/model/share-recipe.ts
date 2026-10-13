@@ -1,14 +1,21 @@
 import { inkFor, OUTPUT_PRESETS } from '@/entities/frame';
-import { currentMark, drawMark, type Mark, markLines, markRoomBelow } from '@/entities/mark';
+import {
+  currentMark,
+  drawMark,
+  inkOver,
+  type Mark,
+  markLines,
+  markRoomBelow,
+} from '@/entities/mark';
 import {
   CARD_AUTO_RATIO,
-  CARD_BLACK,
   CARD_GAP_UNITS,
   CARD_PADDING_UNITS,
   cardOwnSpot,
   type CardStyle,
   drawRecipeCard,
   formatRecipeText,
+  photoAtCorner,
   type Recipe,
   recipeLines,
   recipePhotoUrl,
@@ -103,16 +110,27 @@ export const decodeCardPhoto = async (file: Blob) => {
 
 type OwnText = { mark: Mark; image: ImageBitmap | null };
 
+type Box = { x: number; y: number; width: number; height: number };
+const scaled = (box: Box, by: number): Box => ({
+  x: box.x * by,
+  y: box.y * by,
+  width: box.width * by,
+  height: box.height * by,
+});
+
 /**
  * Draws a recipe as a card — its photos, name and settings — with the user's own text in the
  * place the card style gives it. The preview and the saved file both come from here, so they
- * cannot differ. The caller makes sure the text's font is loaded (`ensureFont`).
+ * cannot differ in anything but size. The caller makes sure the text's font is loaded
+ * (`ensureFont`).
  * @param canvas canvas to draw on; its size is replaced
  * @param recipe recipe to render
  * @param settings settings of the version on the card
  * @param photos the photos on the card, in order
  * @param style the card's design, size, spacing, colors and place for the user's text
  * @param own the user's text settings and image
+ * @param full draws at the detail the photos have instead of the working size. For saving: the
+ * preview stays at the working size
  */
 export const drawShareCard = (
   canvas: HTMLCanvasElement,
@@ -121,14 +139,12 @@ export const drawShareCard = (
   photos: readonly ImageBitmap[],
   style: CardStyle,
   { mark, image }: OwnText,
+  full = false,
 ) => {
   const system = systemOf(recipe);
-  const covered = style.design === 'cover';
   const spot = cardOwnSpot(style.ownPlace, style.design, photos.length > 0);
   // No photo here carries a shooting date the card could vouch for, so a date line prints nothing.
   const ownLines = markLines(mark);
-  // Over darkened photos the text is light; on plain paper it follows the paper.
-  const { ink } = inkFor(covered && photos.length > 0 ? CARD_BLACK : style.background);
   const layout = drawRecipeCard(
     canvas,
     { name: recipe.name, sub: SYSTEMS[system].label, lines: recipeLines(system, settings) },
@@ -142,29 +158,37 @@ export const drawShareCard = (
       gap: CARD_GAP_UNITS[style.gap],
       align: style.align,
       textFirst: style.textFirst,
-      cover: covered
-        ? { place: style.textPlace, share: style.textSize / 100, dim: style.dim / 100 }
-        : undefined,
+      cover:
+        style.design === 'cover'
+          ? { place: style.textPlace, share: style.textSize / 100, dim: style.dim / 100 }
+          : undefined,
       colors: {
         background: style.background,
-        title: style.titleColor || ink,
-        text: style.textColor || ink,
+        title: style.titleColor || undefined,
+        text: style.textColor || undefined,
+        fallback: inkFor(style.background).ink,
       },
+      inkOver,
+      full,
     },
   );
   const context = canvas.getContext('2d');
   if (!context || !spot) return;
+  // The mark is placed in canvas pixels, so the card's boxes are scaled up to them.
+  const { scale } = layout;
+  // A corner of the photos means a corner of an actual photo: in a grid one cell is the text.
+  const photo = spot.area === 'photo' ? photoAtCorner(layout, spot.position) : layout.photoArea;
   drawMark(
     context,
     spot.area === 'photo' ? 'photo' : 'image',
     {
-      photo: layout.photoArea,
+      photo: photo && scaled(photo, scale),
       // Places below hang under the content; places at the edge ignore this.
-      block: layout.block,
-      whole: { x: 0, y: 0, width: layout.width, height: layout.height },
+      block: scaled(layout.block, scale),
+      whole: { x: 0, y: 0, width: canvas.width, height: canvas.height },
     },
     // The card is laid out for a short edge of 1080, the size the mark's dimensions are given for.
-    1,
+    scale,
     { ...mark, position: spot.position },
     ownLines,
     image,
@@ -173,8 +197,8 @@ export const drawShareCard = (
 
 /**
  * Renders a recipe card and hands it to the share sheet where the browser has one, otherwise to
- * the browser's downloads. It is drawn on a canvas of its own, apart from the preview. The image
- * is made on the device; nothing is uploaded.
+ * the browser's downloads. It is drawn on a canvas of its own, apart from the preview, at the
+ * file size the card style asks for. The image is made on the device; nothing is uploaded.
  * @param recipe recipe to render
  * @param settings settings of the version on the card
  * @param photos the photos on the card, already loaded, in order
@@ -194,7 +218,7 @@ export const shareRecipeCard = async (
   // A canvas draws in the fallback face when the font file has not arrived yet.
   await ensureFont(own.mark.font);
   const canvas = document.createElement('canvas');
-  drawShareCard(canvas, recipe, settings, photos, style, own);
+  drawShareCard(canvas, recipe, settings, photos, style, own, style.detail === 'full');
   const blob = await canvasToJpeg(canvas, CARD_QUALITY);
   const filename = `${recipe.name.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'recipe'}.jpg`;
 

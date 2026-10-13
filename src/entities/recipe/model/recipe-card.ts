@@ -556,3 +556,49 @@ export const recipeCoverLayout = (
     block,
   };
 };
+
+type Corner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+/**
+ * Finds the photo that sits in a corner of the card's photos. In a grid one cell may hold the
+ * text instead of a photo, so the corner of the whole area is not always a photo: this gives the
+ * photo whose own corner is nearest to it.
+ * @param layout the card's layout
+ * @param corner which corner of the photos
+ * @returns where that photo is drawn, or undefined when the card has no photo
+ */
+export const photoAtCorner = (
+  { photos, photoArea }: Pick<CardLayout, 'photos' | 'photoArea'>,
+  corner: Corner,
+): Box | undefined => {
+  if (!photoArea || photos.length === 0) return undefined;
+  const pointOf = (box: Box) => ({
+    x: box.x + (corner.endsWith('right') ? box.width : 0),
+    y: box.y + (corner.startsWith('bottom') ? box.height : 0),
+  });
+  const target = pointOf(photoArea);
+  const away = (box: Box) => Math.hypot(pointOf(box).x - target.x, pointOf(box).y - target.y);
+  return photos
+    .map(photo => photo.box)
+    .reduce((best, box) => (away(box) < away(best) ? box : best));
+};
+
+// Mobile Safari refuses canvases above roughly 16.7 million pixels and fails silently (the
+// frame's full-size export keeps to the same limit).
+const MAX_CANVAS_PIXELS = 16_000_000;
+
+/**
+ * How much larger than its layout a card can be saved so its photos keep the detail they have:
+ * the factor at which the most reduced photo is drawn pixel for pixel, never below 1 and never
+ * past the largest canvas a browser can draw.
+ * @param layout the card's layout
+ * @param maxPixels most pixels the saved image may have
+ * @returns the factor to scale the whole card by
+ */
+export const cardExportScale = (
+  { width, height, photos }: Pick<CardLayout, 'width' | 'height' | 'photos'>,
+  maxPixels = MAX_CANVAS_PIXELS,
+) => {
+  const wanted = Math.max(1, ...photos.map(({ source, box }) => source.width / box.width));
+  return Math.max(1, Math.min(wanted, Math.sqrt(maxPixels / (width * height))));
+};

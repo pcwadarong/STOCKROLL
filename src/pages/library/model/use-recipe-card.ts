@@ -38,9 +38,24 @@ export const useRecipeCard = (
   const { mark, image } = useMark();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [photos, setPhotos] = useState<readonly CardPhotoItem[]>([]);
-  // Every bitmap made here, so all of them can be released when the screen is left. One taken
-  // off the card is not closed at once: a save that started before may still be drawing it.
+  // Every bitmap made here that is still open. A decoded photo is about 12MB, and a phone's
+  // browser kills the tab without a word once memory runs out, so one taken off the card is
+  // closed as soon as nothing can still be drawing it.
   const made = useRef<ImageBitmap[]>([]);
+  const onCard = useRef(photos);
+  const saves = useRef(0);
+  const release = () => {
+    // A save draws after an await, from the photos it started with.
+    if (saves.current > 0) return;
+    const kept = new Set(onCard.current.map(photo => photo.bitmap));
+    made.current = made.current.filter(bitmap => kept.has(bitmap) || (bitmap.close(), false));
+  };
+  // After the change is on screen: the preview that was drawing the old photos has been called
+  // off by then (its effect is cleaned up first).
+  useEffect(() => {
+    onCard.current = photos;
+    release();
+  }, [photos]);
   useEffect(
     () => () => {
       for (const bitmap of made.current) bitmap.close();
@@ -58,13 +73,17 @@ export const useRecipeCard = (
       bitmap => {
         if (!active) return bitmap?.close();
         if (bitmap) made.current.push(bitmap);
-        // The card of another recipe starts over from that recipe's own photo.
-        setPhotos(bitmap ? [{ id: `example:${path}`, bitmap, example: true }] : []);
+        // Photos added while this was loading stay: the example photo goes in front of them.
+        setPhotos(current => {
+          const added = current.filter(photo => !photo.example);
+          const example = bitmap ? [{ id: `example:${path}`, bitmap, example: true }] : [];
+          return [...example, ...added].slice(0, MAX_CARD_PHOTOS);
+        });
         setLoaded({ path, failed: false });
       },
       () => {
         if (!active) return;
-        setPhotos([]);
+        setPhotos(current => current.filter(photo => !photo.example));
         setLoaded({ path, failed: true });
       },
     );
@@ -117,12 +136,18 @@ export const useRecipeCard = (
 
   const save = async () => {
     if (!ready || !recipe || !settings) throw new Error('The card is not ready');
-    return shareRecipeCard(
-      recipe,
-      settings,
-      photos.map(photo => photo.bitmap),
-      style,
-    );
+    saves.current += 1;
+    try {
+      return await shareRecipeCard(
+        recipe,
+        settings,
+        photos.map(photo => photo.bitmap),
+        style,
+      );
+    } finally {
+      saves.current -= 1;
+      release();
+    }
   };
 
   return {
