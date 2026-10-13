@@ -4,8 +4,8 @@ import { stripHeight } from './spec';
 import {
   cropRect,
   DEFAULT_STYLE,
-  effectiveStyle,
   inkFor,
+  letteringFor,
   parseStyle,
   textScale,
   usesShootingInfo,
@@ -22,13 +22,13 @@ describe('parseStyle', () => {
       template: 'hologram',
       padding: 9,
       background: 'red',
-      font: 'serif',
+      align: 'right',
     });
 
     expect(style.template).toBe(DEFAULT_STYLE.template);
     expect(style.padding).toBe(DEFAULT_STYLE.padding);
     expect(style.background).toBe(DEFAULT_STYLE.background);
-    expect(style.font).toBe('serif');
+    expect(style.align).toBe('right');
   });
 
   it('when a full valid style was stored, it must come back unchanged', () => {
@@ -38,57 +38,34 @@ describe('parseStyle', () => {
       padding: 0,
       position: 'top',
       crop: 'pano',
-      font: 'typewriter',
-      textSize: 'l',
-      textColor: '#ffa630',
       align: 'right',
-      text: 'Seoul',
     };
 
     expect(parseStyle(stored)).toEqual(stored);
   });
-});
 
-describe('effectiveStyle', () => {
-  const chosen = {
-    ...DEFAULT_STYLE,
-    font: 'typewriter' as const,
-    textSize: 'l' as const,
-    textColor: '#ff0000',
-    align: 'right' as const,
-    text: 'Seoul',
-  };
-
-  it('when the template is Text, the lettering choices must be used as they are', () => {
-    expect(effectiveStyle({ ...chosen, template: 'text' })).toEqual({
-      ...chosen,
-      template: 'text',
-    });
+  it('when an older version stored the Photo only template, it must become Text', () => {
+    expect(parseStyle({ template: 'none' }).template).toBe('text');
   });
 
-  it('when the template is any other, lettering chosen for Text must not leak into it', () => {
-    const drawn = effectiveStyle({ ...chosen, template: 'center' });
+  it('when an older version stored lettering in the style, those fields must be dropped', () => {
+    expect(parseStyle({ font: 'serif', text: 'Seoul', textSize: 'l' })).toEqual(DEFAULT_STYLE);
+  });
+});
 
-    expect(drawn.font).toBe(DEFAULT_STYLE.font);
-    expect(drawn.textSize).toBe(DEFAULT_STYLE.textSize);
-    expect(drawn.textColor).toBe('');
-    expect(drawn.text).toBe('');
+describe('letteringFor', () => {
+  const chosen = { font: 'typewriter', size: 'l', color: '#ff0000' } as const;
+
+  it('when the template is Text, the lettering choices must be used as they are', () => {
+    expect(letteringFor('text', chosen)).toEqual(chosen);
+  });
+
+  it('when the template is any other, lettering chosen for own text must not leak into it', () => {
+    expect(letteringFor('center', chosen)).toEqual({ font: 'sans', size: 'm', color: '' });
   });
 
   it('when the template is the date stamp, it must be lettered in the segment display', () => {
-    expect(effectiveStyle({ ...chosen, template: 'stamp' }).font).toBe('digital');
-  });
-
-  it('when the template is not Text, frame settings such as background and padding must be kept', () => {
-    const drawn = effectiveStyle({
-      ...chosen,
-      template: 'film',
-      background: '#1f4e3d',
-      padding: 0,
-    });
-
-    expect(drawn.background).toBe('#1f4e3d');
-    expect(drawn.padding).toBe(0);
+    expect(letteringFor('stamp', chosen).font).toBe('digital');
   });
 });
 
@@ -132,16 +109,12 @@ describe('cropRect', () => {
 
 describe('textScale', () => {
   it('when the date stamp is used, its lettering must be smaller than a caption at the same size', () => {
-    expect(textScale({ template: 'stamp', textSize: 'm' })).toBeLessThan(
-      textScale({ template: 'center', textSize: 'm' }),
-    );
+    expect(textScale('stamp', 'm')).toBeLessThan(textScale('center', 'm'));
   });
 
   it('when a larger size is picked, every template must grow', () => {
     for (const template of ['label', 'stamp', 'film'] as const)
-      expect(textScale({ template, textSize: 'l' })).toBeGreaterThan(
-        textScale({ template, textSize: 'm' }),
-      );
+      expect(textScale(template, 'l')).toBeGreaterThan(textScale(template, 'm'));
   });
 });
 
@@ -152,9 +125,8 @@ describe('stripHeight', () => {
 });
 
 describe('usesShootingInfo', () => {
-  it('when the template is Text or Photo only, it must report that no shooting info is printed', () => {
+  it('when the template is Text, it must report that no shooting info is printed', () => {
     expect(usesShootingInfo('text')).toBe(false);
-    expect(usesShootingInfo('none')).toBe(false);
   });
 
   it('when the template prints camera or exposure, it must report that shooting info is used', () => {

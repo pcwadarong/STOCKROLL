@@ -5,6 +5,7 @@ import {
   editorStatusText,
   openErrorText,
   previewStateOf,
+  queueFullText,
   saveSummaryText,
   savingProgressText,
 } from './batch-text';
@@ -128,5 +129,17 @@ describe('editorStatusText', () => {
         message: 'old',
       }),
     ).toBe('Saving 3 of 12…');
+  });
+});
+
+describe('queueFullText', () => {
+  it('when every chosen file fit, it must say nothing', () => {
+    expect(queueFullText(0, 50)).toBe('');
+  });
+
+  it('when files were left unopened, it must say how many and name the limit', () => {
+    expect(queueFullText(1, 50)).toContain('1 photo was not opened');
+    expect(queueFullText(4, 50)).toContain('4 photos were not opened');
+    expect(queueFullText(4, 50)).toContain('up to 50 photos');
   });
 });

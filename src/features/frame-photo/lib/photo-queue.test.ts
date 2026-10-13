@@ -5,9 +5,11 @@ import {
   applyGearPicksToAll,
   currentPhoto,
   emptyQueue,
+  MAX_PHOTOS,
   type PhotoQueue,
   type QueueItem,
   removePhoto,
+  roomLeft,
   selectPhoto,
   setPhotoPick,
 } from './photo-queue';
@@ -154,5 +156,22 @@ describe('applyGearPicksToAll', () => {
   it('when the source photo is not in the queue, it must change nothing', () => {
     const queue = queueOf(['a', 'b'], 'a');
     expect(applyGearPicksToAll(queue, 'gone')).toBe(queue);
+  });
+});
+
+describe('roomLeft', () => {
+  const queueOf = (count: number) => ({
+    items: Array.from({ length: count }, (_, index) => ({ id: `p${index}`, picks: {} })),
+    currentId: null,
+  });
+
+  it('when the queue is below the limit, it must report how many more photos fit', () => {
+    expect(roomLeft(queueOf(0))).toBe(MAX_PHOTOS);
+    expect(roomLeft(queueOf(MAX_PHOTOS - 3))).toBe(3);
+  });
+
+  it('when the queue is at the limit, it must report no room and never a negative number', () => {
+    expect(roomLeft(queueOf(MAX_PHOTOS))).toBe(0);
+    expect(roomLeft(queueOf(MAX_PHOTOS + 2))).toBe(0);
   });
 });

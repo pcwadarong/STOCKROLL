@@ -1,5 +1,4 @@
 export { drawFrame, type FrameLook } from './lib/draw-frame';
-export { ensureFont } from './lib/fonts';
 export { type CaptionBlock, captionHeight, EMPTY_INFO, type FrameInfo } from './model/caption';
 export {
   computeLayout,
@@ -15,15 +14,14 @@ export {
   cropRect,
   CROPS,
   DEFAULT_STYLE,
-  effectiveStyle,
-  FONTS,
   type FrameStyle,
   type FrameTemplate,
+  type Lettering,
+  letteringFor,
   PADDING_UNITS,
   PADDINGS,
   parseStyle,
   TEMPLATES,
-  TEXT_SWATCHES,
   textScale,
   usesShootingInfo,
 } from './model/style';

@@ -1,7 +1,8 @@
 import { HStack, Text } from '@seed-design/react';
 import { type DragEvent, useRef, useState } from 'react';
 
-import { OUTPUT_PRESETS, usesShootingInfo } from '@/entities/frame';
+import { OUTPUT_PRESETS, TEMPLATES, usesShootingInfo } from '@/entities/frame';
+import { MarkFields } from '@/entities/mark';
 import { systemOf, SYSTEMS } from '@/entities/recipe';
 import { canShareFiles } from '@/shared/lib/save-file';
 import { Button } from '@/shared/ui/Button';
@@ -12,18 +13,14 @@ import { Chip } from 'seed-design/ui/chip';
 import { SegmentedControl, SegmentedControlItem } from 'seed-design/ui/segmented-control';
 import { TextField, TextFieldInput } from 'seed-design/ui/text-field';
 
-import {
-  decodeErrorText,
-  editorStatusText,
-  MULTIPLE_DOWNLOADS_HINT,
-  previewStateOf,
-} from '../lib/batch-text';
+import { decodeErrorText, editorStatusText, previewStateOf } from '../lib/batch-text';
 import { BROWSER_CAPTURE_HINT } from '../lib/capture-hint';
 import { FROM_EXIF } from '../lib/resolve-caption';
 import { useFrameEditor } from '../model/use-frame-editor';
 
 import { PhotoStrip } from './PhotoStrip';
-import { FrameSection, StyleSection, TextSection } from './StylePanel';
+import { SaveDialog } from './SaveDialog';
+import { FrameSection, StyleSection, TextPlaceControl } from './StylePanel';
 
 import * as css from './FrameEditor.css';
 
@@ -60,13 +57,14 @@ const AddLink = ({ to, children }: { to: string; children: string }) => (
  * @param props `signedIn` enables the links to register gear and recipes, which need an account
  */
 export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
-  const { canvasRef, store, library, resolved, outputSize, exportJpeg, saveAll } = useFrameEditor();
-  const { queue, current, bitmap, preset, style, logo, focalMode, detail, error } = store;
-  const { setPick, setPreset, updateStyle, setLogoFile, setFocalMode, setDetail } = store;
+  const { canvasRef, store, library, resolved, outputSize, exportJpeg, savePhotos } =
+    useFrameEditor();
+  const { queue, current, bitmap, preset, style, focalMode, detail, error } = store;
+  const { setPick, setPreset, updateStyle, setFocalMode, setDetail } = store;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [shareable] = useState(canShareFiles);
-  const [asking, setAsking] = useState<'clear' | 'apply' | null>(null);
+  const [asking, setAsking] = useState<'clear' | 'apply' | 'save' | null>(null);
 
   const photos = queue.items;
   const picks = current?.picks ?? {};
@@ -211,14 +209,21 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
 
           <StyleSection style={style} onChange={updateStyle} />
 
-          {style.template === 'text' && (
-            <TextSection
-              style={style}
-              onChange={updateStyle}
-              hasImage={logo !== null}
-              onImage={file => void setLogoFile(file)}
+          {/* The user's own text is not a template setting: it goes on every look, in the place
+              that look keeps for it or laid over the picture, and on recipe cards too. */}
+          <fieldset className={css.group}>
+            <legend className={css.legend}>Text</legend>
+            <MarkFields
+              template={{
+                hint: TEMPLATES.find(item => item.value === style.template)?.own ?? '',
+                lettered: style.template === 'text',
+                controls:
+                  style.template === 'text' ? (
+                    <TextPlaceControl style={style} onChange={updateStyle} />
+                  ) : undefined,
+              }}
             />
-          )}
+          </fieldset>
 
           {/* Templates that print no shooting info have nothing to ask about it. The values typed
               here are kept and come back with a template that uses them. */}
@@ -426,12 +431,6 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
           </fieldset>
         </div>
 
-        {many && (
-          <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
-            {MULTIPLE_DOWNLOADS_HINT}
-          </Text>
-        )}
-
         <div className={css.actions}>
           {shareable && (
             <Button
@@ -442,24 +441,22 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
               Share
             </Button>
           )}
+          {/* One button for every state, so keyboard focus stays put when a run starts. With
+              several photos open it asks which ones to save. */}
           <Button
             className={css.action}
-            variant={many ? 'secondary' : 'primary'}
-            disabled={!ready}
-            onClick={() => void exportJpeg('download')}
+            variant="primary"
+            disabled={!saving && !ready}
+            onClick={
+              saving
+                ? store.stopSaving
+                : many
+                  ? () => setAsking('save')
+                  : () => void exportJpeg('download')
+            }
           >
-            Save JPEG
+            {saving ? 'Stop saving' : 'Save JPEG'}
           </Button>
-          {many && (
-            // One button for both states, so keyboard focus stays put when the run starts.
-            <Button
-              className={css.actionWide}
-              variant="primary"
-              onClick={saving ? store.stopSaving : () => void saveAll()}
-            >
-              {saving ? 'Stop saving' : `Save all ${photos.length} photos`}
-            </Button>
-          )}
         </div>
       </aside>
 
@@ -482,6 +479,17 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
         {photos.length - 1} have. A field left on auto stays auto, so each photo keeps reading its
         own EXIF. Exposure values are not copied.
       </ConfirmDialog>
+
+      <SaveDialog
+        open={asking === 'save'}
+        onOpenChange={open => setAsking(open ? 'save' : null)}
+        photos={photos}
+        currentId={queue.currentId}
+        saving={store.saving}
+        // The dialog stays up to show the run's progress and closes when the run ends.
+        onSave={ids => void savePhotos(ids).then(() => setAsking(null))}
+        onStop={store.stopSaving}
+      />
 
       <ConfirmDialog
         open={asking === 'clear'}

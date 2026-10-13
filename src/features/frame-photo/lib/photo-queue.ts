@@ -26,6 +26,20 @@ export type PhotoQueue<T extends QueueItem> = { items: readonly T[]; currentId: 
 export const GEAR_PICK_KEYS = ['camera', 'lens', 'film', 'look'] as const;
 
 /**
+ * The most photos the editor holds at once. Each one keeps its file and a thumbnail in memory,
+ * and a save run walks all of them.
+ */
+export const MAX_PHOTOS = 50;
+
+/**
+ * How many more photos fit in the queue.
+ * @param queue the opened photos
+ * @returns the room left, never below zero
+ */
+export const roomLeft = <T extends QueueItem>(queue: PhotoQueue<T>) =>
+  Math.max(0, MAX_PHOTOS - queue.items.length);
+
+/**
  * Makes an empty queue.
  * @returns a queue with no photos and no current photo
  */

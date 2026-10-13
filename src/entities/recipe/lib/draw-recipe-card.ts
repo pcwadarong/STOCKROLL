@@ -29,6 +29,7 @@ const fontOf = (style: CardTextStyle) =>
  * @param canvas canvas to draw on; its size is replaced
  * @param card the recipe name, the line under it and its settings as lines
  * @param photo the example photo, when the recipe has one
+ * @returns where everything was drawn, for whoever lays something over the card
  */
 export const drawRecipeCard = (
   canvas: HTMLCanvasElement,
@@ -75,4 +76,5 @@ export const drawRecipeCard = (
     write(label);
     write(value);
   }
+  return layout;
 };

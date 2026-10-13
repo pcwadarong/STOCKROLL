@@ -18,17 +18,19 @@ import {
 } from '@/entities/frame';
 import { type ExifInfo, type FocalMode, readExif } from '@/entities/photo';
 
-import { openErrorText, type SaveProgress } from '../lib/batch-text';
+import { openErrorText, queueFullText, type SaveProgress } from '../lib/batch-text';
 import { looksLikeBrowserCapture } from '../lib/capture-hint';
 import {
   appendPhotos,
   applyGearPicksToAll,
   currentPhoto,
   emptyQueue,
+  MAX_PHOTOS,
   type PhotoQueue,
   type Picks,
   type QueueItem,
   removePhoto,
+  roomLeft,
   selectPhoto,
   setPhotoPick,
 } from '../lib/photo-queue';
@@ -48,7 +50,6 @@ export type QueuedPhoto = QueueItem & {
 };
 
 const STYLE_KEY = 'stockroll:frame-style';
-const LOGO_DECODE_HEIGHT = 320;
 
 const readStoredStyle = (): FrameStyle => {
   try {
@@ -73,8 +74,6 @@ type EditorStore = {
   preset: OutputPreset;
   /** The look of the frame, shared by every photo and remembered on this device. */
   style: FrameStyle;
-  /** A small image of the user's own drawn with the caption. Kept in memory only. */
-  logo: ImageBitmap | null;
   focalMode: FocalMode;
   detail: ExportDetail;
   error: string;
@@ -96,8 +95,6 @@ type EditorStore = {
   setPreset: (preset: OutputPreset) => void;
   /** Changes some fields of the style, keeping the rest. */
   updateStyle: (patch: Partial<FrameStyle>) => void;
-  /** Attaches a logo from an image file, or removes it with `null`. */
-  setLogoFile: (file: File | null) => Promise<void>;
   setFocalMode: (mode: FocalMode) => void;
   setDetail: (detail: ExportDetail) => void;
   setError: (message: string) => void;
@@ -127,7 +124,6 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
   const [decodeFailed, setDecodeFailed] = useState(false);
   const [preset, setPreset] = useState<OutputPreset>(DEFAULT_PRESET);
   const [style, setStyle] = useState<FrameStyle>(readStoredStyle);
-  const [logo, setLogo] = useState<ImageBitmap | null>(null);
   const [focalMode, setFocalMode] = useState<FocalMode>('actual');
   const [detail, setDetail] = useState<ExportDetail>('optimized');
   const [error, setError] = useState('');
@@ -194,8 +190,12 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
       loadCurrent();
     };
 
-    const read = async (files: readonly File[]) => {
+    const read = async (chosen: readonly File[]) => {
       const openedAt = Date.now();
+      // Files past the limit are left unopened and said so, rather than dropped silently.
+      const files = chosen.slice(0, roomLeft(latestQueue.current));
+      const skipped = chosen.length - files.length;
+      setReading(count => count - skipped);
       const added: QueuedPhoto[] = [];
       const failed: string[] = [];
       // One file at a time: reading EXIF loads the whole file, and a batch of 25MB exports read
@@ -223,7 +223,8 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
         setReading(count => count - 1);
       }
       commit(appendPhotos(latestQueue.current, added));
-      if (failed.length > 0) setError(openErrorText(failed));
+      const problems = [openErrorText(failed), queueFullText(skipped, MAX_PHOTOS)].filter(Boolean);
+      if (problems.length > 0) setError(problems.join(' '));
     };
 
     return {
@@ -292,19 +293,6 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [style]);
 
-  const setLogoFile = useCallback(async (file: File | null) => {
-    if (!file) return setLogo(null);
-    try {
-      // Drawn at about 44px on a 1080 canvas; a few times that covers full-size exports.
-      setLogo(
-        await createImageBitmap(file, { resizeHeight: LOGO_DECODE_HEIGHT, resizeQuality: 'high' }),
-      );
-    } catch {
-      setError('Could not read that image. Try a PNG or JPEG.');
-    }
-  }, []);
-  useEffect(() => () => logo?.close(), [logo]);
-
   const store = useMemo<EditorStore>(
     () => ({
       queue,
@@ -313,7 +301,6 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
       decodeFailed,
       preset,
       style,
-      logo,
       focalMode,
       detail,
       error,
@@ -323,7 +310,6 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
       ...actions,
       setPreset,
       updateStyle,
-      setLogoFile,
       setFocalMode,
       setDetail,
       setError,
@@ -335,7 +321,6 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
       decodeFailed,
       preset,
       style,
-      logo,
       focalMode,
       detail,
       error,
@@ -344,7 +329,6 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
       saving,
       actions,
       updateStyle,
-      setLogoFile,
     ],
   );
 

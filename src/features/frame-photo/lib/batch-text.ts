@@ -98,6 +98,17 @@ export const openErrorText = (failed: readonly string[]) => {
 };
 
 /**
+ * Words the notice for files left unopened because the editor was full.
+ * @param skipped how many of the chosen files were not opened
+ * @param limit the most photos the editor holds
+ * @returns the message, or an empty string when every file fit
+ */
+export const queueFullText = (skipped: number, limit: number) =>
+  skipped > 0
+    ? `The editor holds up to ${limit} photos, so ${photos(skipped)} ${skipped === 1 ? 'was' : 'were'} not opened. Save and remove some, then open the rest.`
+    : '';
+
+/**
  * Picks the one line the editor's live region shows. Work in progress outranks the result of
  * earlier work, and saving outranks the rest because it is the longest wait.
  * @param state the save progress, how many files are still being read, whether the current

@@ -1,17 +1,20 @@
+import type { FontId } from '@/shared/lib/canvas-fonts';
+
 import type { Rect, Size } from './layout';
 
 /** How the shooting info is arranged, and where. Each template is one finished look. */
-export type FrameTemplate =
-  'label' | 'center' | 'bar' | 'overlay' | 'stamp' | 'film' | 'text' | 'none';
+export type FrameTemplate = 'label' | 'center' | 'bar' | 'overlay' | 'stamp' | 'film' | 'text';
 
-export type FontId = 'sans' | 'grotesk' | 'serif' | 'typewriter' | 'display' | 'digital';
 export type TextSize = 's' | 'm' | 'l';
 export type TextAlign = 'left' | 'center' | 'right';
 export type FramePosition = 'top' | 'center' | 'bottom';
 export type FrameCrop = 'none' | '16:9' | 'cinema' | 'pano';
 export type PaddingStep = 0 | 1 | 2 | 3;
 
-/** Everything about the look of an exported frame that is not the photo or its shooting info. */
+/**
+ * Everything about the look of an exported frame that is not the photo, its shooting info or the
+ * user's own text (which is not a frame setting: the same text also goes on recipe cards).
+ */
 export type FrameStyle = {
   template: FrameTemplate;
   /** Margin color as `#rrggbb`. Text color is derived from it. */
@@ -21,35 +24,56 @@ export type FrameStyle = {
   position: FramePosition;
   /** The one way a photo is ever cropped: a wide cut the user asks for. */
   crop: FrameCrop;
-  font: FontId;
-  textSize: TextSize;
-  /** Lettering color as `#rrggbb`, or empty to let the template and the margin color decide. */
-  textColor: string;
-  /** Where the Text template puts its line and image. */
+  /** Where the Text template puts the user's lines and image. */
   align: TextAlign;
-  /** A free line of the user's own. Drawn by the Text template only. */
-  text: string;
 };
 
-export const TEMPLATES = [
-  { value: 'label', label: 'Label', hint: 'Camera on the left, exposure on the right.' },
-  { value: 'center', label: 'Centered', hint: 'Two lines under the photo.' },
-  { value: 'bar', label: 'Bar', hint: 'Exposure values spread across one line.' },
-  { value: 'overlay', label: 'Overlay', hint: 'Text on the photo, no caption margin.' },
-  { value: 'stamp', label: 'Date stamp', hint: 'Amber read-out in the corners of the photo.' },
-  { value: 'film', label: 'Film strip', hint: 'Sprocket holes and edge print.' },
-  { value: 'text', label: 'Text', hint: 'Your own line and a small image, set the way you like.' },
-  { value: 'none', label: 'Photo only', hint: 'Just the photo.' },
-] as const satisfies readonly { value: FrameTemplate; label: string; hint: string }[];
+/** How text is lettered: the face, the size step and the color (empty lets the margin decide). */
+export type Lettering = { font: FontId; size: TextSize; color: string };
 
-export const FONTS = [
-  { value: 'sans', label: 'System sans' },
-  { value: 'grotesk', label: 'Barlow' },
-  { value: 'serif', label: 'Serif' },
-  { value: 'typewriter', label: 'Courier Prime' },
-  { value: 'display', label: 'Anton' },
-  { value: 'digital', label: 'Segment display' },
-] as const satisfies readonly { value: FontId; label: string }[];
+/**
+ * The looks on offer. `own` says where the user's own text goes in that look, and is empty for a
+ * look that has no place for it.
+ */
+export const TEMPLATES = [
+  {
+    value: 'label',
+    label: 'Label',
+    hint: 'Camera on the left, exposure on the right.',
+    own: 'One line on the right, under the exposure.',
+  },
+  {
+    value: 'center',
+    label: 'Centered',
+    hint: 'Two lines under the photo.',
+    own: 'Up to two lines under the shooting info.',
+  },
+  { value: 'bar', label: 'Bar', hint: 'Exposure values spread across one line.', own: '' },
+  {
+    value: 'overlay',
+    label: 'Overlay',
+    hint: 'Text on the photo, no caption margin.',
+    own: 'One line under the shooting info.',
+  },
+  {
+    value: 'stamp',
+    label: 'Date stamp',
+    hint: 'Amber read-out in the corners of the photo.',
+    own: 'One line under the exposure read-out.',
+  },
+  {
+    value: 'film',
+    label: 'Film strip',
+    hint: 'Sprocket holes and edge print.',
+    own: 'One line at the right of the upper strip.',
+  },
+  {
+    value: 'text',
+    label: 'Text',
+    hint: 'No shooting info: your own text and image, or just the photo.',
+    own: 'Up to two lines under the photo, with your image.',
+  },
+] as const satisfies readonly { value: FrameTemplate; label: string; hint: string; own: string }[];
 
 export const CROPS = [
   { value: 'none', label: 'Off' },
@@ -72,13 +96,6 @@ export const BACKGROUND_SWATCHES = [
   { value: '#f4efe3', label: 'Cream' },
 ] as const;
 
-/** Lettering colors offered beside the color picker. The empty value lets the template decide. */
-export const TEXT_SWATCHES = [
-  { value: '', label: 'Auto' },
-  { value: '#ffffff', label: 'White' },
-  { value: '#111111', label: 'Black' },
-] as const;
-
 /** Margin around the photo for each padding step, on a 1080-wide canvas. */
 export const PADDING_UNITS: Record<PaddingStep, number> = { 0: 0, 1: 24, 2: 48, 3: 96 };
 
@@ -88,13 +105,14 @@ const TEXT_SCALE: Record<TextSize, number> = { s: 0.85, m: 1, l: 1.25 };
 const TEMPLATE_SCALE: Partial<Record<FrameTemplate, number>> = { stamp: 0.74 };
 
 /**
- * How large the lettering is drawn: the size the user picked, adjusted for templates whose text
- * is meant to be smaller than a caption.
- * @param style the look picked in the editor
+ * How large the lettering is drawn: the size step, adjusted for templates whose text is meant to
+ * be smaller than a caption.
+ * @param template the look picked
+ * @param size the size step of the lettering
  * @returns a multiplier on the base text size
  */
-export const textScale = (style: Pick<FrameStyle, 'template' | 'textSize'>) =>
-  TEXT_SCALE[style.textSize] * (TEMPLATE_SCALE[style.template] ?? 1);
+export const textScale = (template: FrameTemplate, size: TextSize) =>
+  TEXT_SCALE[size] * (TEMPLATE_SCALE[template] ?? 1);
 
 const CROP_RATIO: Record<FrameCrop, number | null> = {
   none: null,
@@ -109,11 +127,7 @@ export const DEFAULT_STYLE: FrameStyle = {
   padding: 2,
   position: 'center',
   crop: 'none',
-  font: 'sans',
-  textSize: 'm',
-  textColor: '',
   align: 'center',
-  text: '',
 };
 
 /** Templates whose text sits on the photo or on a dark strip, so the margin color does not set it. */
@@ -137,7 +151,12 @@ export const parseStyle = (stored: unknown): FrameStyle => {
   const raw = (stored && typeof stored === 'object' ? stored : {}) as Record<string, unknown>;
   const base = DEFAULT_STYLE;
   return {
-    template: isOneOf(TEMPLATES, raw.template) ? raw.template : base.template,
+    // "Photo only" was a template of its own once; it is now Text with nothing typed.
+    template: isOneOf(TEMPLATES, raw.template)
+      ? raw.template
+      : raw.template === 'none'
+        ? 'text'
+        : base.template,
     background:
       typeof raw.background === 'string' && HEX.test(raw.background)
         ? raw.background.toLowerCase()
@@ -148,53 +167,37 @@ export const parseStyle = (stored: unknown): FrameStyle => {
         ? raw.position
         : base.position,
     crop: isOneOf(CROPS, raw.crop) ? raw.crop : base.crop,
-    font: isOneOf(FONTS, raw.font) ? raw.font : base.font,
-    textSize:
-      raw.textSize === 's' || raw.textSize === 'l' || raw.textSize === 'm'
-        ? raw.textSize
-        : base.textSize,
-    textColor:
-      typeof raw.textColor === 'string' && HEX.test(raw.textColor)
-        ? raw.textColor.toLowerCase()
-        : base.textColor,
     align:
       raw.align === 'left' || raw.align === 'right' || raw.align === 'center'
         ? raw.align
         : base.align,
-    text: typeof raw.text === 'string' ? raw.text : base.text,
   };
 };
 
 /**
- * Tells whether a template prints shooting info. Text and Photo only do not, so the editor has no
- * reason to ask for camera, lens or exposure while one of them is picked.
+ * Tells whether a template prints shooting info. Text does not, so the editor has no reason to
+ * ask for camera, lens or exposure while it is picked.
  * @param template the look picked
  * @returns true when camera, lens, exposure or look can appear on the frame
  */
-export const usesShootingInfo = (template: FrameTemplate) =>
-  template !== 'text' && template !== 'none';
+export const usesShootingInfo = (template: FrameTemplate) => template !== 'text';
 
-// Templates other than Text are finished looks with their own lettering.
+/** The lettering of every template but Text: finished looks keep their own. */
+const FIXED_LETTERING: Lettering = { font: 'sans', size: 'm', color: '' };
 const TEMPLATE_FONT: Partial<Record<FrameTemplate, FontId>> = { stamp: 'digital' };
 
 /**
- * The style as it is actually drawn. Lettering choices (font, size, color, alignment, own text)
- * belong to the Text template; every other template keeps its own fixed lettering, so a choice
- * made for Text never leaks into a look that was not designed around it.
- * @param style the style as stored
- * @returns the style to draw with
+ * The lettering a caption is actually drawn in. The user's choices belong to the Text template;
+ * every other template keeps its own fixed lettering, so a choice made for the user's own text
+ * never leaks into a look that was not designed around it.
+ * @param template the look picked
+ * @param chosen the lettering the user picked for their own text
+ * @returns the lettering to draw the caption with
  */
-export const effectiveStyle = (style: FrameStyle): FrameStyle =>
-  style.template === 'text'
-    ? style
-    : {
-        ...style,
-        font: TEMPLATE_FONT[style.template] ?? DEFAULT_STYLE.font,
-        textSize: DEFAULT_STYLE.textSize,
-        textColor: DEFAULT_STYLE.textColor,
-        align: DEFAULT_STYLE.align,
-        text: '',
-      };
+export const letteringFor = (template: FrameTemplate, chosen: Lettering): Lettering =>
+  template === 'text'
+    ? chosen
+    : { ...FIXED_LETTERING, font: TEMPLATE_FONT[template] ?? FIXED_LETTERING.font };
 
 /**
  * Picks text colors that read on a margin color: dark ink on light paper, light ink on dark.

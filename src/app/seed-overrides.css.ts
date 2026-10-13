@@ -56,6 +56,17 @@ globalStyle('html .seed-alert-dialog__content', {
   wordBreak: 'normal',
   overflowWrap: 'break-word',
 });
+globalStyle('html .seed-dialog__content', { wordBreak: 'normal', overflowWrap: 'break-word' });
+
+// Dialog: a body that scrolls fades out at its lower edge, and SEED pads it by the full depth of
+// that fade, which leaves a wide empty band above the footer once scrolled to the end. A
+// shallower fade keeps the cue and closes the band.
+const FADE = vars.$dimension.x4;
+globalStyle('html .seed-dialog__body[data-overflow]', {
+  paddingBottom: FADE,
+  maskImage: `linear-gradient(to top, transparent 0, black ${FADE})`,
+  WebkitMaskImage: `linear-gradient(to top, transparent 0, black ${FADE})`,
+});
 
 // Answers sit side by side with Cancel on the left, and wrap when there are too many to fit.
 globalStyle('html .seed-alert-dialog__footer', {
