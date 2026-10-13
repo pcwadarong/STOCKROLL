@@ -396,7 +396,7 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
 
           <fieldset className={css.group}>
             <legend className={css.legend}>Output</legend>
-            {/* Five ratios overflow a SegmentedControl in the narrow panel; chips wrap instead. */}
+            {/* This many ratios overflow a SegmentedControl in the narrow panel; chips wrap instead. */}
             <Chip.RadioRoot
               aria-label="Output ratio"
               value={preset.id}
