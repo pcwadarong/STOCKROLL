@@ -9,15 +9,18 @@ import { PickField } from './PickField';
 import { labelTitle } from './label.css';
 import * as css from './RecordForm.css';
 
+/** A short remark under a field. */
+export type FieldNote = { text: string; tone: 'alert' | 'done' };
+
 type RecordFormProps = {
   fields: readonly RecordField[];
   values: RecordValues;
   onChange: (key: string, value: string) => void;
   /**
-   * A remark per field key, shown in red under that field — for a value that needs a second
-   * look before saving.
+   * A remark per field key, shown under that field: `alert` in red for a value that needs a
+   * second look before saving, `done` in green for one that was filled in for the user.
    */
-  notes?: Readonly<Record<string, string>>;
+  notes?: Readonly<Record<string, FieldNote>>;
 };
 
 /**
@@ -65,7 +68,7 @@ export const RecordForm = ({ fields, values, onChange, notes }: RecordFormProps)
           {note ? (
             <div className={css.flagged}>
               {control}
-              <p className={css.note}>{note}</p>
+              <p className={css.note[note.tone]}>{note.text}</p>
             </div>
           ) : (
             control

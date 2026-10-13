@@ -172,34 +172,12 @@ export const sheetValue = style({
 // The star sits at the end of a panel's heading row, pulled up so it does not make the row taller.
 export const headingStar = style([star, { marginBlock: `calc(${vars.$dimension.x2} * -1)` }]);
 
-// What a paste yielded, in three voices: a quiet count, what to check in red, and what was left
-// out in gray. Only the things to check are set in ink.
+// What a paste could not use, set quietly in gray. What it did fill is marked under each field.
 export const pasteResult = style({ display: 'grid', gap: vars.$dimension.x3 });
 
 export const pasteGroup = style({ display: 'grid', gap: vars.$dimension.x1_5 });
 
 export const pasteCount = style([labelText, { margin: 0, color: vars.$color.fg.neutralSubtle }]);
-
-export const pasteCheck = style([
-  labelText,
-  { margin: 0, color: vars.$color.fg.brand, fontWeight: vars.$fontWeight.bold },
-]);
-
-export const pasteRows = style({ display: 'grid', margin: 0 });
-
-// Field on the left, what to check on the right; stacked on phones.
-export const pasteRow = style({
-  display: 'grid',
-  gridTemplateColumns: '12rem minmax(0, 1fr)',
-  columnGap: vars.$dimension.x4,
-  paddingBlock: vars.$dimension.x1_5,
-  borderBottom: `1px solid ${vars.$color.stroke.neutralSubtle}`,
-  '@media': { [NARROW_MEDIA_QUERY]: { gridTemplateColumns: 'minmax(0, 1fr)' } },
-});
-
-export const pasteField = style([labelText, { color: vars.$color.fg.neutralSubtle }]);
-
-export const pasteDetail = style({ margin: 0, overflowWrap: 'anywhere' });
 
 export const pasteUnread = style({
   display: 'grid',

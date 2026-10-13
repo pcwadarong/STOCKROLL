@@ -28,7 +28,7 @@ import { ErrorText } from '@/shared/ui/ErrorText';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Panel } from '@/shared/ui/Panel';
 import { PickField } from '@/shared/ui/PickField';
-import { RecordForm } from '@/shared/ui/RecordForm';
+import { type FieldNote, RecordForm } from '@/shared/ui/RecordForm';
 import { PageShell } from '@/widgets/page-shell';
 
 import {
@@ -106,8 +106,8 @@ const RecipeEditForm = ({
     note: recipe?.note ?? '',
     ...initial,
   });
-  // Fields of pasted text that need a second look, with the remark to show under each.
-  const [guessed, setGuessed] = useState<Record<string, string>>({});
+  // Fields filled from pasted text, with the remark to show under each until it is edited.
+  const [guessed, setGuessed] = useState<Record<string, FieldNote>>({});
   // Counts the times the settings were replaced wholesale, which makes a shown paste result stale.
   const [wipes, setWipes] = useState(0);
   const [source, setSource] = useState('');
@@ -120,18 +120,21 @@ const RecipeEditForm = ({
 
   const fill = ({ settings, flags }: ParsedRecipeText) => {
     setValues(prev => ({ ...prev, ...settings }));
-    // A field filled again loses its old remark; it gets a new one only if it is flagged again.
-    setGuessed(prev => ({
-      ...Object.fromEntries(Object.entries(prev).filter(([key]) => !(key in settings))),
-      // A field can carry two remarks (a misspelled name and an unusual number, say).
-      ...flags.reduce<Record<string, string>>(
-        (notes, flag) => ({
-          ...notes,
-          [flag.key]: [notes[flag.key], flagText(flag)].filter(Boolean).join(' · '),
-        }),
-        {},
-      ),
-    }));
+    // Every field the paste filled says so under it: in red with what to check when it was
+    // flagged (a field can carry two remarks), in green otherwise. A field filled again loses
+    // its old remark.
+    const filled = Object.fromEntries(
+      Object.keys(settings).map((key): [string, FieldNote] => {
+        const remarks = flags.filter(flag => flag.key === key).map(flagText);
+        return [
+          key,
+          remarks.length > 0
+            ? { text: remarks.join(' · '), tone: 'alert' }
+            : { text: 'Pasted', tone: 'done' },
+        ];
+      }),
+    );
+    setGuessed(prev => ({ ...prev, ...filled }));
   };
 
   const change = (key: string, value: string) => {

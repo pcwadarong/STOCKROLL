@@ -13,8 +13,7 @@ import { TextField, TextFieldTextarea } from 'seed-design/ui/text-field';
 import * as css from './LibraryPage.css';
 
 /**
- * Says in a few words what to check about a pasted value. Used both in the list under the paste
- * box and under the field itself, so the two never tell it differently.
+ * Says in a few words what to check about a pasted value, for the remark under its field.
  * @param flag what the reader flagged
  * @returns a short phrase naming the pasted text and what was made of it
  */
@@ -45,8 +44,8 @@ type PasteSettingsProps = {
 /**
  * Lets a recipe be pasted as text and sorted into the form's fields. The text is read on the
  * device; nothing is saved until the form itself is saved, so every value can be checked first.
- * What needs a second look — a guessed misspelling, an unusual number, a setting given twice —
- * is listed apart in red; what was left out is listed last, quietly.
+ * What was filled, and what needs a second look, is marked under each field by the form; this
+ * lists only the lines that could not be used.
  * @param props the camera system and the handler that receives what the text yielded
  */
 export const PasteSettings = ({ system, wipes, onFill }: PasteSettingsProps) => {
@@ -66,8 +65,6 @@ export const PasteSettings = ({ system, wipes, onFill }: PasteSettingsProps) => 
     onFill(parsed);
   };
 
-  const labelOf = (key: string) =>
-    SYSTEMS[system].fields.find(field => field.key === key)?.label ?? key;
   const filled = result ? Object.keys(result.settings).length : 0;
 
   return (
@@ -88,24 +85,10 @@ export const PasteSettings = ({ system, wipes, onFill }: PasteSettingsProps) => 
           Fill in fields
         </Button>
       </div>
-      {/* Announced, because the result appears below the button that caused it. */}
+      {/* What was filled is marked under each field below. Only what could not be used is
+          listed here, and announced, because it shows up nowhere else. */}
       <div role="status" className={css.pasteResult}>
-        {result && (
-          <p className={css.pasteCount}>{filled > 0 ? `Filled ${filled}` : 'Nothing recognized'}</p>
-        )}
-        {result && result.flags.length > 0 && (
-          <section className={css.pasteGroup}>
-            <h4 className={css.pasteCheck}>Check {result.flags.length}</h4>
-            <dl className={css.pasteRows}>
-              {result.flags.map(flag => (
-                <div key={`${flag.key}:${flag.kind}`} className={css.pasteRow}>
-                  <dt className={css.pasteField}>{labelOf(flag.key)}</dt>
-                  <dd className={css.pasteDetail}>{flagText(flag)}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-        )}
+        {result && filled === 0 && <p className={css.pasteCount}>Nothing recognized</p>}
         {result && result.unread.length > 0 && (
           <section className={css.pasteGroup}>
             <h4 className={css.pasteCount}>Not used {result.unread.length}</h4>
