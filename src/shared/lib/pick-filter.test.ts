@@ -1,30 +1,25 @@
 import { describe, expect, it } from 'vitest';
 
-import { ANY, FAVORITES_ONLY, listFilter, matchesPicks } from './pick-filter';
+import { activePicks, ANY, FAVORITES_ONLY, listFilter } from './pick-filter';
 
-describe('matchesPicks', () => {
-  const item = { status: 'repair', kind: 'film', isFavorite: true, bodyType: null };
-
-  it('when nothing is picked, every record must match', () => {
-    expect(matchesPicks(item, {})).toBe(true);
+describe('activePicks', () => {
+  it('when nothing is picked, it must ask for no filter', () => {
+    expect(activePicks({})).toEqual({});
   });
 
-  it('when a pick is All, it must not narrow the list', () => {
-    expect(matchesPicks(item, { status: ANY, kind: 'film' })).toBe(true);
+  it('when a pick is All, it must be left out so it does not narrow the list', () => {
+    expect(activePicks({ status: ANY, kind: 'film' })).toEqual({ kind: 'film' });
   });
 
-  it('when several facts are picked, the record must satisfy all of them', () => {
-    expect(matchesPicks(item, { status: 'repair', kind: 'film' })).toBe(true);
-    expect(matchesPicks(item, { status: 'repair', kind: 'digital' })).toBe(false);
+  it('when several facts are picked, it must keep all of them', () => {
+    expect(activePicks({ status: 'repair', kind: 'film' })).toEqual({
+      status: 'repair',
+      kind: 'film',
+    });
   });
 
-  it('when a value is picked for a field the record leaves empty, it must not match', () => {
-    expect(matchesPicks(item, { bodyType: 'slr' })).toBe(false);
-  });
-
-  it('when favorites only is picked, it must match starred records alone', () => {
-    expect(matchesPicks(item, FAVORITES_ONLY)).toBe(true);
-    expect(matchesPicks({ ...item, isFavorite: false }, FAVORITES_ONLY)).toBe(false);
+  it('when favorites only is picked, it must ask for starred records as text', () => {
+    expect(activePicks(FAVORITES_ONLY)).toEqual({ isFavorite: 'true' });
   });
 });
 

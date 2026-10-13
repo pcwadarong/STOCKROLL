@@ -1,5 +1,5 @@
-import { createCollection } from '@/shared/api/collection';
-import type { RecordField } from '@/shared/lib/record-field';
+import { createCollection, type ListOrder } from '@/shared/api/collection';
+import { NOTE_FIELD, type RecordField } from '@/shared/lib/record-field';
 
 import { type RecipeSystem, SYSTEM_OPTIONS, SYSTEMS } from './systems';
 
@@ -68,7 +68,7 @@ export const RECIPE_FIELDS: readonly RecordField[] = [
     required: true,
     options: RECIPE_STATES,
   },
-  { key: 'note', label: 'Note', type: 'text' },
+  NOTE_FIELD,
 ];
 
 /** Recipe fields that can be edited after creation. The system is fixed once settings exist. */
@@ -138,6 +138,17 @@ export const recipeNote = (recipe: Pick<Recipe, 'state'>) => {
   const label = RECIPE_STATES.find(option => option.value === recipe.state)?.label;
   return label ? { label, tone: 'muted' as const } : undefined;
 };
+
+/**
+ * Order of the recipe list, as the gear lists do it: in the camera, then candidates, then
+ * archived (`list_rank`, computed by the database), favorites leading within each state and the
+ * oldest entry first otherwise.
+ */
+export const RECIPE_ORDER: readonly ListOrder[] = [
+  { column: 'listRank' },
+  { column: 'isFavorite', descending: true },
+  { column: 'createdAt' },
+];
 
 /**
  * Compares two settings objects, treating missing, null and blank values as the same.

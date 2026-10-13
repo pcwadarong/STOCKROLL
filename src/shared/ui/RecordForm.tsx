@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 
-import { TextField, TextFieldInput } from 'seed-design/ui/text-field';
+import { TextField, TextFieldInput, TextFieldTextarea } from 'seed-design/ui/text-field';
 
 import type { RecordField, RecordValues } from '../lib/record-field';
 
@@ -54,10 +54,14 @@ export const RecordForm = ({ fields, values, onChange, notes }: RecordFormProps)
             value={text}
             onValueChange={({ value: next }) => onChange(field.key, next)}
           >
-            <TextFieldInput
-              placeholder={field.placeholder}
-              inputMode={field.type === 'number' ? 'numeric' : undefined}
-            />
+            {field.type === 'multiline' ? (
+              <TextFieldTextarea placeholder={field.placeholder} autoresize />
+            ) : (
+              <TextFieldInput
+                placeholder={field.placeholder}
+                inputMode={field.type === 'number' ? 'numeric' : undefined}
+              />
+            )}
           </TextField>
         );
       const note = notes?.[field.key];

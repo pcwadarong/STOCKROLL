@@ -18,4 +18,11 @@ export {
   lensCollection,
   matchGear,
 } from './model/gear';
-export { arrangeGear, CAMERA_FILTERS, FILM_FILTERS, LENS_FILTERS, statusNote } from './model/views';
+export {
+  CAMERA_FILTERS,
+  FILM_FILTERS,
+  FILM_ORDER,
+  GEAR_ORDER,
+  LENS_FILTERS,
+  statusNote,
+} from './model/views';
