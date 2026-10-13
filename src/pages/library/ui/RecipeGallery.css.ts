@@ -94,9 +94,9 @@ export const title = style({ fontWeight: vars.$fontWeight.bold });
 
 export const sub = style([labelText, { color: vars.$color.fg.neutralSubtle, lineHeight: 1.6 }]);
 
-// A kit's slots in camera order. Seven across where there is room, so C1–C7 fill one row and the
-// dial positions line up under them; four across on a phone.
-export const strip = style({
+// A strip's custom settings on its own screen: all seven across where there is room, four across
+// on a phone.
+export const slotSheet = style({
   display: 'grid',
   gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
   gap: vars.$dimension.x3,
@@ -106,34 +106,12 @@ export const strip = style({
   '@media': { [NARROW_MEDIA_QUERY]: { gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' } },
 });
 
+// A slot with nothing to lead to keeps the tile's shape without acting like a link.
+export const stillTile = style([
+  tile,
+  { cursor: 'default', selectors: { '&:hover, &:focus-visible': { color: 'inherit' } } },
+]);
+
 export const slotLabel = style([labelText, { fontWeight: vars.$fontWeight.bold }]);
 
 export const slotName = style({ fontSize: vars.$fontSize.t2, lineHeight: 1.3 });
-
-export const kits = style({
-  display: 'grid',
-  gap: vars.$dimension.x8,
-  margin: 0,
-  padding: 0,
-  listStyle: 'none',
-});
-
-export const kit = style({ display: 'grid', gap: vars.$dimension.x3 });
-
-export const kitHeader = style({
-  display: 'flex',
-  flexWrap: 'wrap',
-  alignItems: 'baseline',
-  gap: vars.$dimension.x3,
-});
-
-export const kitName = style({
-  margin: 0,
-  fontSize: vars.$fontSize.t5,
-  fontWeight: vars.$fontWeight.bold,
-});
-
-export const kitCount = style([
-  labelText,
-  { marginRight: 'auto', color: vars.$color.fg.neutralSubtle },
-]);

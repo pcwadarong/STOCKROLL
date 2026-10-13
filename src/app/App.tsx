@@ -5,13 +5,14 @@ import { EditorPage } from '@/pages/editor';
 import { LandingPage } from '@/pages/landing';
 import { PrivacyPage, TermsPage } from '@/pages/legal';
 import {
-  KitEditPage,
-  KitListPage,
   LibraryPage,
   RecipeCardPage,
   RecipeDetailPage,
   RecipeEditPage,
   RecipeListPage,
+  StripDetailPage,
+  StripEditPage,
+  StripListPage,
 } from '@/pages/library';
 
 /**
@@ -30,9 +31,10 @@ export const App = () => (
         <Route path="/library/:kind/:id/edit" element={<LibraryPage editing />} />
         <Route path="/recipes" element={<RecipeListPage />} />
         <Route path="/recipes/new" element={<RecipeEditPage />} />
-        <Route path="/recipes/kits" element={<KitListPage />} />
-        <Route path="/recipes/kits/new" element={<KitEditPage />} />
-        <Route path="/recipes/kits/:id/edit" element={<KitEditPage />} />
+        <Route path="/recipes/strips" element={<StripListPage />} />
+        <Route path="/recipes/strips/new" element={<StripEditPage />} />
+        <Route path="/recipes/strips/:id" element={<StripDetailPage />} />
+        <Route path="/recipes/strips/:id/edit" element={<StripEditPage />} />
         <Route path="/recipes/:id" element={<RecipeDetailPage />} />
         <Route path="/recipes/:id/edit" element={<RecipeEditPage />} />
         <Route path="/recipes/:id/card" element={<RecipeCardPage />} />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { type Recipe, recipePhotoUrls } from '@/entities/recipe';
 
@@ -13,12 +13,21 @@ export const useRecipePhotos = (recipes: readonly Recipe[]) => {
   // Paths as one string, so the effect reruns only when the set of photos changes.
   const paths = recipes.flatMap(recipe => (recipe.photoPath ? [recipe.photoPath] : [])).join('\n');
 
+  // Links already made. A list that grows asks for the new photos only, so the pictures on
+  // screen keep their link and are not loaded again.
+  const known = useRef<Record<string, string>>({});
+
   useEffect(() => {
     let active = true;
-    recipePhotoUrls(paths ? paths.split('\n') : []).then(
-      next => active && setUrls(next),
+    const missing = (paths ? paths.split('\n') : []).filter(path => !known.current[path]);
+    if (missing.length === 0) return;
+    recipePhotoUrls(missing).then(
+      next => {
+        known.current = { ...known.current, ...next };
+        if (active) setUrls(known.current);
+      },
       // A photo that cannot be shown falls back to the recipe's name; the list stays usable.
-      () => active && setUrls({}),
+      () => {},
     );
     return () => {
       active = false;

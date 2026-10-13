@@ -17,6 +17,8 @@ export type GalleryItem = {
 };
 
 type RecipeGalleryProps = {
+  /** Lets a `ListMore` below point at this list. */
+  id?: string;
   items: readonly GalleryItem[];
   /** `photos` lays recipes out as picture tiles; `names` lists them one per line without pictures. */
   layout: 'photos' | 'names';
@@ -40,11 +42,11 @@ const Picture = ({ item }: { item: GalleryItem }) => (
 
 /**
  * Recipes shown by their example photos, or by name only. Tiles either lead to the recipe (`to`)
- * or pick it (`onPick`), which is how a kit's slots are filled.
+ * or pick it (`onPick`), which is how a strip's slots are filled.
  * @param props the recipes, the layout and what a tile does
  */
-export const RecipeGallery = ({ items, layout, to, onPick }: RecipeGalleryProps) => (
-  <ul className={layout === 'photos' ? css.grid : css.names}>
+export const RecipeGallery = ({ id, items, layout, to, onPick }: RecipeGalleryProps) => (
+  <ul id={id} className={layout === 'photos' ? css.grid : css.names}>
     {items.map(item => {
       const body =
         layout === 'photos' ? (

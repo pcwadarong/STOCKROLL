@@ -1,4 +1,4 @@
-import type { RecordField } from '@/shared/lib/record-field';
+import { NOTE_FIELD, type RecordField } from '@/shared/lib/record-field';
 
 export const STATUS = [
   { value: 'active', label: 'In use' },
@@ -72,7 +72,7 @@ export const CAMERA_FIELDS: readonly RecordField[] = [
   },
   { key: 'mount', label: 'Mount', type: 'text', placeholder: 'X, EF, fixed lens…' },
   { key: 'status', label: 'Status', type: 'select', required: true, options: STATUS },
-  { key: 'note', label: 'Note', type: 'text' },
+  NOTE_FIELD,
 ];
 
 export const LENS_FIELDS: readonly RecordField[] = [
@@ -92,7 +92,7 @@ export const LENS_FIELDS: readonly RecordField[] = [
   },
   { key: 'mount', label: 'Mount', type: 'text', placeholder: 'X, EF…' },
   { key: 'status', label: 'Status', type: 'select', required: true, options: STATUS },
-  { key: 'note', label: 'Note', type: 'text' },
+  NOTE_FIELD,
 ];
 
 export const FILM_FIELDS: readonly RecordField[] = [
@@ -112,7 +112,7 @@ export const FILM_FIELDS: readonly RecordField[] = [
     required: true,
     options: FILM_KIND,
   },
-  { key: 'note', label: 'Note', type: 'text' },
+  NOTE_FIELD,
 ];
 
 export const CAMERA_DEFAULTS = { kind: 'digital', status: 'active', isFavorite: false };

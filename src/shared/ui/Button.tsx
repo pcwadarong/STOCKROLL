@@ -17,7 +17,7 @@ type ButtonProps = {
   children: ReactNode;
 } & Pick<
   ButtonHTMLAttributes<HTMLButtonElement>,
-  'onClick' | 'disabled' | 'aria-label' | 'aria-expanded'
+  'onClick' | 'disabled' | 'aria-label' | 'aria-expanded' | 'aria-controls'
 >;
 
 /**

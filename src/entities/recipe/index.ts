@@ -30,20 +30,6 @@ export {
   MAX_CARD_PHOTOS,
   parseCardStyle,
 } from './model/card-style';
-export {
-  assignSlot,
-  clearSlot,
-  filledSlots,
-  isSimulationSlot,
-  type Kit,
-  KIT_SLOTS,
-  KIT_SYSTEM,
-  kitCollection,
-  type KitSlot,
-  liveSlots,
-  nextEmptySlot,
-  slotOfRecipe,
-} from './model/kit';
 export { type ParsedRecipeText, parseRecipeText, type PasteFlag } from './model/parse-recipe-text';
 export {
   blankSettings,
@@ -53,6 +39,7 @@ export {
   MAX_VERSIONS,
   type Recipe,
   RECIPE_FIELDS,
+  RECIPE_ORDER,
   RECIPE_STATES,
   recipeCollection,
   recipeFields,
@@ -68,4 +55,23 @@ export {
 } from './model/recipe';
 export { photoAtCorner } from './model/recipe-card';
 export { formatRecipeText, type RecipeLine, recipeLines } from './model/recipe-lines';
+export {
+  assignSlot,
+  clearSlot,
+  copyName,
+  filledSlots,
+  isSimulationSlot,
+  liveSlots,
+  nextEmptySlot,
+  RECIPE_SLOTS,
+  recipeIdsOf,
+  SIMULATION_SLOTS,
+  slotOfRecipe,
+  type Strip,
+  STRIP_ORDER,
+  STRIP_SLOTS,
+  STRIP_SYSTEM,
+  stripCollection,
+  type StripSlot,
+} from './model/strip';
 export { FUJI_SIMULATIONS, type RecipeSystem, systemOfCamera, SYSTEMS } from './model/systems';

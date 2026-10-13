@@ -3,13 +3,15 @@ import { describe, expect, it } from 'vitest';
 import {
   assignSlot,
   clearSlot,
+  copyName,
   filledSlots,
   isSimulationSlot,
-  KIT_SLOTS,
   liveSlots,
   nextEmptySlot,
+  recipeIdsOf,
   slotOfRecipe,
-} from './kit';
+  STRIP_SLOTS,
+} from './strip';
 
 describe('assignSlot', () => {
   it('when a recipe is put into an empty slot, it must leave the other slots as they were', () => {
@@ -63,12 +65,12 @@ describe('nextEmptySlot', () => {
   });
 
   it('when only an earlier slot is free, it must wrap around to it', () => {
-    const full = Object.fromEntries(KIT_SLOTS.map(slot => [slot, slot]));
+    const full = Object.fromEntries(STRIP_SLOTS.map(slot => [slot, slot]));
     expect(nextEmptySlot(clearSlot(full, 'C2'), 'FS3')).toBe('C2');
   });
 
   it('when every slot is taken, it must stay on the given slot', () => {
-    const full = Object.fromEntries(KIT_SLOTS.map(slot => [slot, slot]));
+    const full = Object.fromEntries(STRIP_SLOTS.map(slot => [slot, slot]));
     expect(nextEmptySlot(full, 'C4')).toBe('C4');
   });
 });
@@ -96,10 +98,31 @@ describe('liveSlots', () => {
 });
 
 describe('slotOfRecipe and filledSlots', () => {
-  it('when a recipe is in the kit, it must report its slot and count it', () => {
+  it('when a recipe is in the strip, it must report its slot and count it', () => {
     const slots = { C3: 'a', C5: 'b', FS1: 'ACROS' } as const;
     expect(slotOfRecipe(slots, 'b')).toBe('C5');
     expect(slotOfRecipe(slots, 'z')).toBeUndefined();
     expect(filledSlots(slots)).toBe(3);
+  });
+});
+
+describe('copyName', () => {
+  it('when a strip is copied, it must start under a name that differs from the original', () => {
+    expect(copyName('Autumn')).toBe('Autumn (copy)');
+  });
+});
+
+describe('recipeIdsOf', () => {
+  it('when custom settings hold recipes, it must list their ids in slot order', () => {
+    expect(recipeIdsOf({ C3: 'c', C1: 'a' })).toEqual(['a', 'c']);
+  });
+
+  it('when a dial position holds a film simulation, it must not be listed as a recipe', () => {
+    expect(recipeIdsOf({ C1: 'a', FS1: 'Classic Chrome' })).toEqual(['a']);
+  });
+
+  it('when the slots are missing or hold something that is not text, it must list nothing', () => {
+    expect(recipeIdsOf(null)).toEqual([]);
+    expect(recipeIdsOf({ C1: 7, C2: null })).toEqual([]);
   });
 });
