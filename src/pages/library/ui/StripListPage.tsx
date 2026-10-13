@@ -1,13 +1,14 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 
 import {
   filledSlots,
-  KIT_ORDER,
-  KIT_SLOTS,
-  kitCollection,
   liveSlots,
   recipeCollection,
   recipeIdsOf,
+  STRIP_ORDER,
+  STRIP_SLOTS,
+  stripCollection,
 } from '@/entities/recipe';
 import { SignInGate } from '@/features/auth';
 import { MESSAGES } from '@/shared/config/messages';
@@ -18,42 +19,42 @@ import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorText } from '@/shared/ui/ErrorText';
 import { formatCount, MetaList } from '@/shared/ui/MetaList';
-import { NoteText } from '@/shared/ui/NoteText';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Panel } from '@/shared/ui/Panel';
 import { PageShell } from '@/widgets/page-shell';
 
-import { KIT_STEP, SEARCH_DELAY_MS } from '../model/list-steps';
+import { SEARCH_DELAY_MS, STRIP_STEP } from '../model/list-steps';
 import { useRecipePhotos } from '../model/use-recipe-photos';
 
-import { KitStrip, slotContents } from './KitStrip';
+import { FilmStrip, slotContents } from './FilmStrip';
 import { ListMore, ListSearch } from './LibraryList';
 import { RecipeTabs } from './RecipeTabs';
 
-import * as css from './RecipeGallery.css';
+import * as css from './FilmStrip.css';
 
-const LIST_ID = 'kit-list';
+const LIST_ID = 'strip-list';
 
-/** Recipes read per request when filling in the kits on screen. */
+/** Recipes read per request when filling in the strips on screen. */
 const RECIPE_CHUNK = 100;
 
 /**
- * Kits: named sets of recipes laid out over the camera's slots, each shown as a strip. A search
- * finds a kit by its name or its note.
+ * Strips: named sets of recipes laid out over the camera's slots. Each is one line — its name
+ * over its frames, drawn as film — and leads to the strip's own screen. A search finds a strip by its name
+ * or its note.
  */
-export const KitListPage = () => {
+export const StripListPage = () => {
   const [query, setQuery] = useState('');
-  const list = useCollectionPage(kitCollection, {
+  const list = useCollectionPage(stripCollection, {
     search: useDebounced(query, SEARCH_DELAY_MS),
-    order: KIT_ORDER,
-    step: KIT_STEP,
+    order: STRIP_ORDER,
+    step: STRIP_STEP,
   });
-  const kits = list.rows;
-  // Only the recipes the kits on screen point at.
+  const strips = list.rows;
+  // Only the recipes the strips on screen point at.
   const recipes = useRelated(
     recipeCollection,
     'id',
-    kits.flatMap(kit => recipeIdsOf(kit.slots)),
+    strips.flatMap(strip => recipeIdsOf(strip.slots)),
     RECIPE_CHUNK,
   );
   const photoOf = useRecipePhotos(recipes.records);
@@ -64,18 +65,18 @@ export const KitListPage = () => {
   return (
     <PageShell wide>
       <PageHeader
-        title="Kits"
+        title="Strips"
         lead="Recipes for C1–C7 and film simulations for the FS dial, planned here and set on the camera by hand."
       />
 
-      <SignInGate what="kits">
+      <SignInGate what="strips">
         <RecipeTabs />
 
         <Panel
-          title="All kits"
+          title="All strips"
           action={
-            <Button variant="primary" size="small" to="/recipes/kits/new">
-              + New kit
+            <Button variant="primary" size="small" to="/recipes/strips/new">
+              + New strip
             </Button>
           }
         >
@@ -88,42 +89,36 @@ export const KitListPage = () => {
           )}
 
           {list.status === 'ready' && registered === 0 && (
-            <EmptyState title="No kit yet">
-              A kit gathers the recipes you want in the camera together, one per slot, under a name
-              of your own.
+            <EmptyState title="No strip yet">
+              A strip gathers the recipes you want in the camera together, one per slot, under a
+              name of your own.
             </EmptyState>
           )}
 
           {registered > 0 && (
             <>
-              <ListSearch label="Search kits" value={query} onChange={setQuery} />
+              <ListSearch label="Search strips" value={query} onChange={setQuery} />
 
               {list.status === 'ready' && list.total === 0 && (
-                <EmptyState title="Nothing here">No kit matches this search.</EmptyState>
+                <EmptyState title="Nothing here">No strip matches this search.</EmptyState>
               )}
 
               {/* Drawn once the recipes are known: until then a filled slot would read as empty. */}
-              {kits.length > 0 && recipes.ready && (
-                <ul id={LIST_ID} className={css.kits}>
-                  {kits.map(kit => {
-                    const slots = liveSlots(kit.slots, recipeIds);
+              {strips.length > 0 && recipes.ready && (
+                <ul id={LIST_ID} className={css.strips}>
+                  {strips.map(strip => {
+                    const slots = liveSlots(strip.slots, recipeIds);
                     return (
-                      <li key={kit.id} className={css.kit}>
-                        <div className={css.kitHeader}>
-                          <h3 className={css.kitName}>{kit.name}</h3>
-                          <span className={css.kitCount}>
-                            {filledSlots(slots)} / {KIT_SLOTS.length}
+                      <li key={strip.id}>
+                        <Link to={`/recipes/strips/${strip.id}`} className={css.stripLink}>
+                          <span className={css.stripHeader}>
+                            <span className={css.stripName}>{strip.name}</span>
+                            <span className={css.stripCount}>
+                              {filledSlots(slots)} / {STRIP_SLOTS.length}
+                            </span>
                           </span>
-                          <Button
-                            size="small"
-                            to={`/recipes/kits/${kit.id}/edit`}
-                            aria-label={`Edit ${kit.name}`}
-                          >
-                            Edit
-                          </Button>
-                        </div>
-                        {kit.note && <NoteText>{kit.note}</NoteText>}
-                        <KitStrip contents={slotContents(slots, recipes.records, photoOf)} />
+                          <FilmStrip contents={slotContents(slots, recipes.records, photoOf)} />
+                        </Link>
                       </li>
                     );
                   })}
@@ -133,10 +128,10 @@ export const KitListPage = () => {
               {list.moreFailed && <ErrorText>{MESSAGES.loadFailed}</ErrorText>}
               <ListMore
                 listId={LIST_ID}
-                shown={recipes.ready ? kits.length : 0}
+                shown={recipes.ready ? strips.length : 0}
                 total={list.total}
                 step={list.step}
-                loading={list.loadingMore || (kits.length > 0 && !recipes.ready)}
+                loading={list.loadingMore || (strips.length > 0 && !recipes.ready)}
                 busy={list.settling}
                 onMore={() => void list.more()}
               />

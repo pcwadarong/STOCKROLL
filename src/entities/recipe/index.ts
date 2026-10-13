@@ -7,22 +7,6 @@ export {
   uploadRecipePhoto,
 } from './api/recipe-photo';
 export { drawRecipeCard } from './lib/draw-recipe-card';
-export {
-  assignSlot,
-  clearSlot,
-  filledSlots,
-  isSimulationSlot,
-  type Kit,
-  KIT_ORDER,
-  KIT_SLOTS,
-  KIT_SYSTEM,
-  kitCollection,
-  type KitSlot,
-  liveSlots,
-  nextEmptySlot,
-  recipeIdsOf,
-  slotOfRecipe,
-} from './model/kit';
 export { type ParsedRecipeText, parseRecipeText, type PasteFlag } from './model/parse-recipe-text';
 export {
   blankSettings,
@@ -47,4 +31,23 @@ export {
   versionsOf,
 } from './model/recipe';
 export { formatRecipeText, type RecipeLine, recipeLines } from './model/recipe-lines';
+export {
+  assignSlot,
+  clearSlot,
+  copyName,
+  filledSlots,
+  isSimulationSlot,
+  liveSlots,
+  nextEmptySlot,
+  RECIPE_SLOTS,
+  recipeIdsOf,
+  SIMULATION_SLOTS,
+  slotOfRecipe,
+  type Strip,
+  STRIP_ORDER,
+  STRIP_SLOTS,
+  STRIP_SYSTEM,
+  stripCollection,
+  type StripSlot,
+} from './model/strip';
 export { FUJI_SIMULATIONS, type RecipeSystem, systemOfCamera, SYSTEMS } from './model/systems';

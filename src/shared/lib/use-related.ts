@@ -8,7 +8,7 @@ const RETRY_DELAY_MS = 1500;
 
 /**
  * Reads the records that the rows of a list point at — the versions of the recipes on screen, the
- * recipes in the kits on screen — and keeps them as the list grows, asking only for what it has
+ * recipes in the strips on screen — and keeps them as the list grows, asking only for what it has
  * not read yet.
  * @param collection the record store to read from
  * @param field the field to look the values up in, e.g. `id` or `recipeId`
