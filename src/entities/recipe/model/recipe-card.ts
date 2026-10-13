@@ -315,30 +315,36 @@ const gridCard = (input: CardInput, photos: readonly Size[], set: Settings): Car
   const width = input.canvas?.width ?? WIDTH;
   const inner = width - set.padding * 2;
   const column = Math.round((inner - set.gap) / 2);
+  // The gap is between photos. The text keeps the same distance from a photo here as anywhere
+  // else on a card, so a tight grid does not press the settings against the pictures.
+  const inset = Math.max(0, TEXT_GAP - set.gap);
+  const textWidth = column - inset;
   let scale = CELL_SCALE;
   let row: number;
   if (input.canvas) {
     row = Math.round((input.canvas.height - set.padding * 2 - set.footer - set.gap) / 2);
-    scale = scaleThatFits(input, { width: column, height: row });
+    scale = scaleThatFits(input, { width: textWidth, height: row - inset });
   } else {
-    row = Math.max(column, Math.ceil(setText(input, scale, column).height));
+    row = Math.max(column, Math.ceil(setText(input, scale, textWidth).height + inset));
   }
   const block: Box = { x: set.padding, y: set.padding, width: inner, height: row * 2 + set.gap };
   const cells = photoCells(block, 4, set.gap);
-  const textCell = cells[input.textFirst ? 0 : 3]!;
-  const photoCellsLeft = cells.filter(cell => cell !== textCell);
-  const text = setText(input, scale, column);
+  const cell = cells[input.textFirst ? 0 : 3]!;
+  const photoCellsLeft = cells.filter(other => other !== cell);
+  // The text's own room: the cell, drawn back from the two sides that face photos.
+  const room: Box = {
+    x: cell.x + (input.textFirst ? 0 : inset),
+    y: cell.y + (input.textFirst ? 0 : inset),
+    width: textWidth,
+    height: cell.height - inset,
+  };
+  const text = setText(input, scale, textWidth);
   return {
     width,
     height: input.canvas?.height ?? block.height + set.padding * 2 + set.footer,
     photos: photos.map((photo, index) => cover(photo, photoCellsLeft[index]!)),
     photoArea: block,
-    ...text.at(
-      textCell.x,
-      textCell.y + Math.max(0, (textCell.height - text.height) / 2),
-      column,
-      set.align,
-    ),
+    ...text.at(room.x, room.y + Math.max(0, (room.height - text.height) / 2), textWidth, set.align),
     block,
   };
 };

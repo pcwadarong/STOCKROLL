@@ -285,8 +285,30 @@ describe('recipeCardLayout with several photos', () => {
     expect(boxes[1]!.x).toBeGreaterThan(boxes[0]!.x);
     expect(boxes[2]!.y).toBeGreaterThan(boxes[0]!.y);
     // The text is in the bottom right cell.
-    expect(layout.title.x).toBe(boxes[1]!.x);
+    expect(layout.title.x).toBeGreaterThanOrEqual(boxes[1]!.x);
     expect(layout.title.y).toBeGreaterThan(boxes[2]!.y);
+  });
+
+  it('when the gap between photos is small, the text must still keep its distance from them', () => {
+    const edges = (gap: number) => {
+      const layout = recipeCardLayout({
+        ...base,
+        gap,
+        photos: [photo, photo, photo],
+        canvas: { width: 1080, height: 1350 },
+      });
+      const [, above, beside] = layout.photos.map(item => item.box);
+      return {
+        fromSide: layout.rule.x - (beside!.x + beside!.width),
+        fromAbove: layout.title.y - layout.title.size - (above!.y + above!.height),
+      };
+    };
+    for (const gap of [0, 12, 24]) {
+      expect(edges(gap).fromSide).toBe(56);
+      expect(edges(gap).fromAbove).toBeGreaterThanOrEqual(56);
+    }
+    // A gap wider than that distance is kept as it is.
+    expect(edges(80).fromSide).toBe(80);
   });
 
   it('when there are three photos and the text comes first, it must take the first cell', () => {
