@@ -87,7 +87,7 @@ export const dot = style({
     '&:hover, &:focus-visible': { borderColor: vars.$color.bg.positiveSolid },
     '&:focus-visible': {
       outline: `2px solid ${vars.$color.stroke.focusRing}`,
-      outlineOffset: '2px',
+      outlineOffset: vars.$dimension.x0_5,
     },
     '&:checked': {
       borderColor: vars.$color.bg.positiveSolid,

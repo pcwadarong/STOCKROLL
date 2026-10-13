@@ -37,7 +37,7 @@ export const tile = style({
   selectors: {
     '&:has(:focus-visible)': {
       outline: `2px solid ${vars.$color.stroke.focusRing}`,
-      outlineOffset: '2px',
+      outlineOffset: vars.$dimension.x0_5,
     },
   },
 });

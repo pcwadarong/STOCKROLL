@@ -94,7 +94,7 @@ export const useFrameEditor = () => {
     canvas.width = layout.canvas.width;
     canvas.height = layout.canvas.height;
     drawFrame(ctx, bitmap, layout, block, lookOf(style, own));
-    drawOwnText(ctx, layout, own, lines);
+    drawOwnText(ctx, layout, style, own, lines);
   }, [bitmap, layout, block, style, own, lines, loadedFonts]);
 
   const filenames = useMemo(

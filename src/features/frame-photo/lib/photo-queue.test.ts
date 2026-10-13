@@ -50,6 +50,16 @@ describe('appendPhotos', () => {
     expect(appendPhotos(queueOf(['a', 'b'], 'a'), [photo('c'), photo('d')]).currentId).toBe('c');
   });
 
+  it('when a later photo of a batch arrives, it must join the end without taking the preview', () => {
+    const queue = appendPhotos(queueOf(['a', 'b'], 'a'), [photo('c')], false);
+    expect(ids(queue)).toEqual(['a', 'b', 'c']);
+    expect(queue.currentId).toBe('a');
+  });
+
+  it('when a later photo arrives after every photo was removed, it must be shown', () => {
+    expect(appendPhotos(emptyQueue<QueueItem>(), [photo('c')], false).currentId).toBe('c');
+  });
+
   it('when nothing could be opened, it must leave the queue and the current photo unchanged', () => {
     const queue = queueOf(['a', 'b'], 'b');
     expect(appendPhotos(queue, [])).toBe(queue);

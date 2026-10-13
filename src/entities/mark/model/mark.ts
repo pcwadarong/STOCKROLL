@@ -247,7 +247,8 @@ export type MarkPlan = {
 /**
  * Lays the mark out over a picture: the image and the lines as one group, pushed to the chosen
  * place. The image sits on the outside — before the text, or after it when the group is on the
- * right. A mark too large for its room is shrunk whole, never clipped.
+ * right. A mark too large for its room is shrunk whole, never clipped, and a place just outside
+ * the photo that has no room falls back to the same side of the image.
  * @param input which area to use and its rectangles (`block` is the photo together with whatever
  * the template attached to it), the length of 1px on a 1080-wide picture, the position and size,
  * the width of each line in ems, and the image's pixel size
@@ -290,6 +291,19 @@ export const planMark = ({
             : areas.whole.y + areas.whole.height - block.y - block.height) - gapOut,
       }
     : { width: frame.width - inset * 2, height: frame.height - inset * 2 };
+  // With nothing between the photo and the edge of the picture — a canvas that hugs the photo,
+  // or a card with no photo at all — the mark goes to the same side of the image instead of
+  // vanishing from the export.
+  if (outside && room.height <= 0)
+    return planMark({
+      area,
+      areas,
+      unit,
+      position: insidePosition(position),
+      size,
+      lineEms,
+      image,
+    });
   if (room.width <= 0 || room.height <= 0) return null;
 
   const scale = unit * SIZE_SCALE[size];

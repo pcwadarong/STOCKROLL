@@ -48,7 +48,7 @@ type PlacePickerProps = {
   onChange: (place: { area: MarkArea; position: MarkPosition }) => void;
   /**
    * Given when the picture is drawn by a template that can place the text itself: the sentence
-   * that says where. Empty when the template has no place for it, which hides that choice.
+   * that says where.
    */
   templateHint?: string;
 };
@@ -61,8 +61,7 @@ type PlacePickerProps = {
  */
 export const PlacePicker = ({ area, position, onChange, templateHint }: PlacePickerProps) => {
   const name = useId();
-  // A template with no place for the text is not offered as one: the choice would do nothing.
-  const templated = !!templateHint;
+  const templated = templateHint !== undefined;
   const chosen = SPOTS.find(spot => spot.area === area && spot.position === position);
 
   return (
@@ -104,8 +103,7 @@ export const PlacePicker = ({ area, position, onChange, templateHint }: PlacePic
 
       <p className={css.hint} aria-live="polite">
         {area === 'template'
-          ? templateHint ||
-            'This template has no place of its own for text. Pick a spot on the picture.'
+          ? templateHint
           : `${chosen?.label ?? ''}. Text that lands on other lettering is yours to move.`}
       </p>
     </div>

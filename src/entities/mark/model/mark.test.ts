@@ -196,10 +196,21 @@ describe('planMark', () => {
     expect(insidePosition('above-left')).toBe('top-left');
   });
 
-  it('when there is no room under the photo, it must plan nothing rather than draw off the picture', () => {
+  it('when there is no room under the photo, it must fall back to the bottom edge of the image', () => {
     const tight = { ...whole, height: photo.y + photo.height + 10 };
+    const areas = { photo, whole: tight };
 
-    expect(plan({ area: 'image', position: 'below', areas: { photo, whole: tight } })).toBeNull();
+    expect(plan({ area: 'image', position: 'below-left', areas })).toEqual(
+      plan({ area: 'image', position: 'bottom-left', areas }),
+    );
+  });
+
+  it('when the picture has no photo, a place outside the photo must still be drawn on the image', () => {
+    const areas = { whole };
+
+    expect(plan({ area: 'image', position: 'above', areas })).toEqual(
+      plan({ area: 'image', position: 'top', areas }),
+    );
   });
 
   it('when the output is twice as large, every length must double', () => {

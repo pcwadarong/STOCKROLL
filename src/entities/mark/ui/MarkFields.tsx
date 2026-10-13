@@ -52,8 +52,8 @@ const Segments = <T extends string>({ label, value, options, onChange }: Segment
 
 type MarkFieldsProps = {
   /**
-   * Given when the picture is drawn by a template that can place the text itself: where that
-   * template puts it (empty when it has no place), whether it letters the text the user's way,
+   * Given when the picture is drawn by a template that has a place for the text: where that
+   * template puts it, whether it letters the text the user's way,
    * and any control of the template's own for that place.
    */
   template?: { hint: string; lettered: boolean; controls?: ReactNode };

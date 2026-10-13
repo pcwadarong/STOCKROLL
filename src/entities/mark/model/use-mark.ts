@@ -50,7 +50,12 @@ const update = (patch: Partial<Mark>) => {
   }
 };
 
+let latestImageRequest = 0;
+
 const setImageFile = async (file: File | null) => {
+  // A decode cannot be cancelled, and a large file picked first can finish after a small one
+  // picked second, or after Remove. Only the latest choice may reach the state.
+  const request = ++latestImageRequest;
   // The previous bitmap is left to the garbage collector rather than closed: an export that
   // started before the change may still be drawing it.
   if (!file) return commit({ ...state, image: null });
@@ -58,6 +63,7 @@ const setImageFile = async (file: File | null) => {
     resizeHeight: IMAGE_DECODE_HEIGHT,
     resizeQuality: 'high',
   });
+  if (request !== latestImageRequest) return image.close();
   commit({ ...state, image });
 };
 

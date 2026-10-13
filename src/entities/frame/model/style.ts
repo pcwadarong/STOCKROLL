@@ -175,6 +175,15 @@ export const parseStyle = (stored: unknown): FrameStyle => {
 };
 
 /**
+ * Tells whether a template keeps a place for the user's own text. Bar does not, so text left to
+ * the template there has to be laid over the picture instead.
+ * @param template the look picked
+ * @returns true when the template sets the user's text itself
+ */
+export const hasOwnPlace = (template: FrameTemplate) =>
+  TEMPLATES.some(item => item.value === template && item.own !== '');
+
+/**
  * Tells whether a template prints shooting info. Text does not, so the editor has no reason to
  * ask for camera, lens or exposure while it is picked.
  * @param template the look picked

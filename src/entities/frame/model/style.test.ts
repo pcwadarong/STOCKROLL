@@ -4,6 +4,7 @@ import { stripHeight } from './spec';
 import {
   cropRect,
   DEFAULT_STYLE,
+  hasOwnPlace,
   inkFor,
   letteringFor,
   parseStyle,
@@ -121,6 +122,17 @@ describe('textScale', () => {
 describe('stripHeight', () => {
   it('when the text is larger, the film strip band must grow so the print does not crowd the holes', () => {
     expect(stripHeight(1.25)).toBeGreaterThan(stripHeight(1));
+  });
+});
+
+describe('hasOwnPlace', () => {
+  it('when the template is Bar, it must report no place for own text', () => {
+    expect(hasOwnPlace('bar')).toBe(false);
+  });
+
+  it('when the template is any other, it must report a place for own text', () => {
+    for (const template of ['label', 'center', 'overlay', 'stamp', 'film', 'text'] as const)
+      expect(hasOwnPlace(template)).toBe(true);
   });
 });
 

@@ -138,6 +138,7 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
   const decoding = useRef(Promise.resolve());
   const opening = useRef(Promise.resolve());
   const photoCount = useRef(0);
+  const clearCount = useRef(0);
   const previewReleased = useRef(false);
   const stopRequested = useRef(false);
 
@@ -192,37 +193,52 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
 
     const read = async (chosen: readonly File[]) => {
       const openedAt = Date.now();
-      // Files past the limit are left unopened and said so, rather than dropped silently.
-      const files = chosen.slice(0, roomLeft(latestQueue.current));
-      const skipped = chosen.length - files.length;
-      setReading(count => count - skipped);
-      const added: QueuedPhoto[] = [];
+      const batch = clearCount.current;
       const failed: string[] = [];
+      let skipped = 0;
+      let shown = false;
       // One file at a time: reading EXIF loads the whole file, and a batch of 25MB exports read
       // in parallel is the memory spike this queue exists to avoid.
-      for (const file of files) {
-        try {
-          // The thumbnail comes first so a file that is not a photo fails before it is read whole.
-          const thumbnail = await createImageBitmap(file, {
-            resizeWidth: THUMBNAIL_WIDTH,
-            resizeQuality: 'medium',
-            imageOrientation: 'from-image',
-          });
-          const exif = await readExif(file);
-          added.push({
-            id: `photo-${++photoCount.current}`,
-            file,
-            exif,
-            thumbnail,
-            picks: {},
-            browserCapture: looksLikeBrowserCapture(exif, file.lastModified, openedAt),
-          });
-        } catch {
-          failed.push(file.name);
+      for (const [index, file] of chosen.entries()) {
+        // "Clear all" also drops what is still waiting to be read: photos arriving after it
+        // would look like the clear had not worked.
+        if (batch !== clearCount.current) {
+          setReading(count => count - (chosen.length - index));
+          return;
         }
+        // Room is counted when each file's turn comes, so a file that fails to open takes no
+        // slot and a photo removed meanwhile frees one. Files past the limit are left unopened
+        // and said so, rather than dropped silently.
+        if (roomLeft(latestQueue.current) === 0) skipped++;
+        else
+          try {
+            // The thumbnail comes first so a file that is not a photo fails before it is read whole.
+            const thumbnail = await createImageBitmap(file, {
+              resizeWidth: THUMBNAIL_WIDTH,
+              resizeQuality: 'medium',
+              imageOrientation: 'from-image',
+            });
+            const exif = await readExif(file);
+            const photo: QueuedPhoto = {
+              id: `photo-${++photoCount.current}`,
+              file,
+              exif,
+              thumbnail,
+              picks: {},
+              browserCapture: looksLikeBrowserCapture(exif, file.lastModified, openedAt),
+            };
+            if (batch !== clearCount.current) thumbnail.close();
+            else {
+              // Each photo joins the strip as soon as it is read. Only the first of a batch
+              // takes the preview: the rest must not pull it away from the photo being edited.
+              commit(appendPhotos(latestQueue.current, [photo], !shown));
+              shown = true;
+            }
+          } catch {
+            failed.push(file.name);
+          }
         setReading(count => count - 1);
       }
-      commit(appendPhotos(latestQueue.current, added));
       const problems = [openErrorText(failed), queueFullText(skipped, MAX_PHOTOS)].filter(Boolean);
       if (problems.length > 0) setError(problems.join(' '));
     };
@@ -242,6 +258,7 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
       select: (id: string) => commit(selectPhoto(latestQueue.current, id)),
       remove: (id: string) => commit(removePhoto(latestQueue.current, id)),
       clear: () => {
+        clearCount.current++;
         setError('');
         setMessage('');
         commit(emptyQueue());

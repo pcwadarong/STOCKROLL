@@ -16,6 +16,7 @@ export {
   DEFAULT_STYLE,
   type FrameStyle,
   type FrameTemplate,
+  hasOwnPlace,
   type Lettering,
   letteringFor,
   PADDING_UNITS,

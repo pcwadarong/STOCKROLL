@@ -7,6 +7,7 @@ import {
   type FrameLayout,
   frameSpec,
   type FrameStyle,
+  hasOwnPlace,
   letteringFor,
   type OutputPreset,
   textScale,
@@ -48,7 +49,8 @@ export const captionScale = (style: FrameStyle, own: OwnText) =>
 
 /**
  * Builds a photo's caption. The user's lines join it only when they are left to the template to
- * place; laid over the picture instead, they are drawn by `drawOwnText`.
+ * place and the template has a place for them; otherwise they are laid over the picture by
+ * `drawOwnText`.
  * @param style the look picked in the editor
  * @param info the photo's shooting info as strings
  * @param own the user's text settings and image
@@ -61,7 +63,7 @@ export const captionOf = (
   own: OwnText,
   lines: readonly string[],
 ) => {
-  const placed = own.mark.area === 'template';
+  const placed = own.mark.area === 'template' && hasOwnPlace(style.template);
   return frameCaption(style, info, placed ? lines : [], placed && own.image !== null);
 };
 
@@ -98,19 +100,21 @@ export const lookOf = (style: FrameStyle, own: OwnText) => {
 
 /**
  * Lays the user's text over a frame that has just been drawn, when it is not left to the
- * template. The preview and the export both end with this, so it sits in the same place in both.
+ * template — or is, but the template has no place for it. The preview and the export both end with this, so it sits in the same place in both.
  * @param ctx the context the frame was drawn on
  * @param layout the layout the frame was drawn with
+ * @param style the look picked in the editor
  * @param own the user's text settings and image
  * @param lines the user's lines as printed on this photo
  */
 export const drawOwnText = (
   ctx: CanvasRenderingContext2D,
   layout: FrameLayout,
+  style: FrameStyle,
   own: OwnText,
   lines: readonly string[],
 ) => {
-  const area = overlayArea(own.mark.area, true);
+  const area = overlayArea(own.mark.area, hasOwnPlace(style.template));
   if (!area) return;
   const { photo, strips, canvas } = layout;
   // Text set above or below the photo clears its film strips, which are part of the picture. It
@@ -163,7 +167,7 @@ export const renderJpeg = async (
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas is not available');
     drawFrame(ctx, bitmap, layout, block, lookOf(style, own));
-    drawOwnText(ctx, layout, own, lines);
+    drawOwnText(ctx, layout, style, own, lines);
     return await canvasToJpeg(canvas, JPEG_QUALITY[detail]);
   } finally {
     canvas.width = 0;

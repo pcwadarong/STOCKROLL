@@ -1,7 +1,7 @@
 import { HStack, Text } from '@seed-design/react';
 import { type DragEvent, useRef, useState } from 'react';
 
-import { OUTPUT_PRESETS, TEMPLATES, usesShootingInfo } from '@/entities/frame';
+import { hasOwnPlace, OUTPUT_PRESETS, TEMPLATES, usesShootingInfo } from '@/entities/frame';
 import { MarkFields } from '@/entities/mark';
 import { systemOf, SYSTEMS } from '@/entities/recipe';
 import { canShareFiles } from '@/shared/lib/save-file';
@@ -214,14 +214,20 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
           <fieldset className={css.group}>
             <legend className={css.legend}>Text</legend>
             <MarkFields
-              template={{
-                hint: TEMPLATES.find(item => item.value === style.template)?.own ?? '',
-                lettered: style.template === 'text',
-                controls:
-                  style.template === 'text' ? (
-                    <TextPlaceControl style={style} onChange={updateStyle} />
-                  ) : undefined,
-              }}
+              // Bar keeps no place for the text, so there it is offered like a picture without
+              // a template: laid over the image.
+              template={
+                hasOwnPlace(style.template)
+                  ? {
+                      hint: TEMPLATES.find(item => item.value === style.template)?.own ?? '',
+                      lettered: style.template === 'text',
+                      controls:
+                        style.template === 'text' ? (
+                          <TextPlaceControl style={style} onChange={updateStyle} />
+                        ) : undefined,
+                    }
+                  : undefined
+              }
             />
           </fieldset>
 
