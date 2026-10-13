@@ -17,7 +17,7 @@ const HOLE = `linear-gradient(to right, ${vars.$color.bg.layerDefault} 0 55%, tr
 const HOLE_HEIGHT = '0.375rem';
 const HOLE_INSET = '0.375rem';
 
-// A roll as one strip of film: every slot a frame, all ten on a single line. Where the line is
+// A strip drawn as film: every slot a frame, all ten on a single line. Where the line is
 // wider than the screen the strip scrolls sideways inside itself, so the page never does.
 export const strip = style({
   position: 'relative',
@@ -117,7 +117,7 @@ export const slotLabel = style({
   },
 });
 
-// One line by design: the full name is on the roll's own screen.
+// One line by design: the full name is on the strip's own screen.
 export const slotName = style({
   minWidth: 0,
   overflow: 'hidden',
@@ -126,7 +126,7 @@ export const slotName = style({
   whiteSpace: 'nowrap',
 });
 
-export const rolls = style({
+export const strips = style({
   display: 'grid',
   gap: vars.$dimension.x5,
   margin: 0,
@@ -134,8 +134,8 @@ export const rolls = style({
   listStyle: 'none',
 });
 
-// A roll in the list: its name over its strip, the whole of it leading to the roll.
-export const roll = style({
+// A strip in the list: its name over its film, the whole of it leading to the strip's screen.
+export const stripLink = style({
   display: 'grid',
   gap: vars.$dimension.x2,
   minWidth: 0,
@@ -144,7 +144,7 @@ export const roll = style({
   selectors: { '&:hover, &:focus-visible': { color: vars.$color.fg.positive } },
 });
 
-export const rollHeader = style({
+export const stripHeader = style({
   display: 'flex',
   flexWrap: 'wrap',
   alignItems: 'baseline',
@@ -153,9 +153,9 @@ export const rollHeader = style({
   overflowWrap: 'anywhere',
 });
 
-export const rollName = style({ fontSize: vars.$fontSize.t5, fontWeight: vars.$fontWeight.bold });
+export const stripName = style({ fontSize: vars.$fontSize.t5, fontWeight: vars.$fontWeight.bold });
 
-export const rollCount = style([labelText, { color: vars.$color.fg.neutralSubtle }]);
+export const stripCount = style([labelText, { color: vars.$color.fg.neutralSubtle }]);
 
 // Editing: the strip and Save stay in view while the recipes scroll under them, so the slot
 // being filled is seen as each recipe is tapped.

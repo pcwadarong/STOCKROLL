@@ -5,9 +5,9 @@ import {
   filledSlots,
   liveSlots,
   RECIPE_SLOTS,
-  ROLL_SLOTS,
-  rollCollection,
   SIMULATION_SLOTS,
+  STRIP_SLOTS,
+  stripCollection,
 } from '@/entities/recipe';
 import { SignInGate } from '@/features/auth';
 import { MESSAGES } from '@/shared/config/messages';
@@ -25,68 +25,68 @@ import { PageShell } from '@/widgets/page-shell';
 import { useRecipeLibrary } from '../model/use-recipe-library';
 import { useRecipePhotos } from '../model/use-recipe-photos';
 
-import { slotContents } from './RollStrip';
+import { slotContents } from './FilmStrip';
 
 import * as page from './LibraryPage.css';
 import * as css from './RecipeGallery.css';
 
 /**
- * One roll, read-only (`/recipes/rolls/:id`): the recipes in C1–C7 at full size, each leading to
- * its recipe, and the film simulations on the dial. Changing the roll, copying it into a new one
+ * One strip, read-only (`/recipes/strips/:id`): the recipes in C1–C7 at full size, each leading to
+ * its recipe, and the film simulations on the dial. Changing the strip, copying it into a new one
  * and deleting it are chosen from the menu, before any editing starts.
  */
-export const RollDetailPage = () => {
+export const StripDetailPage = () => {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const { recipes, ready: recipesReady } = useRecipeLibrary();
-  const rolls = useCollection(rollCollection);
+  const strips = useCollection(stripCollection);
   const photoOf = useRecipePhotos(recipes);
   const [error, setError] = useState('');
   const [confirming, setConfirming] = useState(false);
 
-  const ready = recipesReady && rolls.status === 'ready';
-  const roll = rolls.items.find(item => item.id === id);
+  const ready = recipesReady && strips.status === 'ready';
+  const strip = strips.items.find(item => item.id === id);
 
-  if (!ready || !roll)
+  if (!ready || !strip)
     return (
       <PageShell wide>
-        <PageHeader title="Roll" />
-        <SignInGate what="rolls">
+        <PageHeader title="Strip" />
+        <SignInGate what="strips">
           <Panel>
             <EmptyState title={ready ? 'Not found' : 'Loading'}>
-              {ready ? 'This roll no longer exists.' : 'One moment.'}
+              {ready ? 'This strip no longer exists.' : 'One moment.'}
             </EmptyState>
           </Panel>
         </SignInGate>
       </PageShell>
     );
 
-  const slots = liveSlots(roll.slots, new Set(recipes.map(recipe => recipe.id)));
+  const slots = liveSlots(strip.slots, new Set(recipes.map(recipe => recipe.id)));
   const contents = slotContents(slots, recipes, photoOf);
 
   return (
     <PageShell wide>
       <div className={page.detailHeader}>
         <PageHeader
-          title={roll.name}
-          lead={`${filledSlots(slots)} / ${ROLL_SLOTS.length} filled · A plan kept here: set the camera by hand.`}
+          title={strip.name}
+          lead={`${filledSlots(slots)} / ${STRIP_SLOTS.length} filled · A plan kept here: set the camera by hand.`}
         />
         <ActionMenu
           label="Change"
           variant="primary"
           items={[
             {
-              label: 'Edit this roll',
+              label: 'Edit this strip',
               hint: 'Rename it or change what a slot holds.',
-              to: `/recipes/rolls/${roll.id}/edit`,
+              to: `/recipes/strips/${strip.id}/edit`,
             },
             {
-              label: 'Copy to a new roll',
-              hint: 'Starts a separate roll from these slots. This one stays.',
-              to: `/recipes/rolls/new?from=${roll.id}`,
+              label: 'Copy to a new strip',
+              hint: 'Starts a separate strip from these slots. This one stays.',
+              to: `/recipes/strips/new?from=${strip.id}`,
             },
             {
-              label: 'Delete roll',
+              label: 'Delete strip',
               hint: 'The recipes in it stay.',
               tone: 'danger',
               onSelect: () => setConfirming(true),
@@ -95,9 +95,9 @@ export const RollDetailPage = () => {
         />
       </div>
 
-      <SignInGate what="rolls">
+      <SignInGate what="strips">
         {error && <ErrorText>{error}</ErrorText>}
-        {roll.note && <NoteText>{roll.note}</NoteText>}
+        {strip.note && <NoteText>{strip.note}</NoteText>}
 
         <Panel title="Custom settings">
           <ol className={css.slotSheet}>
@@ -141,22 +141,22 @@ export const RollDetailPage = () => {
       <ConfirmDialog
         open={confirming}
         onOpenChange={setConfirming}
-        title="Delete this roll?"
+        title="Delete this strip?"
         actions={[
           {
             label: 'Delete',
             primary: true,
             onSelect: () => {
               setError('');
-              rolls
-                .remove(roll.id)
-                .then(() => navigate('/recipes/rolls', { replace: true }))
+              strips
+                .remove(strip.id)
+                .then(() => navigate('/recipes/strips', { replace: true }))
                 .catch(() => setError(MESSAGES.deleteFailed));
             },
           },
         ]}
       >
-        Only the roll goes: the recipes in it stay as they are. Deleting cannot be undone.
+        Only the strip goes: the recipes in it stay as they are. Deleting cannot be undone.
       </ConfirmDialog>
     </PageShell>
   );

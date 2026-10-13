@@ -24,7 +24,7 @@ export type ListQuery = {
 export type Collection<T extends Row> = {
   /**
    * Lists every record the signed-in user owns, oldest first. Empty when signed out. For screens
-   * that need the whole set at once (matching gear to a photo, choosing recipes for a roll); a
+   * that need the whole set at once (matching gear to a photo, choosing recipes for a strip); a
    * list screen uses `page`.
    */
   list: () => Promise<T[]>;

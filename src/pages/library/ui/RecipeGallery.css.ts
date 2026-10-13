@@ -94,7 +94,7 @@ export const title = style({ fontWeight: vars.$fontWeight.bold });
 
 export const sub = style([labelText, { color: vars.$color.fg.neutralSubtle, lineHeight: 1.6 }]);
 
-// A roll's custom settings on its own screen: all seven across where there is room, four across
+// A strip's custom settings on its own screen: all seven across where there is room, four across
 // on a phone.
 export const slotSheet = style({
   display: 'grid',

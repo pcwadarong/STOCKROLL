@@ -41,13 +41,13 @@ export {
   nextEmptySlot,
   RECIPE_SLOTS,
   recipeIdsOf,
-  type Roll,
-  ROLL_ORDER,
-  ROLL_SLOTS,
-  ROLL_SYSTEM,
-  rollCollection,
-  type RollSlot,
   SIMULATION_SLOTS,
   slotOfRecipe,
-} from './model/roll';
+  type Strip,
+  STRIP_ORDER,
+  STRIP_SLOTS,
+  STRIP_SYSTEM,
+  stripCollection,
+  type StripSlot,
+} from './model/strip';
 export { FUJI_SIMULATIONS, type RecipeSystem, systemOfCamera, SYSTEMS } from './model/systems';

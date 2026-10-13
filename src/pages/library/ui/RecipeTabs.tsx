@@ -4,12 +4,12 @@ import * as css from './LibraryPage.css';
 
 const TABS = [
   { to: '/recipes', label: 'Recipes' },
-  { to: '/recipes/rolls', label: 'Rolls' },
+  { to: '/recipes/strips', label: 'Strips' },
 ];
 
-/** Switches between the recipe list and the rolls built from it. */
+/** Switches between the recipe list and the strips built from it. */
 export const RecipeTabs = () => (
-  <nav className={css.tabs} aria-label="Recipes and rolls">
+  <nav className={css.tabs} aria-label="Recipes and strips">
     {TABS.map(({ to, label }) => (
       <NavLink key={to} to={to} end className={css.tab}>
         {label}

@@ -9,9 +9,9 @@ import {
   RecipeDetailPage,
   RecipeEditPage,
   RecipeListPage,
-  RollDetailPage,
-  RollEditPage,
-  RollListPage,
+  StripDetailPage,
+  StripEditPage,
+  StripListPage,
 } from '@/pages/library';
 
 /**
@@ -30,10 +30,10 @@ export const App = () => (
         <Route path="/library/:kind/:id/edit" element={<LibraryPage editing />} />
         <Route path="/recipes" element={<RecipeListPage />} />
         <Route path="/recipes/new" element={<RecipeEditPage />} />
-        <Route path="/recipes/rolls" element={<RollListPage />} />
-        <Route path="/recipes/rolls/new" element={<RollEditPage />} />
-        <Route path="/recipes/rolls/:id" element={<RollDetailPage />} />
-        <Route path="/recipes/rolls/:id/edit" element={<RollEditPage />} />
+        <Route path="/recipes/strips" element={<StripListPage />} />
+        <Route path="/recipes/strips/new" element={<StripEditPage />} />
+        <Route path="/recipes/strips/:id" element={<StripDetailPage />} />
+        <Route path="/recipes/strips/:id/edit" element={<StripEditPage />} />
         <Route path="/recipes/:id" element={<RecipeDetailPage />} />
         <Route path="/recipes/:id/edit" element={<RecipeEditPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />

@@ -10,11 +10,11 @@ import {
   liveSlots,
   nextEmptySlot,
   type Recipe,
-  type Roll,
-  ROLL_SYSTEM,
-  rollCollection,
-  type RollSlot,
   slotOfRecipe,
+  type Strip,
+  STRIP_SYSTEM,
+  stripCollection,
+  type StripSlot,
   systemOf,
   SYSTEMS,
 } from '@/entities/recipe';
@@ -33,26 +33,26 @@ import { TextField, TextFieldInput, TextFieldTextarea } from 'seed-design/ui/tex
 import { useRecipeLibrary } from '../model/use-recipe-library';
 import { useRecipePhotos } from '../model/use-recipe-photos';
 
+import { FilmStrip, slotContents } from './FilmStrip';
 import { RecipeGallery } from './RecipeGallery';
-import { RollStrip, slotContents } from './RollStrip';
 
+import * as css from './FilmStrip.css';
 import * as page from './LibraryPage.css';
-import * as css from './RollStrip.css';
 
 type FormProps = {
   /** Panel heading: what the form is making. */
   title: string;
   initialName: string;
   initialNote: string;
-  /** Slots the form starts from: the roll being edited, or the one being copied. */
-  initialSlots: Roll['slots'];
-  /** Recipes a roll can hold. */
+  /** Slots the form starts from: the strip being edited, or the one being copied. */
+  initialSlots: Strip['slots'];
+  /** Recipes a strip can hold. */
   recipes: readonly Recipe[];
-  onSave: (name: string, slots: Roll['slots'], note: string | null) => Promise<unknown>;
+  onSave: (name: string, slots: Strip['slots'], note: string | null) => Promise<unknown>;
   onCancel: () => void;
 };
 
-const RollEditForm = ({
+const StripEditForm = ({
   title,
   initialName,
   initialNote,
@@ -65,7 +65,7 @@ const RollEditForm = ({
   const [name, setName] = useState(initialName);
   const [note, setNote] = useState(initialNote);
   const [slots, setSlots] = useState(initialSlots);
-  const [selected, setSelected] = useState<RollSlot>(() =>
+  const [selected, setSelected] = useState<StripSlot>(() =>
     slots.C1 ? nextEmptySlot(slots, 'C1') : 'C1',
   );
   const [layout, setLayout] = useState<'photos' | 'names'>('photos');
@@ -85,7 +85,7 @@ const RollEditForm = ({
   };
 
   const save = async () => {
-    if (!name.trim()) return setError(MESSAGES.fillIn(['Roll name']));
+    if (!name.trim()) return setError(MESSAGES.fillIn(['Strip name']));
     setBusy(true);
     setError('');
     try {
@@ -106,7 +106,7 @@ const RollEditForm = ({
           </Button>
         }
       >
-        <TextField label="Roll name" value={name} onValueChange={({ value }) => setName(value)}>
+        <TextField label="Strip name" value={name} onValueChange={({ value }) => setName(value)}>
           <TextFieldInput onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} />
         </TextField>
         <TextField
@@ -122,16 +122,16 @@ const RollEditForm = ({
           />
         </TextField>
         <p className={page.note}>
-          A roll is a plan kept here. Saving it does not change the camera or the recipes.
+          A strip is a plan kept here. Saving it does not change the camera or the recipes.
         </p>
       </Panel>
 
       <section
         className={typing ? `${css.dock} ${css.dockLoose}` : css.dock}
-        aria-label="Slots of this roll"
+        aria-label="Slots of this strip"
       >
         <div className={css.dockCard}>
-          <RollStrip
+          <FilmStrip
             contents={slotContents(slots, recipes, photoOf)}
             selected={selected}
             onSelect={setSelected}
@@ -148,7 +148,7 @@ const RollEditForm = ({
               </Button>
             )}
             <Button variant="primary" size="small" loading={busy} onClick={() => void save()}>
-              Save roll
+              Save strip
             </Button>
           </div>
         </div>
@@ -170,7 +170,7 @@ const RollEditForm = ({
         </Panel>
       ) : (
         <Panel
-          title={`${SYSTEMS[ROLL_SYSTEM].label} recipes`}
+          title={`${SYSTEMS[STRIP_SYSTEM].label} recipes`}
           action={
             <div className={page.toolbar}>
               <Button
@@ -191,7 +191,7 @@ const RollEditForm = ({
               title="No recipe to choose"
               action={<Button to="/recipes/new">+ New recipe</Button>}
             >
-              Rolls are built from your {SYSTEMS[ROLL_SYSTEM].label} recipes. Register one first.
+              Strips are built from your {SYSTEMS[STRIP_SYSTEM].label} recipes. Register one first.
             </EmptyState>
           ) : (
             <RecipeGallery
@@ -217,57 +217,57 @@ const RollEditForm = ({
 };
 
 /**
- * Form for building a roll or changing one: a name, the strip of slots, and the recipes to tap
- * into them — by picture or by name. The route decides what it makes: `/recipes/rolls/new`
- * (optionally `?from=<roll>` to start from a copy, which leaves that roll as it is) and
- * `/recipes/rolls/:id/edit`.
+ * Form for building a strip or changing one: a name, the film of slots, and the recipes to tap
+ * into them — by picture or by name. The route decides what it makes: `/recipes/strips/new`
+ * (optionally `?from=<strip>` to start from a copy, which leaves that strip as it is) and
+ * `/recipes/strips/:id/edit`.
  */
-export const RollEditPage = () => {
+export const StripEditPage = () => {
   const { id } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { recipes, ready: recipesReady } = useRecipeLibrary();
-  const rolls = useCollection(rollCollection);
+  const strips = useCollection(stripCollection);
 
-  const ready = recipesReady && rolls.status === 'ready';
-  const roll = id ? rolls.items.find(item => item.id === id) : undefined;
-  const original = id ? undefined : rolls.items.find(item => item.id === params.get('from'));
-  const missing = Boolean(id) && !roll;
-  const goBack = useGoBack(roll ? `/recipes/rolls/${roll.id}` : '/recipes/rolls');
+  const ready = recipesReady && strips.status === 'ready';
+  const strip = id ? strips.items.find(item => item.id === id) : undefined;
+  const original = id ? undefined : strips.items.find(item => item.id === params.get('from'));
+  const missing = Boolean(id) && !strip;
+  const goBack = useGoBack(strip ? `/recipes/strips/${strip.id}` : '/recipes/strips');
 
   return (
     <PageShell wide>
       <PageHeader
-        title={roll?.name ?? 'New roll'}
+        title={strip?.name ?? 'New strip'}
         lead={
           original
-            ? `Starts from ${original.name}. That roll stays as it is.`
+            ? `Starts from ${original.name}. That strip stays as it is.`
             : 'A recipe for each of C1–C7, a film simulation for each of FS1–FS3.'
         }
       />
 
-      <SignInGate what="rolls">
+      <SignInGate what="strips">
         {!ready || missing ? (
           <Panel>
             <EmptyState title={ready ? 'Not found' : 'Loading'}>
-              {ready ? 'This roll no longer exists.' : 'One moment.'}
+              {ready ? 'This strip no longer exists.' : 'One moment.'}
             </EmptyState>
           </Panel>
         ) : (
-          <RollEditForm
-            key={roll?.id ?? original?.id ?? 'new'}
-            title={roll ? 'Edit roll' : original ? 'Copy to a new roll' : 'New roll'}
-            initialName={roll?.name ?? (original ? copyName(original.name) : '')}
-            initialNote={(roll ?? original)?.note ?? ''}
+          <StripEditForm
+            key={strip?.id ?? original?.id ?? 'new'}
+            title={strip ? 'Edit strip' : original ? 'Copy to a new strip' : 'New strip'}
+            initialName={strip?.name ?? (original ? copyName(original.name) : '')}
+            initialNote={(strip ?? original)?.note ?? ''}
             initialSlots={liveSlots(
-              (roll ?? original)?.slots,
+              (strip ?? original)?.slots,
               new Set(recipes.map(recipe => recipe.id)),
             )}
-            recipes={recipes.filter(recipe => systemOf(recipe) === ROLL_SYSTEM)}
+            recipes={recipes.filter(recipe => systemOf(recipe) === STRIP_SYSTEM)}
             onSave={(name, slots, note) =>
-              rolls
-                .save({ id: roll?.id, name, slots, note })
-                .then(saved => navigate(`/recipes/rolls/${saved.id}`, { replace: true }))
+              strips
+                .save({ id: strip?.id, name, slots, note })
+                .then(saved => navigate(`/recipes/strips/${saved.id}`, { replace: true }))
             }
             onCancel={goBack}
           />

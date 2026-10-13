@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 
-import { isSimulationSlot, type Roll, ROLL_SLOTS, type RollSlot } from '@/entities/recipe';
+import { isSimulationSlot, type Strip, STRIP_SLOTS, type StripSlot } from '@/entities/recipe';
 
-import * as css from './RollStrip.css';
+import * as css from './FilmStrip.css';
 
 /**
  * What a filled slot shows. A custom setting names its recipe; a dial position holds a film
@@ -13,23 +13,23 @@ export type SlotContent = { name: string; recipeId?: string; photoUrl?: string }
 /** CSS pixels kept clear beside the selected frame when the strip scrolls to it. */
 const EDGE_ROOM = 8;
 
-type RollStripProps = {
+type FilmStripProps = {
   /** The recipe or film simulation in each filled slot. */
-  contents: Partial<Record<RollSlot, SlotContent>>;
+  contents: Partial<Record<StripSlot, SlotContent>>;
   /** Slot being filled. Only used with `onSelect`. */
-  selected?: RollSlot;
+  selected?: StripSlot;
   /** Called when a slot is tapped. Without it the strip is only read. */
-  onSelect?: (slot: RollSlot) => void;
+  onSelect?: (slot: StripSlot) => void;
 };
 
 /**
- * A roll as a strip of film: its ten slots in camera order on one line, each a frame with the
+ * A strip drawn as film: its ten slots in camera order on one line, each a frame with the
  * recipe's picture and the slot printed under it. The strip scrolls sideways inside itself when
  * the line is wider than the screen. With `onSelect` each frame is a button that chooses which
  * slot to fill.
  * @param props slot contents and, when editing, the selected slot and the tap handler
  */
-export const RollStrip = ({ contents, selected, onSelect }: RollStripProps) => {
+export const FilmStrip = ({ contents, selected, onSelect }: FilmStripProps) => {
   const strip = useRef<HTMLOListElement>(null);
 
   // Filling a slot moves the selection on; bring the new one into view. The strip is scrolled
@@ -47,7 +47,7 @@ export const RollStrip = ({ contents, selected, onSelect }: RollStripProps) => {
 
   return (
     <ol ref={strip} className={css.strip}>
-      {ROLL_SLOTS.map(slot => {
+      {STRIP_SLOTS.map(slot => {
         const content = contents[slot];
         // A film simulation has no picture, so its name takes the frame.
         const inFrame = content?.recipeId ? 'No photo' : content?.name;
@@ -90,23 +90,23 @@ export const RollStrip = ({ contents, selected, onSelect }: RollStripProps) => {
 };
 
 /**
- * Works out what each slot of a roll shows.
- * @param slots a roll's slots, already limited to recipes that exist
+ * Works out what each slot of a strip shows.
+ * @param slots a strip's slots, already limited to recipes that exist
  * @param recipes every recipe, to look names up in
  * @param photoOf lookup from a recipe to its photo link
  * @returns the content per filled slot
  */
 export const slotContents = <R extends { id: string; name: string }>(
-  slots: Roll['slots'],
+  slots: Strip['slots'],
   recipes: readonly R[],
   photoOf: (recipe: R) => string | undefined,
 ) =>
   Object.fromEntries(
     Object.entries(slots).flatMap(([slot, id]) => {
-      if (isSimulationSlot(slot as RollSlot)) return [[slot, { name: id }]];
+      if (isSimulationSlot(slot as StripSlot)) return [[slot, { name: id }]];
       const recipe = recipes.find(item => item.id === id);
       return recipe
         ? [[slot, { recipeId: recipe.id, name: recipe.name, photoUrl: photoOf(recipe) }]]
         : [];
     }),
-  ) as Partial<Record<RollSlot, SlotContent>>;
+  ) as Partial<Record<StripSlot, SlotContent>>;
