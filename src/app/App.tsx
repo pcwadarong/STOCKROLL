@@ -8,6 +8,7 @@ import {
   KitEditPage,
   KitListPage,
   LibraryPage,
+  RecipeCardPage,
   RecipeDetailPage,
   RecipeEditPage,
   RecipeListPage,
@@ -34,6 +35,7 @@ export const App = () => (
         <Route path="/recipes/kits/:id/edit" element={<KitEditPage />} />
         <Route path="/recipes/:id" element={<RecipeDetailPage />} />
         <Route path="/recipes/:id/edit" element={<RecipeEditPage />} />
+        <Route path="/recipes/:id/card" element={<RecipeCardPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -8,6 +8,29 @@ export {
 } from './api/recipe-photo';
 export { drawRecipeCard } from './lib/draw-recipe-card';
 export {
+  CARD_ALIGNS,
+  CARD_AUTO_RATIO,
+  CARD_BACKGROUND_SWATCHES,
+  CARD_BELOW_PLACES,
+  CARD_BLACK,
+  CARD_DESIGNS,
+  CARD_DIM,
+  CARD_GAP_UNITS,
+  CARD_GAPS,
+  CARD_INK_SWATCHES,
+  CARD_PADDING_UNITS,
+  CARD_PADDINGS,
+  CARD_PHOTO_PLACES,
+  CARD_TEXT_PLACES,
+  CARD_TEXT_SIZE,
+  type CardOwnPlace,
+  cardOwnSpot,
+  type CardStyle,
+  DEFAULT_CARD_STYLE,
+  MAX_CARD_PHOTOS,
+  parseCardStyle,
+} from './model/card-style';
+export {
   assignSlot,
   clearSlot,
   filledSlots,
