@@ -26,7 +26,7 @@ git diff --name-only HEAD
 
 **개발 표준 (§2)**
 
-- [ ] `const` 화살표 함수, `@/` alias, export마다 영어 JSDoc. UI 문구·주석·테스트 설명에 한글이 없는가? (`grep -rnP "[\x{AC00}-\x{D7A3}]" src`)
+- [ ] `const` 화살표 함수, `@/` alias, export마다 영어 JSDoc. UI 문구·주석·테스트 설명에 한글이 없는가? (`grep -rnP "[\x{AC00}-\x{D7A3}]" src | grep -v "paste-korean"` — 붙여넣기 낱말 파일만 예외)
 - [ ] 불필요한 `div`, 죽은 코드, 미사용 export, 임시 로그가 없는가?
 
 **스타일 (§2)**
