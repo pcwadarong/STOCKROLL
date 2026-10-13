@@ -177,6 +177,7 @@ docker exec sr-pg psql -U postgres -Atc "select …"   # 결과 확인
 docker rm -f sr-pg
 ```
 
+- **목록 질의(정렬·검색·끊어 받기)는 같은 Postgres에 PostgREST를 붙여 본다.** 가짜 응답은 질의를 흉내 내지 못한다. `authenticator` 역할을 만들고 `postgrest/postgrest` 컨테이너를 `PGRST_DB_ANON_ROLE=authenticated`, `PGRST_DB_MAX_ROWS=1000`으로 띄운 뒤, §1의 `fetch` 패치에서 `/rest/v1/…`을 그 주소로 넘긴다(인증 헤더는 지운다). 끝을 넘긴 요청이 416으로 오는 것은 이렇게 해서 찾았다(2026-10-13, PostgREST 16.4).
 - 이 스텁으로 지금 있는 일곱 개가 처음부터 끝까지 적용되는 걸 확인했다(2026-10-11).
 - **기존 행을 바꾸는 `update`는 조합별 샘플을 넣고 본다.** 상태·소유 이관 때 "대여 + 수리 중"이 덮어써져 되돌릴 수 없게 되는 걸 리뷰에서야 잡았다.
 - Storage는 정책 문법과 버킷 행까지만 확인된다. 실제 업로드·서명 URL·크기 제한 동작은 확인되지 않는다.
