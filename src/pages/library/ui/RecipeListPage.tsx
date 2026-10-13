@@ -201,6 +201,7 @@ export const RecipeListPage = () => {
                 total={list.total}
                 step={list.step}
                 loading={list.loadingMore}
+                busy={list.settling}
                 onMore={() => void list.more()}
               />
             </>

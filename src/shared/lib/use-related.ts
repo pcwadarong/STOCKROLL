@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 
 import type { Collection, Row } from '../api/collection';
 
+/** How often a failed read is tried again by itself, and the pause before the first retry. */
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1500;
+
 /**
  * Reads the records that the rows of a list point at — the versions of the recipes on screen, the
  * recipes in the kits on screen — and keeps them as the list grows, asking only for what it has
@@ -22,7 +26,11 @@ export const useRelated = <T extends Row>(
   const [records, setRecords] = useState<T[]>([]);
   const [answered, setAnswered] = useState<ReadonlySet<string>>(new Set());
   const [failed, setFailed] = useState(false);
+  // Counts the retries. A change here reruns the read for values that failed: taking them out
+  // of `asked` alone reruns nothing, because nothing the effect depends on has changed.
+  const [attempt, setAttempt] = useState(0);
   const asked = useRef(new Set<string>());
+  const retries = useRef(0);
   // As text, so the effect reruns only when the set of values changes.
   const wanted = [...new Set(values)].sort().join('\n');
 
@@ -38,16 +46,22 @@ export const useRelated = <T extends Row>(
       // Kept even when the list has moved on meanwhile: these values are marked as asked and
       // would not be requested again.
       found => {
+        retries.current = 0;
         setRecords(previous => [...previous, ...found.flat()]);
         setAnswered(previous => new Set([...previous, ...missing]));
+        setFailed(false);
       },
       () => {
-        // Let a later render ask again.
         missing.forEach(value => asked.current.delete(value));
         setFailed(true);
+        // A passing failure should not leave the rows unanswered until the screen is reopened.
+        // Tried again a few times, further apart each time, then left as failed.
+        if (retries.current >= MAX_RETRIES) return;
+        retries.current += 1;
+        window.setTimeout(() => setAttempt(count => count + 1), RETRY_DELAY_MS * retries.current);
       },
     );
-  }, [collection, field, wanted, chunk]);
+  }, [collection, field, wanted, chunk, attempt]);
 
   return {
     records,

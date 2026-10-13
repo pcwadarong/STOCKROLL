@@ -38,10 +38,17 @@ export const useCollectionPage = <T extends Row>(
     [queryKey],
   );
 
-  const [page, setPage] = useState<{ rows: T[]; total: number }>({ rows: [], total: 0 });
+  // `key` names the query the rows answer. While it differs from the current one, the rows on
+  // screen still belong to the previous filters or search.
+  const [page, setPage] = useState<{ key?: string; rows: T[]; total: number }>({
+    rows: [],
+    total: 0,
+  });
   const [counts, setCounts] = useState<Record<string, number>>();
-  const [failed, setFailed] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  // Kept apart: the list and its counts are separate requests, and one succeeding must not hide
+  // that the other failed.
+  const [pageFailed, setPageFailed] = useState(false);
+  const [tallyFailed, setTallyFailed] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreFailed, setMoreFailed] = useState(false);
   // Only the answer to the newest request is used: an older one may arrive later than it.
@@ -53,17 +60,16 @@ export const useCollectionPage = <T extends Row>(
       return collection.page({ ...query, from: 0, to: size - 1 }).then(
         next => {
           if (mine !== newest.current) return;
-          setPage(next);
-          setLoaded(true);
-          setFailed(false);
+          setPage({ ...next, key: queryKey });
+          setPageFailed(false);
           setMoreFailed(false);
         },
         () => {
-          if (mine === newest.current) setFailed(true);
+          if (mine === newest.current) setPageFailed(true);
         },
       );
     },
-    [collection, query],
+    [collection, query, queryKey],
   );
 
   const tally = useCallback(() => {
@@ -73,8 +79,11 @@ export const useCollectionPage = <T extends Row>(
         async ([name, held]) => [name, await collection.count(held)] as const,
       ),
     ).then(
-      entries => setCounts(Object.fromEntries(entries)),
-      () => setFailed(true),
+      entries => {
+        setCounts(Object.fromEntries(entries));
+        setTallyFailed(false);
+      },
+      () => setTallyFailed(true),
     );
   }, [collection, tallyKey]);
 
@@ -90,6 +99,9 @@ export const useCollectionPage = <T extends Row>(
 
   const shown = page.rows;
   const reached = shown.length;
+  const known = page.total;
+  // True from the moment the filters or the search change until their first rows arrive.
+  const settling = page.key !== queryKey;
 
   const refresh = useCallback(
     () => Promise.all([read(Math.max(step, reached)), tally()]),
@@ -97,29 +109,34 @@ export const useCollectionPage = <T extends Row>(
   );
 
   const more = useCallback(async () => {
+    // The rows on screen answer the previous query. Reading on from their count would cancel the
+    // new query's first step and append its later rows to the old list.
+    if (settling) return;
     const mine = ++newest.current;
     setLoadingMore(true);
     setMoreFailed(false);
     try {
       const next = await collection.page({ ...query, from: reached, to: reached + step - 1 });
       if (mine !== newest.current) return;
-      // The list changed elsewhere since it was read. Nothing where more was expected: records
-      // were deleted. A row that is already on screen: one was added and pushed the rest along —
-      // appending would repeat it, and skipping it would leave the list a row short for good.
-      // Either way the positions no longer line up, so the list — and the counts above it — are
-      // read again from the top.
-      const shifted = next.rows.some(row => shown.some(known => known.id === row.id));
-      if (next.rows.length === 0 || shifted) {
-        const size = shifted ? reached + step : Math.max(step, reached);
+      // The list changed elsewhere since it was read. A row that is already on screen: one was
+      // added and pushed the rest along — appending would repeat it, and skipping it would leave
+      // the list a row short for good. A different total: one was added or deleted, and a
+      // deletion among the rows on screen pulls an unseen row back before this step, where it
+      // would never be read. Nothing where more was expected: enough were deleted to end the
+      // list early. In each case the positions no longer line up, so the list — and the counts
+      // above it — are read again from the top.
+      const repeated = next.rows.some(row => shown.some(seen => seen.id === row.id));
+      if (next.rows.length === 0 || repeated || next.total !== known) {
+        const size = next.rows.length === 0 ? Math.max(step, reached) : reached + step;
         return void (await Promise.all([read(size), tally()]));
       }
-      setPage(previous => ({ rows: [...previous.rows, ...next.rows], total: next.total }));
+      setPage(previous => ({ ...previous, rows: [...previous.rows, ...next.rows] }));
     } catch {
       if (mine === newest.current) setMoreFailed(true);
     } finally {
       setLoadingMore(false);
     }
-  }, [collection, query, reached, step, read, tally, shown]);
+  }, [collection, query, reached, known, settling, step, read, tally, shown]);
 
   const save = useCallback(
     async (draft: Draft<T>) => {
@@ -136,6 +153,7 @@ export const useCollectionPage = <T extends Row>(
       // Drop it locally first. If the read that follows fails, the list must still not show a
       // record that no longer exists.
       setPage(previous => ({
+        ...previous,
         rows: previous.rows.filter(row => row.id !== id),
         total: Math.max(0, previous.total - 1),
       }));
@@ -144,11 +162,8 @@ export const useCollectionPage = <T extends Row>(
     [collection, refresh],
   );
 
-  const status: 'loading' | 'ready' | 'error' = failed
-    ? 'error'
-    : loaded && counts
-      ? 'ready'
-      : 'loading';
+  const status: 'loading' | 'ready' | 'error' =
+    pageFailed || tallyFailed ? 'error' : page.key !== undefined && counts ? 'ready' : 'loading';
 
   return {
     rows: page.rows,
@@ -158,6 +173,8 @@ export const useCollectionPage = <T extends Row>(
     status,
     step,
     more,
+    /** True while the rows on screen still answer the previous filters or search. */
+    settling,
     loadingMore,
     moreFailed,
     save,

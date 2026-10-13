@@ -137,6 +137,7 @@ export const KitListPage = () => {
                 total={list.total}
                 step={list.step}
                 loading={list.loadingMore || (kits.length > 0 && !recipes.ready)}
+                busy={list.settling}
                 onMore={() => void list.more()}
               />
             </>

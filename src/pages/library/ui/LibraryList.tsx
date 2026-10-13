@@ -153,6 +153,8 @@ type ListMoreProps = {
   step: number;
   /** True while the next rows are being read. */
   loading: boolean;
+  /** True while the list itself is being replaced, when asking for more would mix two lists. */
+  busy: boolean;
   onMore: () => void;
 };
 
@@ -162,7 +164,7 @@ type ListMoreProps = {
  * list is shown.
  * @param props the list it belongs to, the counts, the loading state and the handler
  */
-export const ListMore = ({ listId, shown, total, step, loading, onMore }: ListMoreProps) => {
+export const ListMore = ({ listId, shown, total, step, loading, busy, onMore }: ListMoreProps) => {
   // Position of the first row a press will add, kept until that row is on screen.
   const awaited = useRef<number | null>(null);
 
@@ -193,7 +195,7 @@ export const ListMore = ({ listId, shown, total, step, loading, onMore }: ListMo
       {loading ? (
         <ProgressCircle size="24" aria-hidden="true" />
       ) : (
-        <Button size="small" aria-controls={listId} onClick={show}>
+        <Button size="small" aria-controls={listId} disabled={busy} onClick={show}>
           Show {Math.min(step, hidden)} more
         </Button>
       )}
