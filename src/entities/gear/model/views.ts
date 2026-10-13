@@ -1,4 +1,5 @@
-import { type ListFilter, listFilter, matchesPicks } from '@/shared/lib/pick-filter';
+import type { ListOrder } from '@/shared/api/collection';
+import { type ListFilter, listFilter } from '@/shared/lib/pick-filter';
 
 import { BODY_TYPE, CAMERA_KIND, FILM_KIND, FORMAT, STATUS } from './fields';
 
@@ -19,29 +20,24 @@ export const FILM_FILTERS: readonly ListFilter[] = [
 ];
 
 /**
- * Any record that may carry `status` (cameras, lenses) and `isFavorite`. Typed loosely because
- * lists hand over rows as they come from a form or the database.
+ * Order of the camera and lens lists: by how present an item is in current shooting — in use,
+ * then in repair, shelved, on display, rented, sold (`list_rank`, computed by the database) —
+ * with favorites leading within each step and the oldest entry first otherwise.
  */
+export const GEAR_ORDER: readonly ListOrder[] = [
+  { column: 'listRank' },
+  { column: 'isFavorite', descending: true },
+  { column: 'createdAt' },
+];
+
+/** Order of the film list. Films have no status, so the star alone leads. */
+export const FILM_ORDER: readonly ListOrder[] = [
+  { column: 'isFavorite', descending: true },
+  { column: 'createdAt' },
+];
+
+/** A record that may carry `status`. Typed loosely because lists hand over rows as they come. */
 type Standing = Readonly<Record<string, unknown>>;
-
-const STATUS_RANK: Record<string, number> = {
-  active: 0,
-  repair: 1,
-  inactive: 2,
-  display: 3,
-  rented: 4,
-  sold: 5,
-};
-
-/**
- * Ranks an item by how present it is in current shooting. Lower sorts first: gear in use, then
- * in repair, shelved, on display, rented, sold. Favorites lead within each step. Records with no
- * status (films) are ranked by the star alone.
- * @param item camera, lens or film
- * @returns a sort rank
- */
-export const standing = (item: Standing) =>
-  (STATUS_RANK[String(item.status ?? 'active')] ?? 6) * 2 + (item.isFavorite === true ? 0 : 1);
 
 /**
  * Words the status of gear that is not simply in use, for the line under its name.
@@ -55,20 +51,3 @@ export const statusNote = (item: Standing) => {
   if (!label) return undefined;
   return { label, tone: item.status === 'repair' ? ('alert' as const) : ('muted' as const) };
 };
-
-/**
- * Narrows a list by the picked values and orders the result by standing, keeping the original
- * order within a rank.
- * @param items list to show
- * @param picks picked value per filter key
- * @returns matching items, most current first
- */
-export const arrangeGear = <T extends Standing>(
-  items: readonly T[],
-  picks: Readonly<Record<string, string>>,
-) =>
-  items
-    .filter(item => matchesPicks(item, picks))
-    .map((item, index) => ({ item, index }))
-    .sort((a, b) => standing(a.item) - standing(b.item) || a.index - b.index)
-    .map(({ item }) => item);

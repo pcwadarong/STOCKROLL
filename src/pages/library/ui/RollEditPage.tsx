@@ -28,7 +28,7 @@ import { ErrorText } from '@/shared/ui/ErrorText';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Panel } from '@/shared/ui/Panel';
 import { PageShell } from '@/widgets/page-shell';
-import { TextField, TextFieldInput } from 'seed-design/ui/text-field';
+import { TextField, TextFieldInput, TextFieldTextarea } from 'seed-design/ui/text-field';
 
 import { useRecipeLibrary } from '../model/use-recipe-library';
 import { useRecipePhotos } from '../model/use-recipe-photos';
@@ -43,17 +43,19 @@ type FormProps = {
   /** Panel heading: what the form is making. */
   title: string;
   initialName: string;
+  initialNote: string;
   /** Slots the form starts from: the roll being edited, or the one being copied. */
   initialSlots: Roll['slots'];
   /** Recipes a roll can hold. */
   recipes: readonly Recipe[];
-  onSave: (name: string, slots: Roll['slots']) => Promise<unknown>;
+  onSave: (name: string, slots: Roll['slots'], note: string | null) => Promise<unknown>;
   onCancel: () => void;
 };
 
 const RollEditForm = ({
   title,
   initialName,
+  initialNote,
   initialSlots,
   recipes,
   onSave,
@@ -61,6 +63,7 @@ const RollEditForm = ({
 }: FormProps) => {
   const photoOf = useRecipePhotos(recipes);
   const [name, setName] = useState(initialName);
+  const [note, setNote] = useState(initialNote);
   const [slots, setSlots] = useState(initialSlots);
   const [selected, setSelected] = useState<RollSlot>(() =>
     slots.C1 ? nextEmptySlot(slots, 'C1') : 'C1',
@@ -86,7 +89,7 @@ const RollEditForm = ({
     setBusy(true);
     setError('');
     try {
-      await onSave(name.trim(), slots);
+      await onSave(name.trim(), slots, note.trim() || null);
     } catch {
       setError(MESSAGES.saveFailed);
       setBusy(false);
@@ -105,6 +108,18 @@ const RollEditForm = ({
       >
         <TextField label="Roll name" value={name} onValueChange={({ value }) => setName(value)}>
           <TextFieldInput onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} />
+        </TextField>
+        <TextField
+          label="Note"
+          indicator="Optional"
+          value={note}
+          onValueChange={({ value }) => setNote(value)}
+        >
+          <TextFieldTextarea
+            autoresize
+            onFocus={() => setTyping(true)}
+            onBlur={() => setTyping(false)}
+          />
         </TextField>
         <p className={page.note}>
           A roll is a plan kept here. Saving it does not change the camera or the recipes.
@@ -243,14 +258,15 @@ export const RollEditPage = () => {
             key={roll?.id ?? original?.id ?? 'new'}
             title={roll ? 'Edit roll' : original ? 'Copy to a new roll' : 'New roll'}
             initialName={roll?.name ?? (original ? copyName(original.name) : '')}
+            initialNote={(roll ?? original)?.note ?? ''}
             initialSlots={liveSlots(
               (roll ?? original)?.slots,
               new Set(recipes.map(recipe => recipe.id)),
             )}
             recipes={recipes.filter(recipe => systemOf(recipe) === ROLL_SYSTEM)}
-            onSave={(name, slots) =>
+            onSave={(name, slots, note) =>
               rolls
-                .save({ id: roll?.id, name, slots })
+                .save({ id: roll?.id, name, slots, note })
                 .then(saved => navigate(`/recipes/rolls/${saved.id}`, { replace: true }))
             }
             onCancel={goBack}

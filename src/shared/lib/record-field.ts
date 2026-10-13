@@ -2,8 +2,11 @@
 export type RecordField = {
   key: string;
   label: string;
-  /** `select` needs `options`. `number` stores a number or null. */
-  type: 'text' | 'number' | 'select';
+  /**
+   * `select` needs `options`. `number` stores a number or null. `multiline` is text that may run
+   * over several lines, such as a note.
+   */
+  type: 'text' | 'multiline' | 'number' | 'select';
   options?: readonly { value: string; label: string }[];
   placeholder?: string;
   required?: boolean;
@@ -11,6 +14,12 @@ export type RecordField = {
   /** Heading this field is listed under. Consecutive fields with the same group form a section. */
   group?: string;
 };
+
+/**
+ * The free-text note every kind of record carries: one definition, so each form asks for it the
+ * same way and screens can tell it apart from the one-line facts.
+ */
+export const NOTE_FIELD: RecordField = { key: 'note', label: 'Note', type: 'multiline' };
 
 export type RecordValues = Record<string, string | number | boolean | null | undefined>;
 

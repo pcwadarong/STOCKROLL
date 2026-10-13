@@ -1,4 +1,4 @@
-import { createCollection } from '@/shared/api/collection';
+import { createCollection, type ListOrder } from '@/shared/api/collection';
 
 import { FUJI_SIMULATIONS, type RecipeSystem } from './systems';
 
@@ -32,6 +32,8 @@ export type Roll = {
    * absent is empty.
    */
   slots: Partial<Record<RollSlot, string>>;
+  /** What the set is for, in the user's words. */
+  note: string | null;
 };
 
 // The table keeps the name it was created with: rolls were first called kits.
@@ -43,6 +45,9 @@ export const rollCollection = createCollection<Roll>('recipe_kits');
  * @returns the name the copy starts with
  */
 export const copyName = (name: string) => `${name} (copy)`;
+
+/** Order of the roll list: as they were made. */
+export const ROLL_ORDER: readonly ListOrder[] = [{ column: 'createdAt' }];
 
 /**
  * Tells whether a slot holds a film simulation rather than a recipe.
@@ -125,6 +130,18 @@ export const liveSlots = (
       return known ? [[slot, value]] : [];
     }),
   );
+
+/**
+ * Lists the recipes a roll's custom settings point at, so a screen can read just those. The dial
+ * positions are left out: they hold film simulation names, not recipes.
+ * @param slots slots as stored
+ * @returns the recipe ids in C1–C7, existing or not
+ */
+export const recipeIdsOf = (slots: Readonly<Record<string, unknown>> | null | undefined) =>
+  RECIPE_SLOTS.flatMap(slot => {
+    const value = slots?.[slot];
+    return typeof value === 'string' ? [value] : [];
+  });
 
 /**
  * Counts the filled slots, for the "4 / 10" beside a roll's name.

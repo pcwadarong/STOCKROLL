@@ -17,6 +17,7 @@ import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorText } from '@/shared/ui/ErrorText';
 import { MetaList } from '@/shared/ui/MetaList';
+import { NoteText } from '@/shared/ui/NoteText';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Panel } from '@/shared/ui/Panel';
 import { PageShell } from '@/widgets/page-shell';
@@ -96,6 +97,7 @@ export const RollDetailPage = () => {
 
       <SignInGate what="rolls">
         {error && <ErrorText>{error}</ErrorText>}
+        {roll.note && <NoteText>{roll.note}</NoteText>}
 
         <Panel title="Custom settings">
           <ol className={css.slotSheet}>

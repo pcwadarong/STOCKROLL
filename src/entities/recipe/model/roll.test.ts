@@ -8,6 +8,7 @@ import {
   isSimulationSlot,
   liveSlots,
   nextEmptySlot,
+  recipeIdsOf,
   ROLL_SLOTS,
   slotOfRecipe,
 } from './roll';
@@ -108,5 +109,20 @@ describe('slotOfRecipe and filledSlots', () => {
 describe('copyName', () => {
   it('when a roll is copied, it must start under a name that differs from the original', () => {
     expect(copyName('Autumn')).toBe('Autumn (copy)');
+  });
+});
+
+describe('recipeIdsOf', () => {
+  it('when custom settings hold recipes, it must list their ids in slot order', () => {
+    expect(recipeIdsOf({ C3: 'c', C1: 'a' })).toEqual(['a', 'c']);
+  });
+
+  it('when a dial position holds a film simulation, it must not be listed as a recipe', () => {
+    expect(recipeIdsOf({ C1: 'a', FS1: 'Classic Chrome' })).toEqual(['a']);
+  });
+
+  it('when the slots are missing or hold something that is not text, it must list nothing', () => {
+    expect(recipeIdsOf(null)).toEqual([]);
+    expect(recipeIdsOf({ C1: 7, C2: null })).toEqual([]);
   });
 });
