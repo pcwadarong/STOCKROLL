@@ -15,13 +15,21 @@
 -- candidates, then archived. The order is the one the lists already showed.
 
 -- Dots and slashes are kept: dropping the dot would let "2.8" find "28mm".
+--
+-- Every step is spelled out rather than left to `lower()` and `\s`, whose results depend on the
+-- database's locale: under the C locale `lower()` leaves "É" alone, and the app would lower it.
+-- Only A–Z are lowered and only the listed characters are dropped, so this function and the
+-- app's fold give the same text on any server. Accented capitals therefore stay as typed.
 create function public.fold_search(value text) returns text
 language sql
 immutable
 parallel safe
 set search_path = ''
 as $$
-  select lower(regexp_replace(normalize(value, NFKC), '[\s_\-‐‑‒–—―]+', '', 'g'))
+  select regexp_replace(
+    translate(normalize(value, NFKC), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'),
+    '[ \t\n\r\f\v_\-‐‑‒–—―]+', '', 'g'
+  )
 $$;
 
 -- '|' keeps one field's end from joining the next field's start into a word.

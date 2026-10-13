@@ -88,7 +88,8 @@ export const useCollectionPage = <T extends Row>(
     return onAuthChange(() => void tally());
   }, [tally]);
 
-  const reached = page.rows.length;
+  const shown = page.rows;
+  const reached = shown.length;
 
   const refresh = useCallback(
     () => Promise.all([read(Math.max(step, reached)), tally()]),
@@ -102,23 +103,23 @@ export const useCollectionPage = <T extends Row>(
     try {
       const next = await collection.page({ ...query, from: reached, to: reached + step - 1 });
       if (mine !== newest.current) return;
-      // Nothing where more was expected: the list changed elsewhere. Read it again from the top.
-      if (next.rows.length === 0) return void (await read(Math.max(step, reached)));
-      setPage(previous => ({
-        // A record added elsewhere meanwhile shifts the positions, and a row already on screen
-        // can come back in the next stretch.
-        rows: [
-          ...previous.rows,
-          ...next.rows.filter(row => !previous.rows.some(shown => shown.id === row.id)),
-        ],
-        total: next.total,
-      }));
+      // The list changed elsewhere since it was read. Nothing where more was expected: records
+      // were deleted. A row that is already on screen: one was added and pushed the rest along —
+      // appending would repeat it, and skipping it would leave the list a row short for good.
+      // Either way the positions no longer line up, so the list — and the counts above it — are
+      // read again from the top.
+      const shifted = next.rows.some(row => shown.some(known => known.id === row.id));
+      if (next.rows.length === 0 || shifted) {
+        const size = shifted ? reached + step : Math.max(step, reached);
+        return void (await Promise.all([read(size), tally()]));
+      }
+      setPage(previous => ({ rows: [...previous.rows, ...next.rows], total: next.total }));
     } catch {
       if (mine === newest.current) setMoreFailed(true);
     } finally {
       setLoadingMore(false);
     }
-  }, [collection, query, reached, step, read]);
+  }, [collection, query, reached, step, read, tally, shown]);
 
   const save = useCallback(
     async (draft: Draft<T>) => {

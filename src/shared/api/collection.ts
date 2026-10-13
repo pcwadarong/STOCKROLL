@@ -49,6 +49,9 @@ export type Collection<T extends Row> = {
 /** PostgREST's code for a requested range that begins after the last row. */
 const PAST_THE_END = 'PGRST103';
 
+/** Postgres's code for text that cannot be read as the column's type, here a uuid. */
+const NOT_AN_ID = '22P02';
+
 /** The API returns at most this many rows per request, so reading everything takes several. */
 const CHUNK = 1000;
 
@@ -115,6 +118,8 @@ export const createCollection = <T extends Row>(table: string): Collection<T> =>
   get: async id => {
     if (!supabase || !(await hasSession())) return null;
     const { data, error } = await supabase.from(table).select('*').eq('id', id).maybeSingle();
+    // An id that is not an id at all (a mistyped address) names no record, like any unknown id.
+    if (error?.code === NOT_AN_ID) return null;
     if (error) throw new Error(error.message);
     return data ? (toCamel(data) as T) : null;
   },
