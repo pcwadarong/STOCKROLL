@@ -25,7 +25,6 @@ export { type ParsedRecipeText, parseRecipeText, type PasteFlag } from './model/
 export {
   blankSettings,
   DETAIL_FIELDS,
-  foldVersions,
   hasSettings,
   latestVersion,
   MAX_VERSIONS,
@@ -41,7 +40,6 @@ export {
   sameSettings,
   systemOf,
   toSettings,
-  VERSIONS_SHOWN,
   versionSlots,
   versionsOf,
 } from './model/recipe';

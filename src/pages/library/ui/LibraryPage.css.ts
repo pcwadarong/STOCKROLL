@@ -121,29 +121,6 @@ export const columns = style({
   '@media': { [COMPACT_MEDIA_QUERY]: { gridTemplateColumns: 'minmax(0, 1fr)' } },
 });
 
-export const versionList = style({ display: 'grid', margin: 0, padding: 0, listStyle: 'none' });
-
-export const versionItem = style([
-  labelText,
-  {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: vars.$dimension.x3,
-    width: '100%',
-    paddingBlock: vars.$dimension.x2_5,
-    paddingInline: vars.$dimension.x2,
-    border: 0,
-    borderBottom: `1px solid ${vars.$color.stroke.neutralSubtle}`,
-    background: 'none',
-    color: INK,
-    textDecoration: 'none',
-    selectors: {
-      '&:hover, &:focus-visible': { color: vars.$color.fg.positive },
-      '&[aria-current="true"]': { background: vars.$color.bg.positiveSolid, color: beige },
-    },
-  },
-]);
-
 export const note = style({ margin: 0, color: vars.$color.fg.neutralMuted });
 
 // Shown whole, never cropped. Capped in height so a portrait shot does not push the settings
@@ -159,9 +136,6 @@ export const photo = style({
 });
 
 export const hiddenInput = style({ display: 'none' });
-
-// The detail screen's right-hand column stacks its panels.
-export const stack = style({ display: 'grid', gap: vars.$dimension.x6, minWidth: 0 });
 
 export const toolbar = style({
   display: 'flex',
@@ -193,39 +167,6 @@ export const sheetValue = style({
   fontSize: vars.$fontSize.t5,
   fontWeight: vars.$fontWeight.medium,
   overflowWrap: 'anywhere',
-});
-
-// Actions as a quiet list rather than a row of buttons: a label and what it does, per line.
-export const actionList = style({ display: 'grid', margin: 0, padding: 0, listStyle: 'none' });
-
-export const actionRow = style({
-  display: 'grid',
-  gap: vars.$dimension.x0_5,
-  width: '100%',
-  paddingBlock: vars.$dimension.x2_5,
-  paddingInline: 0,
-  border: 0,
-  borderBottom: `1px solid ${vars.$color.stroke.neutralSubtle}`,
-  background: 'none',
-  color: INK,
-  font: 'inherit',
-  textAlign: 'left',
-  textDecoration: 'none',
-  cursor: 'pointer',
-  selectors: {
-    '&:hover:not(:disabled), &:focus-visible': { color: vars.$color.fg.positive },
-    '&:disabled': { opacity: 0.5, cursor: 'not-allowed' },
-    'li:last-child > &': { borderBottom: 0 },
-  },
-});
-
-export const actionLabel = style([labelText, { fontWeight: vars.$fontWeight.bold }]);
-
-export const actionDanger = style([actionLabel, { color: vars.$color.fg.brand }]);
-
-export const actionHint = style({
-  fontSize: vars.$fontSize.t3,
-  color: vars.$color.fg.neutralMuted,
 });
 
 // The star sits at the end of a panel's heading row, pulled up so it does not make the row taller.
@@ -269,4 +210,14 @@ export const pasteUnread = style({
   color: vars.$color.fg.neutralSubtle,
   fontSize: vars.$fontSize.t3,
   overflowWrap: 'anywhere',
+});
+
+// Detail screen: the title on the left, its menus at the top right; the menus drop below the
+// title when there is no room beside it.
+export const detailHeader = style({
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: vars.$dimension.x4,
 });
