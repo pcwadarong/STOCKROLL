@@ -39,8 +39,9 @@ globalStyle(`html .seed-segmented-control__item${enabled}:not(${checked})${point
   boxShadow: 'none',
 });
 
-// Dropdown list: ruled like a card, with a soft shadow so it reads as floating above the form.
-globalStyle('html .seed-select__content', {
+// Dropdown list and action menu: ruled like a card, with a soft shadow so they read as floating
+// above the page.
+globalStyle('html .seed-select__content, html .seed-menu__content', {
   border: `1px solid ${vars.$color.stroke.neutralWeak}`,
   borderRadius: vars.$radius.r2,
   boxShadow: vars.$shadow.s2,

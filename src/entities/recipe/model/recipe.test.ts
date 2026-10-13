@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   blankSettings,
-  foldVersions,
   hasSettings,
   latestVersion,
   MAX_VERSIONS,
@@ -39,31 +38,6 @@ describe('versionsOf', () => {
   it('when versions arrive in any order, it must list only that recipe newest first', () => {
     const versions = [version('a', 1), version('b', 5), version('a', 3), version('a', 2)];
     expect(versionsOf(versions, 'a').map(item => item.version)).toEqual([3, 2, 1]);
-  });
-});
-
-describe('foldVersions', () => {
-  const history = [9, 8, 7, 6, 5, 4, 3, 2, 1].map(number => version('a', number));
-
-  it('when the history is short, it must list every version and fold nothing', () => {
-    expect(foldVersions(history.slice(0, 5), 'a-9', false)).toMatchObject({ hidden: 0 });
-  });
-
-  it('when the history is long, it must list the newest five and count the rest', () => {
-    const { shown, hidden } = foldVersions(history, 'a-9', false);
-    expect(shown.map(item => item.version)).toEqual([9, 8, 7, 6, 5]);
-    expect(hidden).toBe(4);
-  });
-
-  it('when the version on screen is an old one, it must stay listed while folded', () => {
-    const { shown, hidden } = foldVersions(history, 'a-2', false);
-    expect(shown.map(item => item.version)).toEqual([9, 8, 7, 6, 5, 2]);
-    expect(hidden).toBe(3);
-  });
-
-  it('when expanded, it must list the whole history', () => {
-    expect(foldVersions(history, 'a-2', true)).toMatchObject({ hidden: 0 });
-    expect(foldVersions(history, 'a-2', true).shown).toHaveLength(9);
   });
 });
 

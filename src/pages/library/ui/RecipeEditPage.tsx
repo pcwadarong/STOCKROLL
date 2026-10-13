@@ -5,6 +5,7 @@ import {
   blankSettings,
   DETAIL_FIELDS,
   hasSettings,
+  type ParsedRecipeText,
   type Recipe,
   RECIPE_FIELDS,
   type RecipeSettings,
@@ -27,7 +28,7 @@ import { ErrorText } from '@/shared/ui/ErrorText';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Panel } from '@/shared/ui/Panel';
 import { PickField } from '@/shared/ui/PickField';
-import { RecordForm } from '@/shared/ui/RecordForm';
+import { type FieldNote, RecordForm } from '@/shared/ui/RecordForm';
 import { PageShell } from '@/widgets/page-shell';
 
 import {
@@ -38,7 +39,7 @@ import {
 } from '../model/recipe-actions';
 import { useRecipeLibrary } from '../model/use-recipe-library';
 
-import { PasteSettings } from './PasteSettings';
+import { flagText, PasteSettings } from './PasteSettings';
 
 import * as css from './LibraryPage.css';
 
@@ -105,6 +106,10 @@ const RecipeEditForm = ({
     note: recipe?.note ?? '',
     ...initial,
   });
+  // Fields filled from pasted text, with the remark to show under each until it is edited.
+  const [guessed, setGuessed] = useState<Record<string, FieldNote>>({});
+  // Counts the times the settings were replaced wholesale, which makes a shown paste result stale.
+  const [wipes, setWipes] = useState(0);
   const [source, setSource] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -113,7 +118,30 @@ const RecipeEditForm = ({
   const editsDetails = mode === 'new' || mode === 'details';
   const editsSettings = mode !== 'details';
 
-  const change = (key: string, value: string) =>
+  const fill = ({ settings, flags }: ParsedRecipeText) => {
+    setValues(prev => ({ ...prev, ...settings }));
+    // Every field the paste filled says so under it: in red with what to check when it was
+    // flagged (a field can carry two remarks), in green otherwise. A field filled again loses
+    // its old remark.
+    const filled = Object.fromEntries(
+      Object.keys(settings).map((key): [string, FieldNote] => {
+        const remarks = flags.filter(flag => flag.key === key).map(flagText);
+        return [
+          key,
+          remarks.length > 0
+            ? { text: remarks.join(' · '), tone: 'alert' }
+            : { text: 'Pasted', tone: 'done' },
+        ];
+      }),
+    );
+    setGuessed(prev => ({ ...prev, ...filled }));
+  };
+
+  const change = (key: string, value: string) => {
+    // Editing a field is the check the remark asked for. Switching system starts over.
+    setGuessed(prev =>
+      key === 'system' ? {} : Object.fromEntries(Object.entries(prev).filter(([k]) => k !== key)),
+    );
     setValues(prev =>
       // Settings belong to a system. Changing it starts the settings over, so values from the
       // old system are not saved under the new one.
@@ -121,17 +149,21 @@ const RecipeEditForm = ({
         ? { ...prev, ...blankSettings(), system: value }
         : { ...prev, [key]: value },
     );
+  };
 
   const copyFrom = (value: string) => {
     setSource(value);
     const chosen = sources.find(item => item.value === value);
-    if (chosen)
-      setValues(prev => ({
-        ...prev,
-        ...blankSettings(),
-        ...chosen.settings,
-        system: chosen.system,
-      }));
+    if (!chosen) return;
+    // Copied settings replace everything, pasted guesses included.
+    setGuessed({});
+    setWipes(count => count + 1);
+    setValues(prev => ({
+      ...prev,
+      ...blankSettings(),
+      ...chosen.settings,
+      system: chosen.system,
+    }));
   };
 
   const submit = async () => {
@@ -162,6 +194,9 @@ const RecipeEditForm = ({
       <p className={css.note}>{EXPLANATIONS[mode](version?.version ?? 0, nextVersion)}</p>
       {error && <ErrorText>{error}</ErrorText>}
 
+      {/* First on the form: pasting is the quickest way in, and it was easy to miss lower down. */}
+      {editsSettings && <PasteSettings system={system} wipes={wipes} onFill={fill} />}
+
       {editsDetails && (
         <RecordForm
           fields={mode === 'new' ? RECIPE_FIELDS : DETAIL_FIELDS}
@@ -174,7 +209,7 @@ const RecipeEditForm = ({
         <PickField
           label="Copy settings from"
           indicator="Optional"
-          description="Fills in the settings below from another recipe so you can adjust them. The other recipe is not changed."
+          description="Fills the fields below. The other recipe stays as it is."
           value={source}
           options={sources}
           onChange={copyFrom}
@@ -183,11 +218,12 @@ const RecipeEditForm = ({
 
       {editsSettings && (
         <>
-          <PasteSettings
-            system={system}
-            onFill={settings => setValues(prev => ({ ...prev, ...settings }))}
+          <RecordForm
+            fields={SYSTEMS[system].fields}
+            values={values}
+            onChange={change}
+            notes={guessed}
           />
-          <RecordForm fields={SYSTEMS[system].fields} values={values} onChange={change} />
         </>
       )}
 

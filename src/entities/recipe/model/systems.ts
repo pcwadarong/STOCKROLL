@@ -33,6 +33,22 @@ export const FUJI_SIMULATIONS = [
   'Sepia',
 ] as const;
 
+/**
+ * What Fujifilm's numeric settings usually accept, as the form's placeholders say. Bodies and
+ * firmware differ, so this is for pointing out an unusual value, never for rejecting or changing
+ * one.
+ */
+export const FUJI_RANGES: Readonly<Record<string, { min: number; max: number; step: number }>> = {
+  highlight: { min: -2, max: 4, step: 0.5 },
+  shadow: { min: -2, max: 4, step: 0.5 },
+  color: { min: -4, max: 4, step: 1 },
+  sharpness: { min: -4, max: 4, step: 1 },
+  noiseReduction: { min: -4, max: 4, step: 1 },
+  clarity: { min: -5, max: 5, step: 1 },
+  wbShiftR: { min: -9, max: 9, step: 1 },
+  wbShiftB: { min: -9, max: 9, step: 1 },
+};
+
 type SystemSpec = {
   label: string;
   /** What this system calls a look, used as the field label in the frame editor. */
