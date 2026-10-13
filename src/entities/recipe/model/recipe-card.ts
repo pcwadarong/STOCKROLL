@@ -318,25 +318,29 @@ const gridCard = (input: CardInput, photos: readonly Size[], set: Settings): Car
   // The gap is between photos. The text keeps the same distance from a photo here as anywhere
   // else on a card, so a tight grid does not press the settings against the pictures.
   const inset = Math.max(0, TEXT_GAP - set.gap);
+  // Above and below, the text keeps the same air on both sides: fitted to the full height of
+  // the cell its last line would sit on the bottom edge of the photo beside it.
+  const air = Math.max(inset, TEXT_GAP / 2);
   const textWidth = column - inset;
   let scale = CELL_SCALE;
   let row: number;
   if (input.canvas) {
     row = Math.round((input.canvas.height - set.padding * 2 - set.footer - set.gap) / 2);
-    scale = scaleThatFits(input, { width: textWidth, height: row - inset });
+    scale = scaleThatFits(input, { width: textWidth, height: row - air * 2 });
   } else {
-    row = Math.max(column, Math.ceil(setText(input, scale, textWidth).height + inset));
+    row = Math.max(column, Math.ceil(setText(input, scale, textWidth).height + air * 2));
   }
   const block: Box = { x: set.padding, y: set.padding, width: inner, height: row * 2 + set.gap };
   const cells = photoCells(block, 4, set.gap);
   const cell = cells[input.textFirst ? 0 : 3]!;
   const photoCellsLeft = cells.filter(other => other !== cell);
-  // The text's own room: the cell, drawn back from the two sides that face photos.
+  // The text's own room: the cell, drawn back from the side that faces a photo and from its
+  // top and bottom.
   const room: Box = {
     x: cell.x + (input.textFirst ? 0 : inset),
-    y: cell.y + (input.textFirst ? 0 : inset),
+    y: cell.y + air,
     width: textWidth,
-    height: cell.height - inset,
+    height: cell.height - air * 2,
   };
   const text = setText(input, scale, textWidth);
   return {

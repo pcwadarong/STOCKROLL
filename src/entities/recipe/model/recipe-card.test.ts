@@ -301,11 +301,14 @@ describe('recipeCardLayout with several photos', () => {
       return {
         fromSide: layout.rule.x - (beside!.x + beside!.width),
         fromAbove: layout.title.y - layout.title.size - (above!.y + above!.height),
+        // The cell ends where the photo beside it ends.
+        fromFoot: beside!.y + beside!.height - layout.lines.at(-1)!.y,
       };
     };
     for (const gap of [0, 12, 24]) {
       expect(edges(gap).fromSide).toBe(56);
       expect(edges(gap).fromAbove).toBeGreaterThanOrEqual(56);
+      expect(edges(gap).fromFoot).toBeGreaterThanOrEqual(28);
     }
     // A gap wider than that distance is kept as it is.
     expect(edges(80).fromSide).toBe(80);
@@ -332,7 +335,7 @@ describe('recipeCardLayout with several photos', () => {
     });
     const cellBottom = layout.block.y + layout.block.height;
     expect(layout.lines).toHaveLength(16);
-    expect(layout.lines.at(-1)!.y).toBeLessThanOrEqual(cellBottom);
+    expect(layout.lines.at(-1)!.y).toBeLessThan(cellBottom);
     expect(layout.lines[0]!.size).toBeLessThan(CARD_TEXT.line.size);
   });
 
