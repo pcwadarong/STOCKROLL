@@ -248,7 +248,8 @@ export type MarkPlan = {
  * Lays the mark out over a picture: the image and the lines as one group, pushed to the chosen
  * place. The image sits on the outside — before the text, or after it when the group is on the
  * right. A mark too large for its room is shrunk whole, never clipped, and a place just outside
- * the photo that has no room falls back to the same side of the image.
+ * the photo whose margin cannot hold the mark at full height falls back to the same side inside
+ * the photo.
  * @param input which area to use and its rectangles (`block` is the photo together with whatever
  * the template attached to it), the length of 1px on a 1080-wide picture, the position and size,
  * the width of each line in ems, and the image's pixel size
@@ -291,21 +292,6 @@ export const planMark = ({
             : areas.whole.y + areas.whole.height - block.y - block.height) - gapOut,
       }
     : { width: frame.width - inset * 2, height: frame.height - inset * 2 };
-  // With nothing between the photo and the edge of the picture — a canvas that hugs the photo,
-  // or a card with no photo at all — the mark goes to the same side of the image instead of
-  // vanishing from the export.
-  if (outside && room.height <= 0)
-    return planMark({
-      area,
-      areas,
-      unit,
-      position: insidePosition(position),
-      size,
-      lineEms,
-      image,
-    });
-  if (room.width <= 0 || room.height <= 0) return null;
-
   const scale = unit * SIZE_SCALE[size];
   const textSize = lineEms.length > 0 ? TEXT_SIZE * scale : 0;
   const natural = {
@@ -317,6 +303,21 @@ export const planMark = ({
   };
   const width = natural.image.width + natural.gap + natural.text.width;
   const height = Math.max(natural.image.height, natural.text.height);
+  // A margin too shallow for the mark at its size — a canvas that hugs the photo, a thin
+  // padding, or a card with no photo at all — sends it to the same side inside the photo.
+  // Shrunk into the gap it would be a speck; set at the image's edge it would straddle the
+  // photo's. Half a pixel of slack keeps a margin sized by `markRoom` from tipping over.
+  if (outside && room.height + 0.5 < height)
+    return planMark({
+      area: 'photo',
+      areas,
+      unit,
+      position: insidePosition(position),
+      size,
+      lineEms,
+      image,
+    });
+  if (room.width <= 0 || room.height <= 0) return null;
   const fit = Math.min(1, room.width / width, room.height / height);
 
   const across: Across = position.endsWith('left')
@@ -376,16 +377,16 @@ export const planMark = ({
 };
 
 /**
- * How much room to keep free under a block so a mark set just below it (`below`, `below-right`)
- * fits whole, the gap between the two included. For whoever lays the picture out before the mark
- * is drawn.
+ * How much room to keep free above or below a block so a mark set just outside it (`above`,
+ * `below-right`) fits whole, the gap between the two included. For whoever lays the picture out
+ * before the mark is drawn.
  * @param size the mark's size step
  * @param lineCount how many lines the mark prints
  * @param hasImage whether an image is attached
  * @param unit length of 1px on a 1080-wide picture
  * @returns the height to reserve, 0 when the mark draws nothing
  */
-export const markRoomBelow = (size: MarkSize, lineCount: number, hasImage: boolean, unit = 1) => {
+export const markRoom = (size: MarkSize, lineCount: number, hasImage: boolean, unit = 1) => {
   if (lineCount === 0 && !hasImage) return 0;
   const scale = unit * SIZE_SCALE[size];
   return (

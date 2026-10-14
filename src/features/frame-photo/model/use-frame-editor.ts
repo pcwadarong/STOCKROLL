@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { computeLayout, drawFrame, frameSpec } from '@/entities/frame';
+import { computeLayout, drawFrame } from '@/entities/frame';
 import { cameraCollection, filmCollection, lensCollection } from '@/entities/gear';
 import { markLines, useMark } from '@/entities/mark';
 import { recipeCollection } from '@/entities/recipe';
@@ -12,12 +12,12 @@ import { saveSummaryText } from '../lib/batch-text';
 import { outputFilename, outputFilenames } from '../lib/output-filename';
 import {
   captionOf,
-  captionScale,
   decodePhoto,
   drawOwnText,
   fontsOf,
   lookOf,
   renderJpeg,
+  specOf,
 } from '../lib/render-jpeg';
 import { focalModeFor, resolveCaption } from '../lib/resolve-caption';
 
@@ -63,8 +63,8 @@ export const useFrameEditor = () => {
   const lines = useMemo(() => markLines(mark, takenAt), [mark, takenAt]);
   const block = useMemo(() => captionOf(style, info, own, lines), [style, info, own, lines]);
   const spec = useMemo(
-    () => (bitmap ? frameSpec(bitmap, style, block, captionScale(style, own)) : null),
-    [bitmap, style, block, own],
+    () => (bitmap ? specOf(bitmap, style, block, own, lines) : null),
+    [bitmap, style, block, own, lines],
   );
   const layout = useMemo(
     () => (bitmap && spec ? computeLayout(bitmap, preset, 'optimized', spec) : null),

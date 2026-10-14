@@ -181,3 +181,75 @@ describe('computeLayout with a frame spec', () => {
     expect(layout.photo.y + layout.photo.height).toBeLessThanOrEqual(1080);
   });
 });
+
+describe("computeLayout with room for the user's text", () => {
+  const portrait = { width: 2000, height: 3000 };
+  const landscape = { width: 3000, height: 2000 };
+  const original = OUTPUT_PRESETS.find(item => item.kind === 'original')!;
+  const spec = (photo: Size, patch: Partial<FrameSpec> = {}): FrameSpec => ({
+    ...defaultSpec(photo),
+    ...patch,
+  });
+
+  it('when a photo fills a fixed output and room is asked above it, the output must keep its size while the photo makes the room past the margin', () => {
+    const plain = computeLayout(portrait, preset('4x5'), 'optimized', spec(portrait));
+    const roomy = computeLayout(
+      portrait,
+      preset('4x5'),
+      'optimized',
+      spec(portrait, { markRoom: { above: 60, below: 0 } }),
+    );
+
+    expect(roomy.canvas).toEqual(plain.canvas);
+    expect(roomy.photo.height).toBeLessThan(plain.photo.height);
+    expect(roomy.photo.y).toBeGreaterThanOrEqual(48 + 60);
+  });
+
+  it('when the photo already has space to spare around it, asking for room must not move it', () => {
+    const plain = computeLayout(landscape, preset('4x5'), 'optimized', spec(landscape));
+    const roomy = computeLayout(
+      landscape,
+      preset('4x5'),
+      'optimized',
+      spec(landscape, { markRoom: { above: 60, below: 60 } }),
+    );
+
+    expect(roomy.photo).toEqual(plain.photo);
+  });
+
+  it('when the photo is set at the top and room is asked above it, it must sit that far below the margin', () => {
+    const layout = computeLayout(
+      landscape,
+      preset('4x5'),
+      'optimized',
+      spec(landscape, { position: 'top', markRoom: { above: 60, below: 0 } }),
+    );
+
+    expect(layout.photo.y).toBe(48 + 60);
+  });
+
+  it('when room is asked below a photo with a caption, it must be kept past the caption and the margin', () => {
+    const layout = computeLayout(
+      portrait,
+      preset('4x5'),
+      'optimized',
+      spec(portrait, { position: 'bottom', markRoom: { above: 0, below: 60 } }),
+    );
+
+    expect(layout.caption.y + layout.caption.height).toBe(1350 - 48 - 60);
+  });
+
+  it('when the output is the original, the canvas must grow by the room and keep the photo at its size', () => {
+    const plain = computeLayout(landscape, original, 'optimized', spec(landscape));
+    const roomy = computeLayout(
+      landscape,
+      original,
+      'optimized',
+      spec(landscape, { markRoom: { above: 60, below: 0 } }),
+    );
+    const room = Math.round(60 * plain.unit);
+
+    expect(roomy.canvas).toEqual({ ...plain.canvas, height: plain.canvas.height + room });
+    expect(roomy.photo).toEqual({ ...plain.photo, y: plain.photo.y + room });
+  });
+});

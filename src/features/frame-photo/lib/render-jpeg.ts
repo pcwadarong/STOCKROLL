@@ -10,9 +10,10 @@ import {
   hasOwnPlace,
   letteringFor,
   type OutputPreset,
+  type Size,
   textScale,
 } from '@/entities/frame';
-import { drawMark, type Mark, overlayArea } from '@/entities/mark';
+import { drawMark, type Mark, markRoom, overlayArea } from '@/entities/mark';
 import { ensureFont } from '@/shared/lib/canvas-fonts';
 import { canvasToJpeg } from '@/shared/lib/save-file';
 
@@ -46,6 +47,32 @@ const letteringOf = (style: FrameStyle, { mark }: OwnText) =>
  */
 export const captionScale = (style: FrameStyle, own: OwnText) =>
   textScale(style.template, letteringOf(style, own).size);
+
+/**
+ * The layout spec for a photo, with room kept above or below it when the user's text is set just
+ * outside the photo there. Without that room a thin margin would leave the text nowhere to go.
+ * @param photo pixel size of the photo
+ * @param style the look picked in the editor
+ * @param block the photo's caption
+ * @param own the user's text settings and image
+ * @param lines the user's lines as printed on this photo
+ * @returns the layout spec
+ */
+export const specOf = (
+  photo: Size,
+  style: FrameStyle,
+  block: CaptionBlock,
+  own: OwnText,
+  lines: readonly string[],
+) => {
+  const { position, size } = own.mark;
+  const outside = overlayArea(own.mark.area, hasOwnPlace(style.template)) === 'image';
+  const room = outside ? markRoom(size, lines.length, own.image !== null) : 0;
+  return frameSpec(photo, style, block, captionScale(style, own), {
+    above: position.startsWith('above') ? room : 0,
+    below: position.startsWith('below') ? room : 0,
+  });
+};
 
 /**
  * Builds a photo's caption. The user's lines join it only when they are left to the template to
@@ -116,11 +143,12 @@ export const drawOwnText = (
 ) => {
   const area = overlayArea(own.mark.area, hasOwnPlace(style.template));
   if (!area) return;
-  const { photo, strips, canvas } = layout;
-  // Text set above or below the photo clears its film strips, which are part of the picture. It
-  // does not step around the caption: where the two meet is the user's to settle.
+  const { photo, strips, caption, canvas } = layout;
+  // Text set above or below the photo clears its film strips and a caption printed under it:
+  // both are part of the picture, and the layout kept the room for the text past them.
   const top = strips ? strips.top.y : photo.y;
-  const bottom = strips ? strips.bottom.y + strips.bottom.height : photo.y + photo.height;
+  const edge = strips ? strips.bottom.y + strips.bottom.height : photo.y + photo.height;
+  const bottom = caption.height > 0 && caption.y >= edge ? caption.y + caption.height : edge;
   drawMark(
     ctx,
     area,
@@ -157,7 +185,7 @@ export const renderJpeg = async (
   },
 ) => {
   const { preset, detail, block, style, own, lines } = settings;
-  const spec = frameSpec(bitmap, style, block, captionScale(style, own));
+  const spec = specOf(bitmap, style, block, own, lines);
   const layout = computeLayout(bitmap, preset, detail, spec);
   await Promise.all(fontsOf(style, own).map(ensureFont));
   const canvas = document.createElement('canvas');
