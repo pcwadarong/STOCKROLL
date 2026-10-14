@@ -25,3 +25,15 @@ export const NARROW_MEDIA_QUERY = 'screen and (max-width: 560px)';
 
 /** Users who asked their system for less motion. Animations and transitions are dropped here. */
 export const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
+/**
+ * Height of the pinned preview on compact widths, in `svh`, while the top of the page shows. Over
+ * half the screen: the photo is the point, and the settings scroll under it anyway.
+ */
+export const COMPACT_STAGE_SVH = 58;
+
+/**
+ * Height of the pinned preview, in `svh`, once the page has scrolled into the settings: small
+ * enough to leave the fields room, large enough to see a change land.
+ */
+export const COMPACT_STAGE_FOLDED_SVH = 40;

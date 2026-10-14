@@ -4,7 +4,8 @@ import { globalStyle, style } from '@vanilla-extract/css';
 import * as bench from '@/shared/ui/workbench.css';
 
 // The preview-and-panel frame is shared with the recipe card (`shared/ui/workbench.css`).
-export const { root, stage, preview, status, panel, group, legend, actions, action } = bench;
+export const { root, stage, stageFolded, preview, status, panel, group, legend, actions, action } =
+  bench;
 
 export const stageDragging = style({ outlineColor: vars.$color.stroke.brandSolid });
 

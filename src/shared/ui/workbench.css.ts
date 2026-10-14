@@ -1,9 +1,15 @@
 import { vars } from '@seed-design/css/vars';
-import { style } from '@vanilla-extract/css';
+import { globalStyle, style } from '@vanilla-extract/css';
 
 import { tertiary } from '@/shared/config/accent.css';
 import { SHADE } from '@/shared/config/palette';
-import { COMPACT_MEDIA_QUERY, SHORT_COMPACT_MEDIA_QUERY } from '@/shared/config/responsive';
+import {
+  COMPACT_MEDIA_QUERY,
+  COMPACT_STAGE_FOLDED_SVH,
+  COMPACT_STAGE_SVH,
+  REDUCED_MOTION_QUERY,
+  SHORT_COMPACT_MEDIA_QUERY,
+} from '@/shared/config/responsive';
 
 import { labelText, labelTitle } from './label.css';
 
@@ -56,8 +62,8 @@ export const stage = style({
       top: 0,
       zIndex: 1,
       // `svh`, not `dvh`: the height must not jump when the browser toolbar collapses on scroll.
-      // Over half the screen: the photo is the point, and the settings scroll under it anyway.
-      height: '58svh',
+      height: `${COMPACT_STAGE_SVH}svh`,
+      transition: `height ${vars.$duration.d4} ${vars.$timingFunction.easing}`,
       paddingInline: vars.$dimension.x3,
       paddingBottom: vars.$dimension.x3,
       // Once the app bar has scrolled away the preview sits at the very top, under the notch.
@@ -67,6 +73,7 @@ export const stage = style({
     },
     // A phone on its side has no height to spare for a pinned preview: let it scroll away.
     [SHORT_COMPACT_MEDIA_QUERY]: { position: 'relative' },
+    [REDUCED_MOTION_QUERY]: { transition: 'none' },
   },
   selectors: {
     // The on-screen keyboard covers the lower half without changing any CSS viewport unit, so a
@@ -74,6 +81,23 @@ export const stage = style({
     [`${root}:has(input[inputmode]:focus) &`]: { position: 'relative' },
   },
 });
+
+/**
+ * The pinned preview made smaller while the page is scrolled into the settings
+ * (`useFoldedStage`), so the fields get room. Back to full height at the top of the page.
+ */
+export const stageFolded = style({
+  '@media': {
+    [COMPACT_MEDIA_QUERY]: { height: `${COMPACT_STAGE_FOLDED_SVH}svh` },
+    // Not pinned here, so there is nothing to make room for.
+    [SHORT_COMPACT_MEDIA_QUERY]: { height: `${COMPACT_STAGE_SVH}svh` },
+  },
+});
+
+// Folding the preview shortens the page above what is on screen. Scroll anchoring (Chrome, not
+// Safari) would answer by scrolling up as much, back past the fold point, so the preview would
+// unfold, scroll down again and fold: a loop. Without it both browsers let the content move up.
+globalStyle(`html:has(${stage})`, { overflowAnchor: 'none' });
 
 export const preview = style({
   maxWidth: '100%',
