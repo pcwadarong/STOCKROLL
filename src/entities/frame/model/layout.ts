@@ -20,6 +20,12 @@ export type FrameSpec = {
   captionPlacement: 'below' | 'over' | 'strip';
   /** Height of the film strip band above and below the photo. Zero for no strip. */
   strip: number;
+  /**
+   * Room the user's text needs just above or below the photo, its gap included, kept free on top
+   * of the margin. Room below goes between the photo and a caption under it, so the text stays
+   * against the photo. None when omitted.
+   */
+  markRoom?: { above: number; below: number };
 };
 
 export type FrameLayout = {
@@ -60,6 +66,8 @@ type Measured = {
   strip: number;
   gap: number;
   captionBelow: number;
+  roomAbove: number;
+  roomBelow: number;
 };
 
 const measure = (spec: FrameSpec, unit: number): Measured => {
@@ -71,6 +79,8 @@ const measure = (spec: FrameSpec, unit: number): Measured => {
     strip: spec.strip * unit,
     gap: below ? CAPTION_GAP * unit : 0,
     captionBelow: below ? spec.captionHeight * unit : 0,
+    roomAbove: (spec.markRoom?.above ?? 0) * unit,
+    roomBelow: (spec.markRoom?.below ?? 0) * unit,
   };
 };
 
@@ -100,7 +110,7 @@ const assemble = (
       const inset = Math.max(0, MIN_INSET * unit - m.margin);
       caption = {
         x: photo.x + inset,
-        y: photo.y + photo.height + m.strip + m.gap,
+        y: photo.y + photo.height + m.strip + m.roomBelow + m.gap,
         width: photo.width - inset * 2,
         height: captionHeight,
       };
@@ -139,21 +149,33 @@ const layoutOriginal = (spec: FrameSpec, longEdge: number): FrameLayout => {
     strip: Math.round(raw.strip),
     gap: Math.round(raw.gap),
     captionBelow: Math.round(raw.captionBelow),
+    roomAbove: Math.round(raw.roomAbove),
+    roomBelow: Math.round(raw.roomBelow),
   };
 
+  // The canvas grows by the user's text room: this output has no shape of its own to keep.
   const canvas = {
     width: drawn.width + m.margin * 2,
-    height: m.margin + m.strip * 2 + drawn.height + m.gap + m.captionBelow + m.bottomPad,
+    height:
+      m.roomAbove +
+      m.margin +
+      m.strip * 2 +
+      drawn.height +
+      m.gap +
+      m.captionBelow +
+      m.bottomPad +
+      m.roomBelow,
   };
   // This canvas hugs its content, so every edge lands on a whole pixel.
-  const layout = assemble(canvas, spec, unit, m, { x: m.margin, y: m.margin }, drawn);
+  const origin = { x: m.margin, y: m.roomAbove + m.margin };
+  const layout = assemble(canvas, spec, unit, m, origin, drawn);
   return {
     ...layout,
     caption:
       spec.captionPlacement === 'below'
         ? {
             x: Math.round(layout.caption.x),
-            y: layout.photo.y + layout.photo.height + m.strip + m.gap,
+            y: layout.photo.y + layout.photo.height + m.strip + m.roomBelow + m.gap,
             width: Math.round(layout.caption.width),
             height: m.captionBelow,
           }
@@ -174,7 +196,8 @@ const layoutFixed = (
 
   const extra = m.strip * 2 + m.gap + m.captionBelow;
   const areaWidth = canvas.width - m.margin * 2;
-  const areaHeight = canvas.height - m.margin - m.bottomPad - extra;
+  // The user's text room comes out of the photo's share, so the output keeps its shape.
+  const areaHeight = canvas.height - m.margin - m.bottomPad - extra - m.roomAbove - m.roomBelow;
   const scale = Math.min(areaWidth / source.width, areaHeight / source.height, maxScale);
   const drawn = {
     width: Math.round(source.width * scale),
@@ -184,12 +207,18 @@ const layoutFixed = (
   // Photo, strips and caption move as one block, so the caption never strands far from the photo.
   const blockHeight = drawn.height + extra;
   const free = canvas.height - m.margin - m.bottomPad - blockHeight;
-  const y =
+  const placed =
     spec.position === 'top'
       ? m.margin
       : spec.position === 'bottom'
         ? m.margin + free
         : m.margin + free / 2;
+  // The block moves only as far as the text room needs, so a photo with space to spare around it
+  // stays where the position puts it.
+  const y = Math.min(
+    Math.max(placed, m.margin + m.roomAbove),
+    canvas.height - m.bottomPad - m.roomBelow - blockHeight,
+  );
 
   const origin = { x: Math.round((canvas.width - drawn.width) / 2), y: Math.round(y) };
   return assemble(canvas, spec, unit, m, origin, drawn);

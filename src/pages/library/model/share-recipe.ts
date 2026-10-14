@@ -1,12 +1,5 @@
 import { inkFor, OUTPUT_PRESETS } from '@/entities/frame';
-import {
-  currentMark,
-  drawMark,
-  inkOver,
-  type Mark,
-  markLines,
-  markRoomBelow,
-} from '@/entities/mark';
+import { currentMark, drawMark, inkOver, type Mark, markLines, markRoom } from '@/entities/mark';
 import {
   CARD_AUTO_RATIO,
   CARD_GAP_UNITS,
@@ -152,8 +145,7 @@ export const drawShareCard = (
       photos,
       size: cardOutputOf(style.ratio).size,
       // Text under the content gets room of its own, so it never lands on the settings.
-      footer:
-        spot?.area === 'below' ? markRoomBelow(mark.size, ownLines.length, image !== null) : 0,
+      footer: spot?.area === 'below' ? markRoom(mark.size, ownLines.length, image !== null) : 0,
       padding: CARD_PADDING_UNITS[style.padding],
       gap: CARD_GAP_UNITS[style.gap],
       align: style.align,

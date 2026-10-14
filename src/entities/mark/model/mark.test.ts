@@ -8,7 +8,7 @@ import {
   type Mark,
   markFromLegacyStyle,
   markLines,
-  markRoomBelow,
+  markRoom,
   overlayArea,
   parseMark,
   planMark,
@@ -197,13 +197,31 @@ describe('planMark', () => {
     expect(insidePosition('above-left')).toBe('top-left');
   });
 
-  it('when there is no room under the photo, it must fall back to the bottom edge of the image', () => {
+  it('when there is no room under the photo, it must fall back to the bottom edge inside the photo', () => {
     const tight = { ...whole, height: photo.y + photo.height + 10 };
     const areas = { photo, whole: tight };
 
     expect(plan({ area: 'image', position: 'below-left', areas })).toEqual(
-      plan({ area: 'image', position: 'bottom-left', areas }),
+      plan({ area: 'photo', position: 'bottom-left', areas }),
     );
+  });
+
+  it('when the margin above the photo is shallower than the mark, it must move inside the photo at full size rather than shrink into the gap', () => {
+    const full = plan({ area: 'photo', position: 'top' })!;
+    const areas = { photo, whole: { ...whole, y: photo.y - 18 - full.box.height + 1 } };
+
+    expect(plan({ area: 'image', position: 'above', areas })).toEqual(
+      plan({ area: 'photo', position: 'top', areas }),
+    );
+  });
+
+  it('when the margin above the photo holds the mark exactly, it must stay outside at full size', () => {
+    const full = plan({ area: 'photo', position: 'top' })!;
+    const areas = { photo, whole: { ...whole, y: photo.y - 18 - full.box.height } };
+    const placed = plan({ area: 'image', position: 'above', areas })!;
+
+    expect(placed.box.height).toBeCloseTo(full.box.height);
+    expect(placed.box.y + placed.box.height).toBeCloseTo(photo.y - 18);
   });
 
   it('when the picture has no photo, a place outside the photo must still be drawn on the image', () => {
@@ -274,13 +292,13 @@ describe('planMark', () => {
   });
 });
 
-describe('markRoomBelow', () => {
+describe('markRoom', () => {
   it('when the mark draws nothing, it must ask for no room', () => {
-    expect(markRoomBelow('m', 0, false)).toBe(0);
+    expect(markRoom('m', 0, false)).toBe(0);
   });
 
   it('when that room is kept under a block, a mark below it must fit whole and end at its foot', () => {
-    const room = markRoomBelow('l', 2, true);
+    const room = markRoom('l', 2, true);
     const whole = { x: 0, y: 0, width: 1080, height: 1000 };
     const block = { x: 64, y: 64, width: 952, height: 1000 - 64 - 64 - room };
     const placed = planMark({

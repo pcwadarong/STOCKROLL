@@ -24,6 +24,7 @@ export const stripHeight = (scale: number) =>
  * @param style the look picked in the editor
  * @param block the caption built for that look
  * @param scale text size multiplier the caption is drawn at (`textScale`)
+ * @param markRoom room the user's text needs just above or below the photo. None when omitted
  * @returns the layout spec
  */
 export const frameSpec = (
@@ -31,6 +32,7 @@ export const frameSpec = (
   style: FrameStyle,
   block: CaptionBlock,
   scale: number,
+  markRoom?: FrameSpec['markRoom'],
 ): FrameSpec => ({
   margin: PADDING_UNITS[style.padding],
   position: style.position,
@@ -38,6 +40,7 @@ export const frameSpec = (
   captionHeight: captionHeight(block.rows, scale),
   captionPlacement: block.placement,
   strip: block.placement === 'strip' ? stripHeight(scale) : 0,
+  markRoom,
 });
 
 /**
