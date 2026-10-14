@@ -96,7 +96,7 @@ const TERMS: LegalDocument = {
 };
 
 const LegalPage = ({ document }: { document: LegalDocument }) => (
-  <PageShell>
+  <PageShell back="/">
     <article className={css.article}>
       <PageHeader title={document.title} lead={`Last updated ${document.updated}`} />
       {document.sections.map(({ heading, body }) => (

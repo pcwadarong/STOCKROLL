@@ -78,7 +78,7 @@ export const RecipeCardPage = () => {
 
   if (!ready || !recipe || !selected)
     return (
-      <PageShell>
+      <PageShell back={`/recipes/${id}`}>
         <PageHeader title="Recipe card" />
         <SignInGate what="recipes">
           <Panel>
@@ -111,7 +111,7 @@ export const RecipeCardPage = () => {
 
   return (
     <div className={bench.page}>
-      <AppBar />
+      <AppBar back={back} />
       <main className={bench.root}>
         <section
           aria-label="Preview"

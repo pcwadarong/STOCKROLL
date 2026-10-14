@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router';
 
 import { AccountMenu } from '@/features/auth';
 import { COMPACT_MEDIA_QUERY } from '@/shared/config/responsive';
+import { useGoBack } from '@/shared/lib/use-go-back';
 import { LegalNote } from '@/shared/ui/LegalNote';
 
 import * as css from './AppBar.css';
@@ -15,12 +16,15 @@ const LINKS = [
 
 /**
  * Title bar shared by every screen: wordmark, main navigation and the account menu.
- * On compact widths the navigation moves into a side drawer opened by a menu button.
- * @param props `pinned` fixes the bar to the top in the installed app on compact widths
+ * On compact widths the navigation moves into a side drawer opened by a menu button, and a screen
+ * below the top level shows a Back button in place of the wordmark.
+ * @param props `pinned` fixes the bar to the top in the installed app on compact widths; `back` is
+ * the screen above this one, used when there is no in-app history to go back through
  */
-export const AppBar = ({ pinned = false }: { pinned?: boolean }) => {
+export const AppBar = ({ pinned = false, back }: { pinned?: boolean; back?: string }) => {
   const drawerRef = useRef<HTMLDialogElement>(null);
   const { pathname } = useLocation();
+  const goBack = useGoBack(back ?? '/');
 
   // Following a link inside the drawer changes the route; close the drawer when that happens.
   useEffect(() => drawerRef.current?.close(), [pathname]);
@@ -36,7 +40,15 @@ export const AppBar = ({ pinned = false }: { pinned?: boolean }) => {
 
   return (
     <header className={pinned ? `${css.bar} ${css.pinnedBar}` : css.bar}>
-      <p className={css.title}>
+      {/* Labelled "Back", not with the parent's name: it returns to the previous screen, which is
+          not always the parent (a strip's recipe goes back to the strip). */}
+      {back && (
+        <button type="button" className={`${css.menuButton} ${css.backButton}`} onClick={goBack}>
+          <span aria-hidden="true">←</span>
+          Back
+        </button>
+      )}
+      <p className={back ? `${css.title} ${css.titleBesideBack}` : css.title}>
         <Link to="/" className={css.titleLink}>
           STOCKROLL
         </Link>
@@ -75,7 +87,10 @@ export const AppBar = ({ pinned = false }: { pinned?: boolean }) => {
         onClick={event => event.target === event.currentTarget && event.currentTarget.close()}
       >
         <div className={css.drawerHead}>
-          <span className={css.title}>STOCKROLL</span>
+          {/* The bar's wordmark gives way to Back below the top level, so the way home is here. */}
+          <Link to="/" className={`${css.title} ${css.titleLink}`}>
+            STOCKROLL
+          </Link>
           <button
             type="button"
             className={css.menuButton}

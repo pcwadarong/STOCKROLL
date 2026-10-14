@@ -112,6 +112,12 @@ export const menuButton = style([
   },
 ]);
 
+/** Back button: the menu button's look, at the start of the bar. Compact widths only. */
+export const backButton = style({ marginLeft: `calc(-1 * ${vars.$dimension.x2})` });
+
+/** On compact widths the Back button takes the wordmark's place. */
+export const titleBesideBack = style({ '@media': compact({ display: 'none' }) });
+
 // Three rules drawn with a gradient, so the icon needs no extra elements.
 export const menuIcon = style({
   width: '1.25rem',

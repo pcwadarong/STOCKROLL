@@ -49,7 +49,7 @@ export const StripDetailPage = () => {
 
   if (!ready || !strip)
     return (
-      <PageShell wide>
+      <PageShell wide back="/recipes/strips">
         <PageHeader title="Strip" />
         <SignInGate what="strips">
           <Panel>
@@ -65,7 +65,7 @@ export const StripDetailPage = () => {
   const contents = slotContents(slots, recipes, photoOf);
 
   return (
-    <PageShell wide>
+    <PageShell wide back="/recipes/strips">
       <div className={page.detailHeader}>
         <PageHeader
           title={strip.name}

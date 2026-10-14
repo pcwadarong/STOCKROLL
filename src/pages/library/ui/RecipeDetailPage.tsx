@@ -66,7 +66,7 @@ export const RecipeDetailPage = () => {
 
   if (!ready || !recipe)
     return (
-      <PageShell>
+      <PageShell back="/recipes">
         <PageHeader title="Recipe" />
         <SignInGate what="recipes">
           <Panel>
@@ -164,7 +164,7 @@ export const RecipeDetailPage = () => {
     : [];
 
   return (
-    <PageShell wide>
+    <PageShell wide back="/recipes">
       <div className={css.detailHeader}>
         <PageHeader
           title={recipe.name}

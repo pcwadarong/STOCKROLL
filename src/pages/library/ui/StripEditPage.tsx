@@ -21,7 +21,7 @@ import {
 import { SignInGate } from '@/features/auth';
 import { MESSAGES } from '@/shared/config/messages';
 import { useCollection } from '@/shared/lib/use-collection';
-import { useGoBack } from '@/shared/lib/use-go-back';
+import { useGoBack, useReplaceEdit } from '@/shared/lib/use-go-back';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorText } from '@/shared/ui/ErrorText';
@@ -234,6 +234,7 @@ export const StripEditPage = () => {
   const original = id ? undefined : strips.items.find(item => item.id === params.get('from'));
   const missing = Boolean(id) && !strip;
   const goBack = useGoBack(strip ? `/recipes/strips/${strip.id}` : '/recipes/strips');
+  const showSaved = useReplaceEdit();
 
   return (
     <PageShell wide>
@@ -265,9 +266,12 @@ export const StripEditPage = () => {
             )}
             recipes={recipes.filter(recipe => systemOf(recipe) === STRIP_SYSTEM)}
             onSave={(name, slots, note) =>
-              strips
-                .save({ id: strip?.id, name, slots, note })
-                .then(saved => navigate(`/recipes/strips/${saved.id}`, { replace: true }))
+              strips.save({ id: strip?.id, name, slots, note }).then(saved =>
+                // A new strip or a copy has no screen of its own behind the form.
+                strip
+                  ? showSaved(`/recipes/strips/${saved.id}`)
+                  : navigate(`/recipes/strips/${saved.id}`, { replace: true }),
+              )
             }
             onCancel={goBack}
           />
