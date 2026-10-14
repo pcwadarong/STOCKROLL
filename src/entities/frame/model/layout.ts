@@ -22,7 +22,8 @@ export type FrameSpec = {
   strip: number;
   /**
    * Room the user's text needs just above or below the photo, its gap included, kept free on top
-   * of the margin. None when omitted.
+   * of the margin. Room below goes between the photo and a caption under it, so the text stays
+   * against the photo. None when omitted.
    */
   markRoom?: { above: number; below: number };
 };
@@ -109,7 +110,7 @@ const assemble = (
       const inset = Math.max(0, MIN_INSET * unit - m.margin);
       caption = {
         x: photo.x + inset,
-        y: photo.y + photo.height + m.strip + m.gap,
+        y: photo.y + photo.height + m.strip + m.roomBelow + m.gap,
         width: photo.width - inset * 2,
         height: captionHeight,
       };
@@ -174,7 +175,7 @@ const layoutOriginal = (spec: FrameSpec, longEdge: number): FrameLayout => {
       spec.captionPlacement === 'below'
         ? {
             x: Math.round(layout.caption.x),
-            y: layout.photo.y + layout.photo.height + m.strip + m.gap,
+            y: layout.photo.y + layout.photo.height + m.strip + m.roomBelow + m.gap,
             width: Math.round(layout.caption.width),
             height: m.captionBelow,
           }

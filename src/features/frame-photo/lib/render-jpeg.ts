@@ -143,12 +143,11 @@ export const drawOwnText = (
 ) => {
   const area = overlayArea(own.mark.area, hasOwnPlace(style.template));
   if (!area) return;
-  const { photo, strips, caption, canvas } = layout;
-  // Text set above or below the photo clears its film strips and a caption printed under it:
-  // both are part of the picture, and the layout kept the room for the text past them.
+  const { photo, strips, canvas } = layout;
+  // Text set above or below the photo clears its film strips, which are part of the picture. The
+  // layout kept its room there, ahead of any caption under the photo.
   const top = strips ? strips.top.y : photo.y;
-  const edge = strips ? strips.bottom.y + strips.bottom.height : photo.y + photo.height;
-  const bottom = caption.height > 0 && caption.y >= edge ? caption.y + caption.height : edge;
+  const bottom = strips ? strips.bottom.y + strips.bottom.height : photo.y + photo.height;
   drawMark(
     ctx,
     area,

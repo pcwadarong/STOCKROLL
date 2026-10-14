@@ -228,7 +228,7 @@ describe("computeLayout with room for the user's text", () => {
     expect(layout.photo.y).toBe(48 + 60);
   });
 
-  it('when room is asked below a photo with a caption, it must be kept past the caption and the margin', () => {
+  it('when room is asked below a photo with a caption, it must sit between the photo and the caption', () => {
     const layout = computeLayout(
       portrait,
       preset('4x5'),
@@ -236,7 +236,23 @@ describe("computeLayout with room for the user's text", () => {
       spec(portrait, { position: 'bottom', markRoom: { above: 0, below: 60 } }),
     );
 
-    expect(layout.caption.y + layout.caption.height).toBe(1350 - 48 - 60);
+    expect(layout.caption.y).toBe(layout.photo.y + layout.photo.height + 60 + 26);
+    expect(layout.caption.y + layout.caption.height).toBe(1350 - 48);
+  });
+
+  it('when room is asked below a photo with a caption on the original output, the caption must move down by the room', () => {
+    const plain = computeLayout(landscape, original, 'optimized', spec(landscape));
+    const roomy = computeLayout(
+      landscape,
+      original,
+      'optimized',
+      spec(landscape, { markRoom: { above: 0, below: 60 } }),
+    );
+    const room = Math.round(60 * plain.unit);
+
+    expect(roomy.photo).toEqual(plain.photo);
+    expect(roomy.caption.y).toBe(plain.caption.y + room);
+    expect(roomy.canvas.height).toBe(plain.canvas.height + room);
   });
 
   it('when the output is the original, the canvas must grow by the room and keep the photo at its size', () => {
