@@ -41,6 +41,20 @@ globalStyle(`html .seed-segmented-control__item${enabled}:not(${checked})${point
   background: vars.$color.bg.neutralWeak,
   boxShadow: 'none',
 });
+// SEED covers a disabled selected segment with a pale fill, which hid the green indicator under
+// the light label. The indicator stays visible so the applied value still reads.
+const disabled = ':is(:disabled, [disabled], [data-disabled])';
+globalStyle(`html .seed-segmented-control__item${disabled}${checked}`, {
+  background: 'transparent',
+  color: beige,
+});
+// When every segment is off, the control fades as a whole, like a disabled button, instead of
+// graying each label on top of the fade.
+const allDisabled = `html .seed-segmented-control__root:not(:has(.seed-segmented-control__item${enabled}))`;
+globalStyle(allDisabled, { opacity: 0.4 });
+globalStyle(`${allDisabled} .seed-segmented-control__item${disabled}:not(${checked})`, {
+  color: vars.$color.fg.neutralSubtle,
+});
 
 // Dropdown list and action menu: ruled like a card, with a soft shadow so they read as floating
 // above the page.
