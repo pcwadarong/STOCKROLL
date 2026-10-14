@@ -23,15 +23,18 @@ export const useGoBack = (fallback: string) => {
 
 /**
  * Returns a function that leaves a saved edit form for the record's screen it was opened from.
- * The form's entry is dropped and the record's screen takes the place of the one behind it, so
- * history does not hold that screen twice in a row and Back leaves it in one step. Opened
- * directly, the form is replaced by the record's screen.
+ * The record's screen takes the place of the one behind the form, so history does not hold that
+ * screen twice in a row and Back leaves it in one step. Opened directly, the form is replaced by
+ * the record's screen.
  * @returns a function taking the record's path
  */
 export const useReplaceEdit = () => {
   const navigate = useNavigate();
   return (path: string) => {
-    if (historyIndex() === 0) return void navigate(path, { replace: true });
+    // The form's own entry becomes the record's screen first. Stepping back does not drop it from
+    // the forward list, and a saved form reached by Forward could be submitted again.
+    navigate(path, { replace: true });
+    if (historyIndex() === 0) return;
     // The screen behind may show an older state of the record (`?v=` of the version edited), so
     // it is replaced once history has stepped back onto it.
     window.addEventListener('popstate', () => void navigate(path, { replace: true }), {
