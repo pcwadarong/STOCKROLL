@@ -433,8 +433,24 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
   if (!known) return <Navigate to="/library/cameras" replace />;
 
   return (
-    // The form leaves through its own Cancel, so it has no Back that would drop the changes.
-    <PageShell back={id !== undefined && !editing ? `/library/${kind}` : undefined}>
+    <PageShell
+      back={
+        id === undefined
+          ? undefined
+          : editing && id !== 'new'
+            ? `/library/${kind}/${id}`
+            : `/library/${kind}`
+      }
+      title={
+        id === undefined
+          ? 'Gear'
+          : editing
+            ? `${id === 'new' ? 'Add' : 'Edit'} ${section.singular}`
+            : `${section.singular[0]?.toUpperCase()}${section.singular.slice(1)}`
+      }
+      // A form ends with its own Save or Cancel.
+      tabs={!editing}
+    >
       <PageHeader title="Gear log" lead="Your cameras, lenses and films." />
 
       <nav className={css.tabs} aria-label="Gear type">

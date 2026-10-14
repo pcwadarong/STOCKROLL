@@ -94,7 +94,7 @@ export const RecipeListPage = () => {
   };
 
   return (
-    <PageShell>
+    <PageShell title="Recipes">
       <PageHeader title="Recipes" lead="Camera settings you shoot with, kept per camera system." />
 
       <SignInGate what="recipes">

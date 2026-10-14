@@ -312,7 +312,11 @@ export const RecipeEditPage = () => {
         : '';
 
   return (
-    <PageShell>
+    <PageShell
+      back={recipe ? `/recipes/${recipe.id}` : '/recipes'}
+      title={mode === 'new' ? 'New recipe' : 'Edit recipe'}
+      tabs={false}
+    >
       <PageHeader
         title={recipe?.name ?? 'New recipe'}
         lead={recipe ? SYSTEMS[systemOf(recipe)].label : undefined}

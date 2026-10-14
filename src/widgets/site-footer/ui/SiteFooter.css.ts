@@ -15,7 +15,7 @@ export const footer = style({
   background: vars.$color.fg.neutral,
   color: beige,
   // On phones the page ends under the browser toolbar and the home indicator, and that area takes
-  // the page's color, not the footer's: a black footer there always ends in a cream band. The menu
-  // drawer shows this content instead.
+  // the page's color, not the footer's: a black footer there always ends in a cream band. The Me
+  // screen shows this content instead.
   '@media': { [COMPACT_MEDIA_QUERY]: { display: 'none' } },
 });

@@ -237,7 +237,12 @@ export const StripEditPage = () => {
   const showSaved = useReplaceEdit();
 
   return (
-    <PageShell wide>
+    <PageShell
+      wide
+      back={strip ? `/recipes/strips/${strip.id}` : '/recipes/strips'}
+      title={strip ? 'Edit strip' : 'New strip'}
+      tabs={false}
+    >
       <PageHeader
         title={strip?.name ?? 'New strip'}
         lead={
