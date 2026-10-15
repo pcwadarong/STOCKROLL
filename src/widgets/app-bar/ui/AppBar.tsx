@@ -1,3 +1,5 @@
+import IconChevronLeftLine from '@karrotmarket/react-monochrome-icon/IconChevronLeftLine';
+import { Icon } from '@seed-design/react';
 import { Link, NavLink } from 'react-router';
 
 import { AccountMenu } from '@/features/auth';
@@ -32,12 +34,11 @@ export const AppBar = ({ pinned = false, back, title }: AppBarProps) => {
 
   return (
     <header className={pinned ? `${css.bar} ${css.pinnedBar}` : css.bar}>
-      {/* Labelled "Back", not with the parent's name: it returns to the previous screen, which is
-          not always the parent (a strip's recipe goes back to the strip). */}
+      {/* Named "Back", not after the parent: it returns to the previous screen, which is not
+          always the parent (a strip's recipe goes back to the strip). */}
       {back && (
-        <button type="button" className={css.backButton} onClick={goBack}>
-          <span aria-hidden="true">←</span>
-          Back
+        <button type="button" className={css.backButton} aria-label="Back" onClick={goBack}>
+          <Icon svg={<IconChevronLeftLine />} size="x6" />
         </button>
       )}
       <p className={title ? `${css.title} ${css.titleBesideName}` : css.title}>

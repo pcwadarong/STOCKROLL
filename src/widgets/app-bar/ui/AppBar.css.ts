@@ -23,14 +23,9 @@ export const bar = style({
   background: vars.$color.bg.brandSolid,
   color: beige,
   borderBottom: `1px solid ${vars.$color.fg.neutral}`,
-  // A set compact height, so a shell that pins the bar can reserve exactly this much. Three columns:
-  // Back at the start, the name centred whether or not Back is there, the end left empty.
-  '@media': compact({
-    display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
-    gap: vars.$dimension.x2,
-    height: COMPACT_APP_BAR_HEIGHT,
-  }),
+  // A set compact height, so a shell that pins the bar can reserve exactly this much. Back, then
+  // the name, from the start edge like a phone's own navigation bar.
+  '@media': compact({ gap: vars.$dimension.x1, height: COMPACT_APP_BAR_HEIGHT }),
 });
 
 // Opt-in pin for document-scrolling shells (PageShell on phones), in the installed app only. There
@@ -50,7 +45,6 @@ export const title = style([
   {
     fontSize: vars.$fontSize.t6,
     letterSpacing: '0.14em',
-    '@media': compact({ gridColumn: 2, gridRow: 1, justifySelf: 'center' }),
   },
 ]);
 
@@ -103,36 +97,30 @@ export const link = style([
   },
 ]);
 
-/** Back button at the start of the bar. Compact widths only; wide screens have the browser's. */
-export const backButton = style([
-  labelText,
-  {
-    display: 'none',
-    gridColumn: 1,
-    justifySelf: 'start',
-    alignItems: 'center',
-    gap: vars.$dimension.x2,
-    minHeight: '2.75rem',
-    marginLeft: `calc(-1 * ${vars.$dimension.x2})`,
-    paddingInline: vars.$dimension.x2,
-    border: 0,
-    background: 'none',
-    color: 'inherit',
-    fontSize: vars.$fontSize.t3,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    cursor: 'pointer',
-    selectors: { '&:focus-visible': { outline: `2px solid ${beige}`, outlineOffset: '2px' } },
-    '@media': compact({ display: 'inline-flex' }),
-  },
-]);
+/** Back button before the screen's name. Compact widths only; wide screens have the browser's. */
+export const backButton = style({
+  display: 'none',
+  flexShrink: 0,
+  placeItems: 'center',
+  // A fair touch target around the chevron, its glyph lined up with the bar's start padding.
+  width: '2.75rem',
+  height: '2.75rem',
+  marginLeft: `calc(-1 * ${vars.$dimension.x3})`,
+  padding: 0,
+  border: 0,
+  background: 'none',
+  color: 'inherit',
+  cursor: 'pointer',
+  selectors: { '&:focus-visible': { outline: `2px solid ${beige}`, outlineOffset: '-2px' } },
+  '@media': compact({ display: 'grid' }),
+});
 
 /** On compact widths the screen's name takes the wordmark's place. */
 export const titleBesideName = style({ '@media': compact({ display: 'none' }) });
 
 /**
- * The screen's name, centred in the bar on compact widths. Hidden from assistive technology: the
- * page's own heading says the same and comes first in the content.
+ * The screen's name, in the wordmark's place on compact widths. Hidden from assistive technology:
+ * the page's own heading says the same and comes first in the content.
  */
 export const screenName = style([
   title,
