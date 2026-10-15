@@ -39,6 +39,7 @@ import {
 } from '../model/recipe-actions';
 import { useRecipeLibrary } from '../model/use-recipe-library';
 
+import { FUJI_CONTROLS } from './FujiControls';
 import { flagText, PasteSettings } from './PasteSettings';
 
 import * as css from './LibraryPage.css';
@@ -223,6 +224,7 @@ const RecipeEditForm = ({
             values={values}
             onChange={change}
             notes={guessed}
+            controls={system === 'fujifilm' ? FUJI_CONTROLS : undefined}
           />
         </>
       )}

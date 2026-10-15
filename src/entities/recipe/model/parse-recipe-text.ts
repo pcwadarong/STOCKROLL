@@ -1,8 +1,15 @@
 import { closestEntry } from '@/shared/lib/closest-match';
+import { isPlainNumber, onScale, scaleText } from '@/shared/lib/field-value';
 
 import { KOREAN_LABELS, KOREAN_PARTICLES, KOREAN_SIMULATIONS, KOREAN_WORDS } from './paste-korean';
 import type { RecipeSettings } from './recipe';
-import { FUJI_RANGES, type FUJI_SIMULATIONS, type RecipeSystem, writtenLabels } from './systems';
+import {
+  FUJI_RANGES,
+  type FUJI_SIMULATIONS,
+  type FUJI_WHITE_BALANCES,
+  type RecipeSystem,
+  writtenLabels,
+} from './systems';
 
 /**
  * Something about a filled-in field that needs a second look. Flags are always reported, so
@@ -196,21 +203,19 @@ const RANGES = wordsOf(
 );
 // White balance presets as Fujifilm's manuals list them. Only used to tidy and to catch
 // misspellings: a value that is none of these (a Kelvin figure, a custom setting) stays as written.
-const WHITE_BALANCES = wordsOf(
-  {
-    Auto: ['awb', 'auto wb'],
-    'Auto White Priority': ['white priority', 'auto white'],
-    'Auto Ambience Priority': ['ambience priority', 'auto ambience'],
-    Daylight: ['sunlight', 'direct sunlight'],
-    Shade: [],
-    'Fluorescent 1': ['fluorescent light 1'],
-    'Fluorescent 2': ['fluorescent light 2'],
-    'Fluorescent 3': ['fluorescent light 3'],
-    Incandescent: ['tungsten'],
-    Underwater: [],
-  },
-  KOREAN_WORDS.whiteBalance,
-);
+const WHITE_BALANCE_ALIASES: Record<(typeof FUJI_WHITE_BALANCES)[number], readonly string[]> = {
+  Auto: ['awb', 'auto wb'],
+  'Auto White Priority': ['white priority', 'auto white'],
+  'Auto Ambience Priority': ['ambience priority', 'auto ambience'],
+  Daylight: ['sunlight', 'direct sunlight'],
+  Shade: [],
+  'Fluorescent 1': ['fluorescent light 1'],
+  'Fluorescent 2': ['fluorescent light 2'],
+  'Fluorescent 3': ['fluorescent light 3'],
+  Incandescent: ['tungsten'],
+  Underwater: [],
+};
+const WHITE_BALANCES = wordsOf(WHITE_BALANCE_ALIASES, KOREAN_WORDS.whiteBalance);
 
 /**
  * Finds the film simulation a piece of text names, by its usual spellings.
@@ -513,21 +518,19 @@ const fixLabels = (line: string, byLabel: ReadonlyMap<string, Reader>) => {
  * "-l" as "-1", "+O" as "+0". Text lifted off a screenshot makes these swaps.
  */
 const misreadNumber = (key: string, value: string) => {
-  if (!FUJI_RANGES[key] || /^[+-]?\d+(\.\d+)?$/.test(value)) return undefined;
+  if (!FUJI_RANGES[key] || isPlainNumber(value)) return undefined;
   const digits = value.replace(/[lI|]/g, '1').replace(/[oO]/g, '0');
-  return /^[+-]?\d+(\.\d+)?$/.test(digits) ? digits : undefined;
+  return isPlainNumber(digits) ? digits : undefined;
 };
 
-/** Tells whether a value is a plain number outside its usual range or off its step. */
+/**
+ * Tells whether a value is a plain number off the form's slider for it: outside the range or off
+ * a step. The same test decides that the form shows such a value as text.
+ */
 const outOfRange = (key: string, value: string) => {
   const range = FUJI_RANGES[key];
-  if (!range || !/^[+-]?\d+(\.\d+)?$/.test(value)) return undefined;
-  const number = Number(value);
-  const offStep = Math.abs(number / range.step - Math.round(number / range.step)) > 1e-9;
-  const sign = (limit: number) => (limit > 0 ? `+${limit}` : String(limit));
-  return number < range.min || number > range.max || offStep
-    ? `${sign(range.min)} to ${sign(range.max)}`
-    : undefined;
+  if (!range || !isPlainNumber(value)) return undefined;
+  return onScale(Number(value), range) ? undefined : scaleText(range);
 };
 
 /** Tells whether the text after a colon-less name reads as a value rather than as prose. */
