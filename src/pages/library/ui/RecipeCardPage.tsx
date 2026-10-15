@@ -28,6 +28,7 @@ import { ErrorText } from '@/shared/ui/ErrorText';
 import { Chips, Segments } from '@/shared/ui/Options';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Panel } from '@/shared/ui/Panel';
+import { useFoldedStage } from '@/shared/ui/use-folded-stage';
 import * as bench from '@/shared/ui/workbench.css';
 import { AppBar } from '@/widgets/app-bar';
 import { PageShell } from '@/widgets/page-shell';
@@ -70,6 +71,7 @@ export const RecipeCardPage = () => {
   const selected = history.find(item => String(item.version) === params.get('v')) ?? history[0];
   const versionLabel = selected ? `v${selected.version}` : '';
   const { style, update } = useCardStyle();
+  const folded = useFoldedStage();
   const { canvasRef, loading, exampleFailed, photos, addPhotos, removePhoto, movePhoto, save } =
     useRecipeCard(recipe, selected?.settings, style);
   const output = cardOutputOf(style.ratio);
@@ -111,7 +113,10 @@ export const RecipeCardPage = () => {
     <div className={bench.page}>
       <AppBar />
       <main className={bench.root}>
-        <section aria-label="Preview" className={bench.stage}>
+        <section
+          aria-label="Preview"
+          className={folded ? `${bench.stage} ${bench.stageFolded}` : bench.stage}
+        >
           {/* Sized 0x0 until the card is drawn, so no empty box shows while the photo loads. */}
           <canvas
             ref={canvasRef}

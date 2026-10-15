@@ -9,6 +9,7 @@ import { Button } from '@/shared/ui/Button';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { ErrorText } from '@/shared/ui/ErrorText';
 import { PickField, type PickOption } from '@/shared/ui/PickField';
+import { useFoldedStage } from '@/shared/ui/use-folded-stage';
 import { Chip } from 'seed-design/ui/chip';
 import { SegmentedControl, SegmentedControlItem } from 'seed-design/ui/segmented-control';
 import { TextField, TextFieldInput } from 'seed-design/ui/text-field';
@@ -94,6 +95,8 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
   const pick = (key: 'camera' | 'lens' | 'film' | 'look') => (value: string) =>
     setPick(key, value === NONE ? '' : value);
 
+  const folded = useFoldedStage();
+
   const onDrop = (event: DragEvent) => {
     event.preventDefault();
     setDragging(false);
@@ -105,7 +108,9 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
     <main className={css.root}>
       <section
         aria-label="Preview"
-        className={dragging ? `${css.stage} ${css.stageDragging}` : css.stage}
+        className={[css.stage, folded && css.stageFolded, dragging && css.stageDragging]
+          .filter(Boolean)
+          .join(' ')}
         onDragOver={event => {
           event.preventDefault();
           setDragging(true);
