@@ -56,6 +56,10 @@ globalStyle(`${allDisabled} .seed-segmented-control__item${disabled}:not(${check
   color: vars.$color.fg.neutralSubtle,
 });
 
+// Slider for a setting that is not set yet: the thumb waits faded where a tap would put it, so it
+// does not read as a chosen zero. `RecordForm` marks the wrapper.
+globalStyle('html [data-unset] .seed-slider__thumb', { opacity: 0.35 });
+
 // Dropdown list and action menu: ruled like a card, with a soft shadow so they read as floating
 // above the page.
 globalStyle('html .seed-select__content, html .seed-menu__content', {

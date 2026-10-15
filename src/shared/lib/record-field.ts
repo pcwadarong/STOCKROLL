@@ -1,13 +1,18 @@
+import type { Scale } from './field-value';
+
 /** Describes one editable field of a record so forms can be generated from data. */
 export type RecordField = {
   key: string;
   label: string;
   /**
-   * `select` needs `options`. `number` stores a number or null. `multiline` is text that may run
-   * over several lines, such as a note.
+   * `select` and `segmented` need `options`; `segmented` shows them side by side, for a few
+   * short ones. `scale` needs `scale` and is a slider. Both still store text, and a stored value
+   * they cannot show is kept and edited as text. `number` stores a number or null. `multiline`
+   * is text that may run over several lines, such as a note.
    */
-  type: 'text' | 'multiline' | 'number' | 'select';
+  type: 'text' | 'multiline' | 'number' | 'select' | 'segmented' | 'scale';
   options?: readonly { value: string; label: string }[];
+  scale?: Scale;
   placeholder?: string;
   required?: boolean;
   hint?: string;
