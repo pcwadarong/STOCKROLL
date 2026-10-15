@@ -21,7 +21,7 @@ import {
 import { SignInGate } from '@/features/auth';
 import { MESSAGES } from '@/shared/config/messages';
 import { missingRequired, normalizeRecord, type RecordValues } from '@/shared/lib/record-field';
-import { useGoBack } from '@/shared/lib/use-go-back';
+import { useGoBack, useReplaceEdit } from '@/shared/lib/use-go-back';
 import { Button } from '@/shared/ui/Button';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { ErrorText } from '@/shared/ui/ErrorText';
@@ -272,6 +272,7 @@ export const RecipeEditPage = () => {
     : undefined;
 
   const goBack = useGoBack(recipe ? `/recipes/${recipe.id}` : '/recipes');
+  const showSaved = useReplaceEdit();
 
   const sources = recipes.flatMap(item => {
     const latest = versionsOf(versions, item.id)[0];
@@ -299,7 +300,7 @@ export const RecipeEditPage = () => {
       await correctVersion(recipe, version, settings, version.id === history[0]?.id);
     else await addVersion(recipe, versions, settings);
     await reload();
-    navigate(`/recipes/${recipe.id}`, { replace: true });
+    showSaved(`/recipes/${recipe.id}`);
   };
 
   const missing = mode !== 'new' && !recipe;
@@ -311,7 +312,11 @@ export const RecipeEditPage = () => {
         : '';
 
   return (
-    <PageShell>
+    <PageShell
+      back={recipe ? `/recipes/${recipe.id}` : '/recipes'}
+      title={mode === 'new' ? 'New recipe' : 'Edit recipe'}
+      tabs={false}
+    >
       <PageHeader
         title={recipe?.name ?? 'New recipe'}
         lead={recipe ? SYSTEMS[systemOf(recipe)].label : undefined}

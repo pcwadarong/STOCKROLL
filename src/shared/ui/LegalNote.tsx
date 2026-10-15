@@ -4,7 +4,7 @@ import * as css from './LegalNote.css';
 
 /**
  * The brand line and the legal links, as two siblings with no box of their own. The site footer
- * shows them on wide screens and the menu drawer on compact ones; each lays them out and sets the
+ * shows them on wide screens and the Me screen on compact ones; each lays them out and sets the
  * color and type.
  */
 export const LegalNote = () => (

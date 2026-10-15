@@ -14,6 +14,7 @@ import {
   StripEditPage,
   StripListPage,
 } from '@/pages/library';
+import { MePage } from '@/pages/me';
 
 /**
  * App root. The editor store sits above the routes so an opened photo survives a trip to a
@@ -38,6 +39,7 @@ export const App = () => (
         <Route path="/recipes/:id" element={<RecipeDetailPage />} />
         <Route path="/recipes/:id/edit" element={<RecipeEditPage />} />
         <Route path="/recipes/:id/card" element={<RecipeCardPage />} />
+        <Route path="/me" element={<MePage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

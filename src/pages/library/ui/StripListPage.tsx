@@ -63,7 +63,7 @@ export const StripListPage = () => {
   const recipeIds = new Set(recipes.records.map(recipe => recipe.id));
 
   return (
-    <PageShell wide>
+    <PageShell wide title="Recipes">
       <PageHeader
         title="Strips"
         lead="Recipes for C1–C7 and film simulations for the FS dial, planned here and set on the camera by hand."

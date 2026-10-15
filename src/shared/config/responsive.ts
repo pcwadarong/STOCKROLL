@@ -1,6 +1,6 @@
 /**
  * At or below this width the layout is "compact": the editor stacks its preview and panel, and
- * the app bar swaps its inline navigation for a menu button that opens a side drawer.
+ * the main navigation moves from the app bar to a tab bar along the bottom edge.
  */
 export const COMPACT_MEDIA_QUERY = 'screen and (max-width: 760px)';
 
@@ -37,3 +37,9 @@ export const COMPACT_STAGE_SVH = 58;
  * enough to leave the fields room, large enough to see a change land.
  */
 export const COMPACT_STAGE_FOLDED_SVH = 40;
+
+/**
+ * Height of the tab bar on compact widths, without the home indicator below it. Pages that show
+ * the bar keep this much clear at their end.
+ */
+export const COMPACT_TAB_BAR_HEIGHT = '3.5rem';

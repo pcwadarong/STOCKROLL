@@ -21,8 +21,9 @@ export default defineConfig({
         short_name: 'STOCKROLL',
         description: 'Frame your photos, keep your film recipes, and share your signature look',
         lang: 'en',
-        // The installed app opens straight into the editor, not the front page.
-        start_url: '/frame',
+        // The installed app opens on the front page, the same index of Frame, Gear and Recipes as
+        // the site.
+        start_url: '/',
         display: 'standalone',
         // Splash and status bar colors; mirror BRAND.cream / BRAND.red in src/shared/config/palette.ts.
         background_color: '#f4efe3',

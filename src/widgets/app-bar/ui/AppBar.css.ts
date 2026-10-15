@@ -1,5 +1,5 @@
 import { vars } from '@seed-design/css/vars';
-import { globalStyle, keyframes, style } from '@vanilla-extract/css';
+import { style } from '@vanilla-extract/css';
 
 import { beige } from '@/shared/config/accent.css';
 import {
@@ -23,9 +23,9 @@ export const bar = style({
   background: vars.$color.bg.brandSolid,
   color: beige,
   borderBottom: `1px solid ${vars.$color.fg.neutral}`,
-  // A set compact height, so a shell that pins the bar can reserve exactly this much; the title and
-  // menu button both fit within it.
-  '@media': compact({ justifyContent: 'space-between', height: COMPACT_APP_BAR_HEIGHT }),
+  // A set compact height, so a shell that pins the bar can reserve exactly this much. Back, then
+  // the name, from the start edge like a phone's own navigation bar.
+  '@media': compact({ gap: vars.$dimension.x1, height: COMPACT_APP_BAR_HEIGHT }),
 });
 
 // Opt-in pin for document-scrolling shells (PageShell on phones), in the installed app only. There
@@ -40,11 +40,17 @@ export const pinnedBar = style({
   },
 });
 
-export const title = style([displayText, { fontSize: vars.$fontSize.t6, letterSpacing: '0.14em' }]);
+export const title = style([
+  displayText,
+  {
+    fontSize: vars.$fontSize.t6,
+    letterSpacing: '0.14em',
+  },
+]);
 
 export const titleLink = style({ color: 'inherit', textDecoration: 'none' });
 
-/** Inline navigation and account menu. Hidden on compact widths, where the drawer takes over. */
+/** Inline navigation and account menu. Hidden on compact widths: the tab bar and the Me screen. */
 export const inline = style({
   display: 'flex',
   flex: 1,
@@ -91,108 +97,39 @@ export const link = style([
   },
 ]);
 
-/** Menu button, shown only on compact widths. */
-export const menuButton = style([
-  labelText,
+/** Back button before the screen's name. Compact widths only; wide screens have the browser's. */
+export const backButton = style({
+  display: 'none',
+  flexShrink: 0,
+  placeItems: 'center',
+  // A fair touch target around the chevron, its glyph lined up with the bar's start padding.
+  width: '2.75rem',
+  height: '2.75rem',
+  marginLeft: `calc(-1 * ${vars.$dimension.x3})`,
+  padding: 0,
+  border: 0,
+  background: 'none',
+  color: 'inherit',
+  cursor: 'pointer',
+  selectors: { '&:focus-visible': { outline: `2px solid ${beige}`, outlineOffset: '-2px' } },
+  '@media': compact({ display: 'grid' }),
+});
+
+/** On compact widths the screen's name takes the wordmark's place. */
+export const titleBesideName = style({ '@media': compact({ display: 'none' }) });
+
+/**
+ * The screen's name, in the wordmark's place on compact widths. Hidden from assistive technology:
+ * the page's own heading says the same and comes first in the content.
+ */
+export const screenName = style([
+  title,
   {
     display: 'none',
-    alignItems: 'center',
-    gap: vars.$dimension.x2,
-    minHeight: '2.75rem',
-    paddingInline: vars.$dimension.x2,
-    border: 0,
-    background: 'none',
-    color: 'inherit',
-    fontSize: vars.$fontSize.t3,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    cursor: 'pointer',
-    selectors: { '&:focus-visible': { outline: `2px solid ${beige}`, outlineOffset: '2px' } },
-    '@media': compact({ display: 'inline-flex' }),
-  },
-]);
-
-// Three rules drawn with a gradient, so the icon needs no extra elements.
-export const menuIcon = style({
-  width: '1.25rem',
-  height: '0.875rem',
-  background:
-    'linear-gradient(currentColor, currentColor) top / 100% 2px no-repeat, linear-gradient(currentColor, currentColor) center / 100% 2px no-repeat, linear-gradient(currentColor, currentColor) bottom / 100% 2px no-repeat',
-});
-
-const slideIn = keyframes({ from: { transform: 'translateX(100%)' }, to: { transform: 'none' } });
-const fadeIn = keyframes({ from: { opacity: 0 }, to: { opacity: 1 } });
-
-/** Side drawer: a native modal dialog pinned to the right edge. */
-export const drawer = style({
-  '@media': {
-    [REDUCED_MOTION_QUERY]: {
-      selectors: { '&[open], &::backdrop': { animation: 'none' } },
-    },
-  },
-  position: 'fixed',
-  inset: '0 0 0 auto',
-  width: 'min(20rem, 86vw)',
-  height: '100dvh',
-  maxHeight: 'none',
-  margin: 0,
-  padding: vars.$dimension.x5,
-  paddingTop: `max(${vars.$dimension.x5}, env(safe-area-inset-top))`,
-  paddingBottom: `max(${vars.$dimension.x5}, env(safe-area-inset-bottom))`,
-  border: 0,
-  borderLeft: `1px solid ${vars.$color.fg.neutral}`,
-  background: vars.$color.bg.brandSolid,
-  color: beige,
-  selectors: {
-    '&[open]': {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: vars.$dimension.x6,
-      animation: `${slideIn} ${vars.$duration.d5} ${vars.$timingFunction.easing}`,
-    },
-    '&::backdrop': {
-      background: vars.$color.bg.overlay,
-      animation: `${fadeIn} ${vars.$duration.d5} ${vars.$timingFunction.easing}`,
-    },
-  },
-});
-
-// A modal dialog makes the page inert but does not stop it scrolling: on phones, where the document
-// is the scroller, a swipe on the backdrop would move the page behind the open drawer.
-globalStyle(`html:has(${drawer}[open])`, { overflow: 'hidden' });
-
-export const drawerHead = style({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-});
-
-export const drawerNav = style({ display: 'grid' });
-
-export const drawerLink = style([
-  displayText,
-  {
-    paddingBlock: vars.$dimension.x4,
-    borderBottom: `1px solid ${beige}`,
-    color: 'inherit',
-    fontSize: vars.$fontSize.t8,
-    textDecoration: 'none',
-    selectors: {
-      '&:first-child': { borderTop: `1px solid ${beige}` },
-      '&[aria-current="page"]': { textDecoration: 'underline', textUnderlineOffset: '0.18em' },
-    },
-  },
-]);
-
-export const drawerFoot = style({ display: 'grid', gap: vars.$dimension.x5, marginTop: 'auto' });
-
-/** Brand line and legal links under the account menu, set off by a thin rule. */
-export const drawerLegal = style([
-  labelText,
-  {
-    display: 'grid',
-    gap: vars.$dimension.x3,
-    paddingTop: vars.$dimension.x4,
-    borderTop: `1px solid ${beige}`,
+    margin: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    '@media': compact({ display: 'block' }),
   },
 ]);
