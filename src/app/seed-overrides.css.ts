@@ -48,6 +48,12 @@ globalStyle(`html .seed-segmented-control__item${disabled}${checked}`, {
   background: 'transparent',
   color: beige,
 });
+// With nothing picked — a setting left unset — SEED still draws the indicator, one segment's
+// width to the left of the first, where it pokes out of the track. Nothing picked shows none.
+globalStyle(
+  `html .seed-segmented-control__root:not(:has(.seed-segmented-control__item${checked})) .seed-segmented-control__indicator`,
+  { visibility: 'hidden' },
+);
 // When every segment is off, the control fades as a whole, like a disabled button, instead of
 // graying each label on top of the fade.
 const allDisabled = `html .seed-segmented-control__root:not(:has(.seed-segmented-control__item${enabled}))`;
