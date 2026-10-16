@@ -3,7 +3,14 @@ import { Fragment, type ReactNode, useRef } from 'react';
 import { Slider } from 'seed-design/ui/slider';
 import { TextField, TextFieldInput, TextFieldTextarea } from 'seed-design/ui/text-field';
 
-import { formatScaleValue, readOption, readScale, type Scale, scaleText } from '../lib/field-value';
+import {
+  earlierValue,
+  formatScaleValue,
+  readOption,
+  readScale,
+  type Scale,
+  scaleText,
+} from '../lib/field-value';
 import type { RecordField, RecordValues } from '../lib/record-field';
 
 import { Segments } from './Options';
@@ -12,6 +19,7 @@ import { type FieldNote, SettingField, TextFallback, useTextFallback } from './S
 
 import { labelTitle } from './label.css';
 import * as css from './RecordForm.css';
+import * as settingCss from './SettingField.css';
 
 export type { FieldNote } from './SettingField';
 
@@ -21,6 +29,8 @@ export type FieldControlProps = {
   onChange: (key: string, value: string) => void;
   /** Remarks for the fields it draws, already named by field where it draws more than one. */
   notes: readonly FieldNote[];
+  /** The stored values the edit started from, to show what changed. */
+  baseline?: Readonly<Record<string, string>>;
 };
 
 /**
@@ -43,6 +53,11 @@ type RecordFormProps = {
   notes?: Readonly<Record<string, FieldNote>>;
   /** Controls that draw several fields together, in place of the fields' own inputs. */
   controls?: readonly FieldControl[];
+  /**
+   * The stored values the edit started from. Each field this edit changed shows what it was.
+   * Leave out when there is nothing to compare with, such as a new recipe.
+   */
+  baseline?: Readonly<Record<string, string>>;
 };
 
 const textOf = (value: RecordValues[string]) =>
@@ -53,10 +68,16 @@ type PickedProps = {
   value: string;
   onChange: (value: string) => void;
   notes: readonly FieldNote[];
+  /** The stored text this edit replaced (empty when it was not set), or undefined if unchanged. */
+  was?: string;
 };
 
+/** Writes an earlier value for reading; empty is "not set", not zero. */
+const earlierText = (was: string | undefined, format: (text: string) => string = text => text) =>
+  was === undefined ? undefined : was ? format(was) : 'not set';
+
 /** A field picked from a few options side by side; other text stays text. */
-const SegmentedField = ({ field, value, onChange, notes }: PickedProps) => {
+const SegmentedField = ({ field, value, onChange, notes, was }: PickedProps) => {
   const options = field.options ?? [];
   const reading = readOption(
     value,
@@ -68,6 +89,7 @@ const SegmentedField = ({ field, value, onChange, notes }: PickedProps) => {
       label={field.label}
       shown={asText ? undefined : value.trim()}
       filled={reading.kind !== 'empty'}
+      was={earlierText(was)}
       onClear={() => onChange('')}
       notes={notes}
     >
@@ -117,6 +139,11 @@ const ScaleSlider = ({ label, scale, value, onChange }: ScaleSliderProps) => {
     if (number !== undefined) onChange(format(number));
   };
   const marks = [...new Set([scale.min, rest, scale.max])];
+  // Every stop between the ends, so it shows that the thumb snaps to steps.
+  const stops = Array.from(
+    { length: Math.round((scale.max - scale.min) / scale.step) - 1 },
+    (_, index) => scale.min + (index + 1) * scale.step,
+  );
   return (
     <div
       data-unset={unset || undefined}
@@ -140,6 +167,8 @@ const ScaleSlider = ({ label, scale, value, onChange }: ScaleSliderProps) => {
           write(next);
         }}
         hideRange={unset}
+        ticks={stops}
+        tickWeight="thick"
         markers={marks.map(mark => ({ value: mark, label: format(mark) }))}
         getAriaLabel={() => label}
         getAriaValuetext={number => (unset ? 'Not set' : format(number))}
@@ -150,7 +179,7 @@ const ScaleSlider = ({ label, scale, value, onChange }: ScaleSliderProps) => {
 };
 
 /** A numeric field set with a slider; a value the slider does not have stays text. */
-const ScaleField = ({ field, value, onChange, notes }: PickedProps) => {
+const ScaleField = ({ field, value, onChange, notes, was }: PickedProps) => {
   const scale = field.scale!;
   const reading = readScale(value, scale);
   const { asText, focusProps } = useTextFallback(reading.kind !== 'other');
@@ -161,6 +190,10 @@ const ScaleField = ({ field, value, onChange, notes }: PickedProps) => {
         asText ? undefined : reading.kind === 'value' ? formatScaleValue(reading.value, scale) : ''
       }
       filled={reading.kind !== 'empty'}
+      was={earlierText(was, text => {
+        const earlier = readScale(text, scale);
+        return earlier.kind === 'value' ? formatScaleValue(earlier.value, scale) : text;
+      })}
       onClear={() => onChange('')}
       notes={notes}
     >
@@ -188,7 +221,14 @@ const ScaleField = ({ field, value, onChange, notes }: PickedProps) => {
  * @param props field definitions, current values, a change handler, optional per-field notes and
  *   optional controls that draw several fields together
  */
-export const RecordForm = ({ fields, values, onChange, notes, controls = [] }: RecordFormProps) => (
+export const RecordForm = ({
+  fields,
+  values,
+  onChange,
+  notes,
+  controls = [],
+  baseline,
+}: RecordFormProps) => (
   <div className={css.root}>
     {fields.map((field, index) => {
       const text = textOf(values[field.key]);
@@ -199,6 +239,7 @@ export const RecordForm = ({ fields, values, onChange, notes, controls = [] }: R
       );
       const note = notes?.[field.key];
       const change = (next: string) => onChange(field.key, next);
+      const was = earlierValue(baseline, field.key, text);
 
       const shared = controls.find(control => control.keys.includes(field.key));
       if (shared) {
@@ -214,7 +255,7 @@ export const RecordForm = ({ fields, values, onChange, notes, controls = [] }: R
         return (
           <Fragment key={field.key}>
             {heading}
-            {shared.render({ values, onChange, notes: named })}
+            {shared.render({ values, onChange, notes: named, baseline })}
           </Fragment>
         );
       }
@@ -224,7 +265,13 @@ export const RecordForm = ({ fields, values, onChange, notes, controls = [] }: R
         return (
           <Fragment key={field.key}>
             {heading}
-            <Picked field={field} value={text} onChange={change} notes={note ? [note] : []} />
+            <Picked
+              field={field}
+              value={text}
+              onChange={change}
+              notes={note ? [note] : []}
+              was={was}
+            />
           </Fragment>
         );
       }
@@ -258,13 +305,26 @@ export const RecordForm = ({ fields, values, onChange, notes, controls = [] }: R
           </TextField>
         );
 
+      const below = [
+        was !== undefined && (
+          <p key="was" className={settingCss.wasLine}>
+            Was {earlierText(was)}
+          </p>
+        ),
+        note && (
+          <p key="note" className={css.note[note.tone]}>
+            {note.text}
+          </p>
+        ),
+      ].filter(Boolean);
+
       return (
         <Fragment key={field.key}>
           {heading}
-          {note ? (
+          {below.length > 0 ? (
             <div className={css.flagged}>
               {control}
-              <p className={css.note[note.tone]}>{note.text}</p>
+              {below}
             </div>
           ) : (
             control

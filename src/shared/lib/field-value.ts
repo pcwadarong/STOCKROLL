@@ -82,3 +82,23 @@ export const readOption = (
   if (!trimmed) return { kind: 'empty' };
   return options.includes(trimmed) ? { kind: 'value', value: trimmed } : { kind: 'other' };
 };
+
+/**
+ * Tells what a setting held before, when it no longer holds it. Compared as trimmed text — the
+ * same rule that decides whether a save changes anything — so a value that only reads alike
+ * ("1" and "+1") counts as changed, and one written the same does not.
+ * @param before the stored values the edit started from, or undefined when there is nothing to
+ *   compare with
+ * @param key the setting
+ * @param now what the setting holds now
+ * @returns the earlier text (empty when it was not set), or undefined when unchanged
+ */
+export const earlierValue = (
+  before: Readonly<Record<string, string>> | undefined,
+  key: string,
+  now: string | undefined,
+) => {
+  if (!before) return undefined;
+  const was = (before[key] ?? '').trim();
+  return was === (now ?? '').trim() ? undefined : was;
+};

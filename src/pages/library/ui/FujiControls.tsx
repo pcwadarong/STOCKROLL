@@ -11,11 +11,12 @@ import {
   shiftChanges,
   shiftLabel,
   shiftPosition,
+  shiftSummary,
   stepShift,
   SYSTEMS,
   WB_SHIFT,
 } from '@/entities/recipe';
-import { formatSigned, readOption, scaleText } from '@/shared/lib/field-value';
+import { earlierValue, readOption, scaleText } from '@/shared/lib/field-value';
 import type { RecordValues } from '@/shared/lib/record-field';
 import { Segments } from '@/shared/ui/Options';
 import { PickField } from '@/shared/ui/PickField';
@@ -28,6 +29,22 @@ import * as css from './FujiControls.css';
 const textOf = (values: RecordValues, key: string) => {
   const value = values[key];
   return value === null || value === undefined ? '' : String(value);
+};
+
+/**
+ * What several fields held before this edit, written by `describe`, when the edit changed any of
+ * them. "not set" when none of them was set.
+ */
+const earlierOf = (
+  baseline: FieldControlProps['baseline'],
+  values: RecordValues,
+  keys: readonly string[],
+  describe: (...earlier: string[]) => string,
+) => {
+  if (!keys.some(key => earlierValue(baseline, key, textOf(values, key)) !== undefined))
+    return undefined;
+  const earlier = keys.map(key => baseline?.[key]?.trim() ?? '');
+  return earlier.some(Boolean) ? describe(...earlier) : 'not set';
 };
 
 const optionsOf = (key: string) =>
@@ -79,7 +96,7 @@ const SegmentRow = ({ label, fullLabel, value, options, onChange, disabled }: Ro
 };
 
 /** Grain strength and size, as the camera shows them: two lines under one name. */
-const FujiGrain = ({ values, onChange, notes }: FieldControlProps) => {
+const FujiGrain = ({ values, onChange, notes, baseline }: FieldControlProps) => {
   const strength = textOf(values, 'grainStrength');
   const size = textOf(values, 'grainSize');
   const filled = Boolean(strength.trim() || size.trim());
@@ -88,6 +105,9 @@ const FujiGrain = ({ values, onChange, notes }: FieldControlProps) => {
       label="Grain effect"
       shown={[strength.trim(), size.trim()].filter(Boolean).join(', ')}
       filled={filled}
+      was={earlierOf(baseline, values, ['grainStrength', 'grainSize'], (...earlier) =>
+        earlier.filter(Boolean).join(', '),
+      )}
       onClear={() => {
         onChange('grainStrength', '');
         onChange('grainSize', '');
@@ -126,7 +146,7 @@ const WHITE_BALANCE_OPTIONS = FUJI_WHITE_BALANCE_CHOICES.flatMap(value => [
 ]);
 
 /** White balance: a setting from the camera's list, or a color temperature typed in kelvin. */
-const FujiWhiteBalance = ({ values, onChange, notes }: FieldControlProps) => {
+const FujiWhiteBalance = ({ values, onChange, notes, baseline }: FieldControlProps) => {
   const value = textOf(values, 'whiteBalance');
   const reading = readWhiteBalance(value);
   // Picked "Color temperature" but no number typed yet: nothing to store, but the box stays.
@@ -140,6 +160,7 @@ const FujiWhiteBalance = ({ values, onChange, notes }: FieldControlProps) => {
       label="White balance"
       shown={asText ? undefined : value.trim()}
       filled={reading.kind !== 'empty'}
+      was={earlierOf(baseline, values, ['whiteBalance'], earlier => earlier)}
       onClear={() => {
         setTypingKelvin(false);
         set('');
@@ -195,7 +216,7 @@ const FujiWhiteBalance = ({ values, onChange, notes }: FieldControlProps) => {
  * White balance shift as the camera shows it: one grid, red across (more to the right) and blue
  * up (more toward the top). Tap or drag to place the point; arrow keys move it a step.
  */
-const FujiWbShift = ({ values, onChange, notes }: FieldControlProps) => {
+const FujiWbShift = ({ values, onChange, notes, baseline }: FieldControlProps) => {
   const r = textOf(values, 'wbShiftR');
   const b = textOf(values, 'wbShiftB');
   const reading = readShift(r, b);
@@ -218,17 +239,18 @@ const FujiWbShift = ({ values, onChange, notes }: FieldControlProps) => {
     pick(next);
   };
 
-  const part = (axis: string, text: string) =>
-    reading.kind === 'value' && text.trim()
-      ? `${axis} ${formatSigned(Number(text))}`
-      : `${axis} not set`;
   const at = point && shiftPosition(point);
+  const was = earlierOf(baseline, values, ['wbShiftR', 'wbShiftB'], shiftSummary);
+  // Where the point was before this edit, drawn hollow so the move reads on the grid itself.
+  const before = was !== undefined ? readShift(baseline?.wbShiftR, baseline?.wbShiftB) : undefined;
+  const from = before?.kind === 'value' ? shiftPosition(before.value) : undefined;
 
   return (
     <SettingField
       label="WB shift"
-      shown={asText ? undefined : `${part('R', r)} · ${part('B', b)}`}
+      shown={asText ? undefined : shiftSummary(r, b)}
       filled={filled}
+      was={was}
       onClear={() => {
         onChange('wbShiftR', '');
         onChange('wbShiftB', '');
@@ -275,8 +297,11 @@ const FujiWbShift = ({ values, onChange, notes }: FieldControlProps) => {
               aria-valuetext={point ? shiftLabel(point) : 'Not set'}
               aria-describedby={`${labelId}-keys`}
               className={css.grid}
-              // One dot per cell, at the cell's centre, where `shiftPosition` puts the point.
-              style={{ backgroundSize: `calc(100% / ${SHIFT_CELLS}) calc(100% / ${SHIFT_CELLS})` }}
+              // One dot per cell, at the cell's centre, where `shiftPosition` puts the point. The
+              // tints under the dots fill the grid.
+              style={{
+                backgroundSize: `calc(100% / ${SHIFT_CELLS}) calc(100% / ${SHIFT_CELLS}), 100% 100%, 100% 100%`,
+              }}
               onPointerDown={event => {
                 event.currentTarget.setPointerCapture(event.pointerId);
                 pickAt(event);
@@ -286,6 +311,12 @@ const FujiWbShift = ({ values, onChange, notes }: FieldControlProps) => {
               }}
               onKeyDown={keyDown}
             >
+              {from && (
+                <span
+                  className={css.earlierMarker}
+                  style={{ left: `${from.x * 100}%`, top: `${from.y * 100}%` }}
+                />
+              )}
               {at && (
                 <span
                   className={css.marker}

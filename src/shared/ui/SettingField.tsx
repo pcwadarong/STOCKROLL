@@ -18,6 +18,11 @@ type SettingFieldProps = {
   shown?: string;
   /** Whether anything is stored, so it can be cleared. */
   filled: boolean;
+  /**
+   * What the setting held in the version being edited, when the edit changed it: the earlier
+   * value as it reads, or "not set".
+   */
+  was?: string;
   /** Empties the setting back to "not set". */
   onClear: () => void;
   /** Remarks shown under the control, in order. */
@@ -28,13 +33,16 @@ type SettingFieldProps = {
 
 /**
  * One setting picked with a control rather than typed: its name, what it is set to (or "Not set"
- * — which is different from zero), a button that clears it, the control, and remarks under it.
- * @param props the setting's name, its value as it reads, the clear handler, notes and control
+ * — which is different from zero), what it was before this edit if that changed, a button that
+ * clears it, the control, and remarks under it.
+ * @param props the setting's name, its value as it reads, its earlier value, the clear handler,
+ *   notes and control
  */
 export const SettingField = ({
   label,
   shown,
   filled,
+  was,
   onClear,
   notes = [],
   children,
@@ -52,12 +60,15 @@ export const SettingField = ({
   return (
     <div ref={rootRef} role="group" aria-labelledby={labelId} className={css.root}>
       <div className={css.head}>
-        <span id={labelId} className={css.label}>
-          {label}
+        <span className={css.summary}>
+          <span id={labelId} className={css.label}>
+            {label}
+          </span>
+          {shown !== undefined && (
+            <span className={filled ? css.value : css.unset}>{filled ? shown : 'Not set'}</span>
+          )}
+          {was !== undefined && <span className={css.was}>was {was}</span>}
         </span>
-        {shown !== undefined && (
-          <span className={filled ? css.value : css.unset}>{filled ? shown : 'Not set'}</span>
-        )}
         <Button
           variant="plain"
           className={css.clear}

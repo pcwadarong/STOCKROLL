@@ -162,6 +162,23 @@ export const shiftChanges = (
     }),
   );
 
+/**
+ * Writes a stored shift for reading, one axis after the other. An axis the grid can show is
+ * written signed; any other text is written as stored.
+ * @param r stored red shift
+ * @param b stored blue shift
+ * @returns text such as "R +3 · B -5" or "R +3 · B not set"
+ */
+export const shiftSummary = (r: string | undefined, b: string | undefined) => {
+  const part = (axis: string, text: string | undefined) => {
+    const trimmed = text?.trim() ?? '';
+    if (!trimmed) return `${axis} not set`;
+    const reading = readScale(trimmed, WB_SHIFT);
+    return `${axis} ${reading.kind === 'value' ? formatSigned(reading.value) : trimmed}`;
+  };
+  return `${part('R', r)} · ${part('B', b)}`;
+};
+
 const spoken = (value: number) => (value < 0 ? `−${-value}` : formatSigned(value));
 
 /**

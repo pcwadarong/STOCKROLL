@@ -43,6 +43,7 @@ export {
   shiftChanges,
   shiftLabel,
   shiftPosition,
+  shiftSummary,
   stepShift,
   WB_SHIFT,
 } from './model/fuji-controls';

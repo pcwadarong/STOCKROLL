@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatScaleValue, formatSigned, readOption, readScale, scaleText } from './field-value';
+import {
+  earlierValue,
+  formatScaleValue,
+  formatSigned,
+  readOption,
+  readScale,
+  scaleText,
+} from './field-value';
 
 const TONE = { min: -2, max: 4, step: 0.5 };
 const FINE = { min: -4, max: 4, step: 1 };
@@ -75,5 +82,31 @@ describe('readOption', () => {
   it('when the text only resembles an option, it must read as text so it is not rewritten', () => {
     expect(readOption('weak', LEVELS)).toEqual({ kind: 'other' });
     expect(readOption('Medium', LEVELS)).toEqual({ kind: 'other' });
+  });
+});
+
+describe('earlierValue', () => {
+  const BEFORE = { highlight: '1', shadow: '', color: ' +2 ' };
+
+  it('when a value is unchanged apart from surrounding spaces, it must report no change', () => {
+    expect(earlierValue(BEFORE, 'highlight', '1')).toBeUndefined();
+    expect(earlierValue(BEFORE, 'color', '+2')).toBeUndefined();
+  });
+
+  it('when a value only reads alike, it must count as changed, as saving does', () => {
+    expect(earlierValue(BEFORE, 'highlight', '+1')).toBe('1');
+  });
+
+  it('when a setting was not set before, it must report it as empty rather than zero', () => {
+    expect(earlierValue(BEFORE, 'shadow', '+1')).toBe('');
+    expect(earlierValue(BEFORE, 'clarity', '0')).toBe('');
+  });
+
+  it('when a setting is cleared, it must report what it held', () => {
+    expect(earlierValue(BEFORE, 'highlight', '')).toBe('1');
+  });
+
+  it('when there is nothing to compare with, it must report no change', () => {
+    expect(earlierValue(undefined, 'highlight', '+3')).toBeUndefined();
   });
 });

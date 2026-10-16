@@ -28,6 +28,13 @@ export const axisBottom = style([axis, { gridArea: 'bottom', justifySelf: 'cente
 export const axisLeft = style([axis, { gridArea: 'left' }]);
 export const axisRight = style([axis, { gridArea: 'right' }]);
 
+// The camera's own shift screen is colored toward each end — red right, blue up, yellow down,
+// green left. A faint wash of the same keeps which way is warmer readable at a glance, without
+// becoming a color block on the label-like page.
+const tint = (color: string) => `color-mix(in srgb, ${color} 14%, transparent)`;
+const ACROSS = `linear-gradient(to right, ${tint(vars.$color.palette.green500)}, transparent 50%, ${tint(vars.$color.palette.red500)})`;
+const UP_DOWN = `linear-gradient(to bottom, ${tint(vars.$color.palette.blue500)}, transparent 50%, ${tint(vars.$color.palette.yellow500)})`;
+
 // A square of dots, one per step, with the zero lines drawn through the middle. Only the grid
 // takes touch gestures for itself, so dragging on it does not scroll the page and the page still
 // scrolls everywhere else.
@@ -38,7 +45,8 @@ export const grid = style({
   aspectRatio: '1',
   border: `1px solid ${vars.$color.stroke.neutralWeak}`,
   backgroundColor: vars.$color.bg.layerDefault,
-  backgroundImage: `radial-gradient(circle, ${vars.$color.stroke.neutralWeak} 1px, transparent 1px)`,
+  // Dots on top; their tile size is set where the grid is drawn, the tints fill it.
+  backgroundImage: `radial-gradient(circle, ${vars.$color.stroke.neutralWeak} 1px, transparent 1px), ${ACROSS}, ${UP_DOWN}`,
   backgroundPosition: 'center',
   touchAction: 'none',
   cursor: 'crosshair',
@@ -75,3 +83,13 @@ export const keys = style({
   fontSize: vars.$fontSize.t3,
   color: vars.$color.fg.neutralSubtle,
 });
+
+// Where the point was before this edit: the same square, hollow, under the current one.
+export const earlierMarker = style([
+  marker,
+  {
+    zIndex: 0,
+    background: 'transparent',
+    border: `1px solid ${vars.$color.fg.neutralMuted}`,
+  },
+]);

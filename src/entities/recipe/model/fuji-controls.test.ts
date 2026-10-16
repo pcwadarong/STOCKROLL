@@ -10,6 +10,7 @@ import {
   shiftChanges,
   shiftLabel,
   shiftPosition,
+  shiftSummary,
   stepShift,
 } from './fuji-controls';
 import { parseRecipeText } from './parse-recipe-text';
@@ -124,6 +125,20 @@ describe('shift grid', () => {
   it('when a point is announced, it must name both axes with their signs', () => {
     expect(shiftLabel({ r: 3, b: -2 })).toBe('Red +3, Blue −2');
     expect(shiftLabel({ r: 0, b: 0 })).toBe('Red 0, Blue 0');
+  });
+});
+
+describe('shiftSummary', () => {
+  it('when both axes are set in any notation, it must write them signed', () => {
+    expect(shiftSummary('3', '-5')).toBe('R +3 · B -5');
+  });
+
+  it('when an axis is not set, it must say so rather than write zero', () => {
+    expect(shiftSummary('+2', '')).toBe('R +2 · B not set');
+  });
+
+  it('when an axis holds text the grid cannot show, it must write it as stored', () => {
+    expect(shiftSummary('+12', '0')).toBe('R +12 · B 0');
   });
 });
 

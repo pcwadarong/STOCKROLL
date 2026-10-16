@@ -225,6 +225,9 @@ const RecipeEditForm = ({
             onChange={change}
             notes={guessed}
             controls={system === 'fujifilm' ? FUJI_CONTROLS : undefined}
+            // What changed is shown against the version being edited. A new recipe, or the first
+            // version of one, has nothing to compare with — every value would read as new.
+            baseline={mode !== 'new' && version ? initial : undefined}
           />
         </>
       )}
