@@ -38,6 +38,7 @@ export {
   readShift,
   readWhiteBalance,
   type Shift,
+  SHIFT_CELLS,
   shiftAt,
   shiftChanges,
   shiftLabel,

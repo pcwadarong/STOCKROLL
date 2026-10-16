@@ -94,28 +94,31 @@ const clampStep = (value: number) =>
   Math.min(WB_SHIFT.max, Math.max(WB_SHIFT.min, Math.round(value)));
 
 /**
+ * Cells across and down the grid, one per step. Each value owns an equal cell and sits at its
+ * centre, so the outermost values are inside the border, not on it.
+ */
+export const SHIFT_CELLS = WB_SHIFT.max - WB_SHIFT.min + 1;
+
+/**
  * Finds the grid point under a pointer.
  * @param x pointer position across the grid, 0 at the left edge and 1 at the right
  * @param y pointer position down the grid, 0 at the top and 1 at the bottom
- * @returns the nearest point, kept within the grid
+ * @returns the point whose cell is under the pointer, kept within the grid
  */
-export const shiftAt = (x: number, y: number): Shift => {
-  const span = WB_SHIFT.max - WB_SHIFT.min;
-  return {
-    r: clampStep(WB_SHIFT.min + x * span),
-    b: clampStep(WB_SHIFT.max - y * span),
-  };
-};
+export const shiftAt = (x: number, y: number): Shift => ({
+  r: clampStep(WB_SHIFT.min + Math.floor(x * SHIFT_CELLS)),
+  b: clampStep(WB_SHIFT.max - Math.floor(y * SHIFT_CELLS)),
+});
 
 /**
- * Places a grid point for drawing.
+ * Places a grid point for drawing, at the centre of its cell.
  * @param shift the point
  * @returns its position as fractions of the grid's width (from the left) and height (from the top)
  */
-export const shiftPosition = ({ r, b }: Shift) => {
-  const span = WB_SHIFT.max - WB_SHIFT.min;
-  return { x: (r - WB_SHIFT.min) / span, y: (WB_SHIFT.max - b) / span };
-};
+export const shiftPosition = ({ r, b }: Shift) => ({
+  x: (r - WB_SHIFT.min + 0.5) / SHIFT_CELLS,
+  y: (WB_SHIFT.max - b + 0.5) / SHIFT_CELLS,
+});
 
 /**
  * Moves a grid point one step with an arrow key: left and right change red, up and down change

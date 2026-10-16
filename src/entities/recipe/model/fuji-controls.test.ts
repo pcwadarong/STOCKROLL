@@ -5,6 +5,7 @@ import {
   kelvinText,
   readShift,
   readWhiteBalance,
+  SHIFT_CELLS,
   shiftAt,
   shiftChanges,
   shiftLabel,
@@ -91,6 +92,25 @@ describe('shift grid', () => {
       const { x, y } = shiftPosition(point);
       expect(shiftAt(x, y)).toEqual(point);
     }
+  });
+
+  it('when a point is drawn, it must sit at the centre of its own cell, where the dot is', () => {
+    const cells = [-9, -3, 0, 4, 9].map(r => shiftPosition({ r, b: 0 }).x * SHIFT_CELLS);
+    expect(cells).toEqual([0.5, 6.5, 9.5, 13.5, 18.5]);
+  });
+
+  it('when the outermost values are drawn, they must sit inside the border', () => {
+    const { x, y } = shiftPosition({ r: 9, b: 9 });
+    expect(x).toBeLessThan(1);
+    expect(y).toBeGreaterThan(0);
+  });
+
+  it('when the pointer is anywhere in a cell, it must pick that cell, not a neighbour', () => {
+    const cell = 1 / SHIFT_CELLS;
+    // The cell of R +3 is the 13th from the left: index 12.
+    expect(shiftAt(12 * cell + 0.01, 0.5).r).toBe(3);
+    expect(shiftAt(13 * cell - 0.01, 0.5).r).toBe(3);
+    expect(shiftAt(13 * cell + 0.01, 0.5).r).toBe(4);
   });
 
   it('when arrow keys are pressed, it must move red across and blue up and down, stopping at the edge', () => {

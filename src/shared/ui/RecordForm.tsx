@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, type ReactNode, useRef } from 'react';
 
 import { Slider } from 'seed-design/ui/slider';
 import { TextField, TextFieldInput, TextFieldTextarea } from 'seed-design/ui/text-field';
@@ -106,6 +106,9 @@ type ScaleSliderProps = {
  * filled track is hidden; a tap, a drag or an arrow key sets it.
  */
 const ScaleSlider = ({ label, scale, value, onChange }: ScaleSliderProps) => {
+  // Whether the slider reported a value during the current press. A drag's last value can land
+  // after the release, while this render still reads as unset.
+  const reported = useRef(false);
   const reading = readScale(value, scale);
   const unset = reading.kind !== 'value';
   const rest = Math.min(scale.max, Math.max(scale.min, 0));
@@ -119,8 +122,12 @@ const ScaleSlider = ({ label, scale, value, onChange }: ScaleSliderProps) => {
       data-unset={unset || undefined}
       // A tap on the faded thumb changes nothing, so the slider reports nothing; the tap itself
       // says the resting value was meant. A tap anywhere else on the track reports a change.
+      onPointerDown={() => {
+        reported.current = false;
+      }}
       onPointerUp={event => {
-        if (unset && (event.target as Element).closest('[role="slider"]')) write(rest);
+        if (unset && !reported.current && (event.target as Element).closest('[role="slider"]'))
+          write(rest);
       }}
     >
       <Slider
@@ -128,7 +135,10 @@ const ScaleSlider = ({ label, scale, value, onChange }: ScaleSliderProps) => {
         max={scale.max}
         step={scale.step}
         values={[reading.kind === 'value' ? reading.value : rest]}
-        onValuesChange={([next]) => write(next)}
+        onValuesChange={([next]) => {
+          reported.current = true;
+          write(next);
+        }}
         hideRange={unset}
         markers={marks.map(mark => ({ value: mark, label: format(mark) }))}
         getAriaLabel={() => label}

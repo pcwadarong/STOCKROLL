@@ -6,6 +6,7 @@ import {
   kelvinText,
   readShift,
   readWhiteBalance,
+  SHIFT_CELLS,
   shiftAt,
   shiftChanges,
   shiftLabel,
@@ -190,8 +191,6 @@ const FujiWhiteBalance = ({ values, onChange, notes }: FieldControlProps) => {
   );
 };
 
-const GRID_STEPS = WB_SHIFT.max - WB_SHIFT.min + 1;
-
 /**
  * White balance shift as the camera shows it: one grid, red across (more to the right) and blue
  * up (more toward the top). Tap or drag to place the point; arrow keys move it a step.
@@ -276,7 +275,8 @@ const FujiWbShift = ({ values, onChange, notes }: FieldControlProps) => {
               aria-valuetext={point ? shiftLabel(point) : 'Not set'}
               aria-describedby={`${labelId}-keys`}
               className={css.grid}
-              style={{ backgroundSize: `calc(100% / ${GRID_STEPS}) calc(100% / ${GRID_STEPS})` }}
+              // One dot per cell, at the cell's centre, where `shiftPosition` puts the point.
+              style={{ backgroundSize: `calc(100% / ${SHIFT_CELLS}) calc(100% / ${SHIFT_CELLS})` }}
               onPointerDown={event => {
                 event.currentTarget.setPointerCapture(event.pointerId);
                 pickAt(event);
