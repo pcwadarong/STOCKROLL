@@ -9,6 +9,8 @@ type OptionsProps<T extends string | number> = {
   value: T;
   options: readonly { value: T; label: string }[];
   onChange: (value: T) => void;
+  /** Shows the choice without letting it change, such as one that has no effect right now. */
+  disabled?: boolean;
 };
 
 // SEED hands the picked value back as text; this finds the option it stands for.
@@ -29,9 +31,11 @@ export const Segments = <T extends string | number>({
   value,
   options,
   onChange,
+  disabled,
 }: OptionsProps<T>) => (
   <SegmentedControl
     aria-label={label}
+    disabled={disabled}
     value={String(value)}
     onValueChange={pick(options, onChange)}
   >

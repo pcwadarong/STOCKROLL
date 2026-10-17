@@ -1,8 +1,16 @@
 import { closestEntry } from '@/shared/lib/closest-match';
+import { isPlainNumber, readOption, readScale, scaleText } from '@/shared/lib/field-value';
 
+import { KELVIN, readWhiteBalance } from './fuji-controls';
 import { KOREAN_LABELS, KOREAN_PARTICLES, KOREAN_SIMULATIONS, KOREAN_WORDS } from './paste-korean';
 import type { RecipeSettings } from './recipe';
-import { FUJI_RANGES, type FUJI_SIMULATIONS, type RecipeSystem, writtenLabels } from './systems';
+import {
+  type FUJI_SIMULATIONS,
+  type FUJI_WHITE_BALANCES,
+  type RecipeSystem,
+  SYSTEMS,
+  writtenLabels,
+} from './systems';
 
 /**
  * Something about a filled-in field that needs a second look. Flags are always reported, so
@@ -14,16 +22,10 @@ export type PasteFlag = {
   /**
    * `value`: the value was a misspelling and the nearest known word was filled in.
    * `label`: the setting's name was misspelled; the value itself is as written.
-   * `range`: the value is a number outside what the camera usually accepts; kept as written.
-   * `number`: the value is not a number but would be with a letter read as a digit ("-l" for
-   *   "-1"), as happens when text is lifted off a screenshot; kept as written.
    * `repeat`: the text gave this setting again with another value; the first was kept.
    */
-  kind: 'value' | 'label' | 'range' | 'number' | 'repeat';
-  /**
-   * The pasted text the flag is about: the misspelling, or the other value given. For `range`,
-   * the usual range; for `number`, the number it may stand for.
-   */
+  kind: 'value' | 'label' | 'repeat';
+  /** The pasted text the flag is about: the misspelling, or the other value given. */
   from: string;
   /** What is in the field. */
   to: string;
@@ -35,7 +37,10 @@ export type ParsedRecipeText = {
   settings: RecipeSettings;
   /** What the user should check among them, in the order the fields were filled. */
   flags: PasteFlag[];
-  /** Lines that named no known setting, so the user can see what was left out. */
+  /**
+   * Lines that named no known setting, and values the form could not hold (with the reason), so
+   * the user can see what was left out.
+   */
   unread: string[];
 };
 
@@ -196,21 +201,19 @@ const RANGES = wordsOf(
 );
 // White balance presets as Fujifilm's manuals list them. Only used to tidy and to catch
 // misspellings: a value that is none of these (a Kelvin figure, a custom setting) stays as written.
-const WHITE_BALANCES = wordsOf(
-  {
-    Auto: ['awb', 'auto wb'],
-    'Auto White Priority': ['white priority', 'auto white'],
-    'Auto Ambience Priority': ['ambience priority', 'auto ambience'],
-    Daylight: ['sunlight', 'direct sunlight'],
-    Shade: [],
-    'Fluorescent 1': ['fluorescent light 1'],
-    'Fluorescent 2': ['fluorescent light 2'],
-    'Fluorescent 3': ['fluorescent light 3'],
-    Incandescent: ['tungsten'],
-    Underwater: [],
-  },
-  KOREAN_WORDS.whiteBalance,
-);
+const WHITE_BALANCE_ALIASES: Record<(typeof FUJI_WHITE_BALANCES)[number], readonly string[]> = {
+  Auto: ['awb', 'auto wb'],
+  'Auto White Priority': ['white priority', 'auto white'],
+  'Auto Ambience Priority': ['ambience priority', 'auto ambience'],
+  Daylight: ['sunlight', 'direct sunlight'],
+  Shade: [],
+  'Fluorescent 1': ['fluorescent light 1'],
+  'Fluorescent 2': ['fluorescent light 2'],
+  'Fluorescent 3': ['fluorescent light 3'],
+  Incandescent: ['tungsten'],
+  Underwater: [],
+};
+const WHITE_BALANCES = wordsOf(WHITE_BALANCE_ALIASES, KOREAN_WORDS.whiteBalance);
 
 /**
  * Finds the film simulation a piece of text names, by its usual spellings.
@@ -512,22 +515,45 @@ const fixLabels = (line: string, byLabel: ReadonlyMap<string, Reader>) => {
  * Tells what number a value may stand for when letters that look like digits are read as digits:
  * "-l" as "-1", "+O" as "+0". Text lifted off a screenshot makes these swaps.
  */
-const misreadNumber = (key: string, value: string) => {
-  if (!FUJI_RANGES[key] || /^[+-]?\d+(\.\d+)?$/.test(value)) return undefined;
+const misreadNumber = (value: string) => {
   const digits = value.replace(/[lI|]/g, '1').replace(/[oO]/g, '0');
-  return /^[+-]?\d+(\.\d+)?$/.test(digits) ? digits : undefined;
+  return isPlainNumber(digits) ? digits : undefined;
 };
 
-/** Tells whether a value is a plain number outside its usual range or off its step. */
-const outOfRange = (key: string, value: string) => {
-  const range = FUJI_RANGES[key];
-  if (!range || !/^[+-]?\d+(\.\d+)?$/.test(value)) return undefined;
+const FUJI_FIELDS = new Map(SYSTEMS.fujifilm.fields.map(field => [field.key, field]));
+
+/**
+ * Tells why the Fujifilm form could not hold a value, or nothing when it can. The form's own
+ * field definitions decide, so pasting accepts exactly what the controls offer (the X-T50's
+ * menu). Typed fields take anything.
+ */
+const misfit = (key: string, value: string): string | undefined => {
+  const field = FUJI_FIELDS.get(key);
+  if (key === 'whiteBalance') {
+    const reading = readWhiteBalance(value);
+    if (reading.kind === 'other') return 'not a white balance the camera lists';
+    if (reading.kind !== 'kelvin' || reading.usual) return undefined;
+    return reading.kelvin < KELVIN.min || reading.kelvin > KELVIN.max
+      ? `outside ${KELVIN.min} to ${KELVIN.max} K`
+      : `not in ${KELVIN.step} K steps`;
+  }
+  if (field?.type === 'select' || field?.type === 'segmented') {
+    const options = (field.options ?? []).map(option => option.value);
+    return readOption(value, options).kind === 'other'
+      ? `not one of ${options.join(', ')}`
+      : undefined;
+  }
+  if (field?.type !== 'scale' || !field.scale) return undefined;
+  const { scale } = field;
+  if (readScale(value, scale).kind !== 'other') return undefined;
+  if (!isPlainNumber(value)) {
+    const digits = misreadNumber(value);
+    return digits ? `may be ${digits}` : 'not a number';
+  }
   const number = Number(value);
-  const offStep = Math.abs(number / range.step - Math.round(number / range.step)) > 1e-9;
-  const sign = (limit: number) => (limit > 0 ? `+${limit}` : String(limit));
-  return number < range.min || number > range.max || offStep
-    ? `${sign(range.min)} to ${sign(range.max)}`
-    : undefined;
+  return number < scale.min || number > scale.max
+    ? `outside ${scaleText(scale)}`
+    : `not in ${scale.step === 1 ? 'whole' : scale.step} steps`;
 };
 
 /** Tells whether the text after a colon-less name reads as a value rather than as prose. */
@@ -575,10 +601,17 @@ export const parseRecipeText = (system: RecipeSystem, text: string): ParsedRecip
   const guessed = new Map<string, PasteFlag>();
   const repeated = new Map<string, PasteFlag>();
   const unread: string[] = [];
+  const names = writtenLabels(system);
+  // Values read off the current line that the form could not hold, reported with the line.
+  let refused: string[] = [];
   let writes = 0;
 
   const store = (key: string, value: string, guess?: Pick<PasteFlag, 'kind' | 'from'>) => {
     writes++;
+    // Fujifilm values are picked from the camera's menu. One the menu does not have is not
+    // filled in to be corrected later: it is handed back, as written, with what is wrong.
+    const wrong = system === 'fujifilm' ? misfit(key, value) : undefined;
+    if (wrong) return void refused.push(`${names[key] ?? key}: ${value} — ${wrong}`);
     const current = settings[key];
     // The first value stated outright stands. It replaces an earlier guess; a later guess does
     // not replace it; and a later, different statement — a second recipe in the same text, most
@@ -606,6 +639,7 @@ export const parseRecipeText = (system: RecipeSystem, text: string): ParsedRecip
 
   for (const original of lines) {
     const before = writes;
+    refused = [];
     const { text: line, fixed } = fixLabels(original, byLabel);
     // A label counts when it opens the line or is followed by a colon. A label word in the
     // middle of a sentence ("the color is muted") names no setting.
@@ -655,21 +689,12 @@ export const parseRecipeText = (system: RecipeSystem, text: string): ParsedRecip
     }
 
     if (writes === before) unread.push(original);
-    else unread.push(...strays);
+    else unread.push(...refused, ...strays);
   }
 
-  const ranged =
-    system === 'fujifilm'
-      ? Object.entries(settings).flatMap(([key, value]): PasteFlag[] => {
-          const usual = outOfRange(key, value);
-          const digits = misreadNumber(key, value);
-          if (usual) return [{ key, kind: 'range', from: usual, to: value }];
-          return digits ? [{ key, kind: 'number', from: digits, to: value }] : [];
-        })
-      : [];
   // In the order the fields were filled, so the list reads like the form.
   const order = Object.keys(settings);
-  const flags = [...guessed.values(), ...ranged, ...repeated.values()].sort(
+  const flags = [...guessed.values(), ...repeated.values()].sort(
     (a, b) => order.indexOf(a.key) - order.indexOf(b.key),
   );
   return { settings, flags, unread };
