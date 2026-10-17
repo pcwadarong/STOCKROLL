@@ -15,7 +15,7 @@ export const rowLabel = style([labelText, { color: vars.$color.fg.neutralMuted }
 export const gridFrame = style({
   display: 'grid',
   gridTemplateColumns: 'auto minmax(0, 18rem) auto',
-  gridTemplateAreas: '". top ." "left grid right" ". bottom ." "keys keys keys"',
+  gridTemplateAreas: '". top ." "left grid right" ". bottom ."',
   alignItems: 'center',
   justifyContent: 'start',
   columnGap: vars.$dimension.x2,
@@ -75,13 +75,6 @@ export const marker = style({
   background: vars.$color.bg.brandSolid,
   border: `1px solid ${vars.$color.bg.layerDefault}`,
   pointerEvents: 'none',
-});
-
-export const keys = style({
-  gridArea: 'keys',
-  margin: 0,
-  fontSize: vars.$fontSize.t3,
-  color: vars.$color.fg.neutralSubtle,
 });
 
 // Where the point was before this edit: the same square, hollow, under the current one.

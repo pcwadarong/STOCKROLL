@@ -77,17 +77,6 @@ const TITLES: Record<Mode, (version: number, next: number) => string> = {
   version: (_version, next) => `New version — v${next}`,
 };
 
-const EXPLANATIONS: Record<Mode, (version: number, next: number) => string> = {
-  new: () => 'Pick the camera system first: it decides which settings the recipe has.',
-  details: () => 'These describe the recipe as a whole and apply to every version.',
-  correct: version =>
-    `Changes overwrite v${version}. Use this to fix a value that was entered wrong.`,
-  version: (version, next) =>
-    version > 0
-      ? `Starts from v${version}. Saving adds v${next}; v${version} stays as it is.`
-      : 'These become v1 of this recipe.',
-};
-
 const RecipeEditForm = ({
   mode,
   recipe,
@@ -192,7 +181,9 @@ const RecipeEditForm = ({
 
   return (
     <>
-      <p className={css.note}>{EXPLANATIONS[mode](version?.version ?? 0, nextVersion)}</p>
+      {/* The title and the save button already say what the other modes do. Only an overwrite
+          is not visible from them. */}
+      {mode === 'correct' && <p className={css.note}>Saving overwrites v{version?.version}.</p>}
       {error && <ErrorText>{error}</ErrorText>}
 
       {/* First on the form: pasting is the quickest way in, and it was easy to miss lower down. */}
@@ -210,7 +201,6 @@ const RecipeEditForm = ({
         <PickField
           label="Copy settings from"
           indicator="Optional"
-          description="Fills the fields below. The other recipe stays as it is."
           value={source}
           options={sources}
           onChange={copyFrom}

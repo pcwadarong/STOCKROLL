@@ -100,7 +100,7 @@ const SegmentedField = ({ field, value, onChange, notes, was }: PickedProps) => 
               labelledBy={labelId}
               value={value}
               onChange={onChange}
-              takes={`The buttons offer ${options.map(option => option.label).join(', ')}.`}
+              why="Not one of the buttons."
             />
           </div>
         ) : (
@@ -204,7 +204,7 @@ const ScaleField = ({ field, value, onChange, notes, was }: PickedProps) => {
               labelledBy={labelId}
               value={value}
               onChange={onChange}
-              takes={`The slider takes ${scaleText(scale)} in steps of ${scale.step}.`}
+              why={`Not on the slider: ${scaleText(scale)} in ${scale.step === 1 ? 'whole' : scale.step} steps.`}
             />
           </div>
         ) : (

@@ -115,26 +115,26 @@ type TextFallbackProps = {
   labelledBy: string;
   value: string;
   onChange: (value: string) => void;
-  /** What the control takes, for the line under the input. */
-  takes: string;
+  /** Why the control cannot show the value, naming what it offers, for the line under the input. */
+  why: string;
   placeholder?: string;
 };
 
 /**
  * The text input a control falls back to for a value it cannot show, so the value is kept as
  * written and can still be corrected.
- * @param props the label id, the text, the change handler and what the control would take
+ * @param props the label id, the text, the change handler and why the control cannot show it
  */
 export const TextFallback = ({
   labelledBy,
   value,
   onChange,
-  takes,
+  why,
   placeholder,
 }: TextFallbackProps) => (
   <TextField
     value={value}
-    description={`Kept as written. ${takes}`}
+    description={`${why} Edit or clear it.`}
     onValueChange={({ value: next }) => onChange(next)}
   >
     <TextFieldInput aria-labelledby={labelledBy} placeholder={placeholder} />

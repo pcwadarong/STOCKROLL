@@ -5,7 +5,6 @@ import {
   parseRecipeText,
   type PasteFlag,
   type RecipeSystem,
-  SYSTEMS,
 } from '@/entities/recipe';
 import { Button } from '@/shared/ui/Button';
 import { TextField, TextFieldTextarea } from 'seed-design/ui/text-field';
@@ -72,7 +71,7 @@ export const PasteSettings = ({ system, wipes, onFill }: PasteSettingsProps) => 
       <TextField
         label="Paste a recipe"
         indicator="Optional"
-        description={`Read as ${SYSTEMS[system].label} settings and filled into the fields below. On iPhone, press and hold text in a screenshot to copy it.`}
+        description="On iPhone, press and hold text in a screenshot to copy it."
         value={text}
         onValueChange={({ value }) => setText(value)}
       >

@@ -1,3 +1,4 @@
+import { VisuallyHidden } from '@seed-design/react';
 import { type KeyboardEvent, type PointerEvent, useId, useState } from 'react';
 
 import {
@@ -79,7 +80,7 @@ const SegmentRow = ({ label, fullLabel, value, options, onChange, disabled }: Ro
             labelledBy={rowId}
             value={value}
             onChange={onChange}
-            takes={`The buttons offer ${options.map(option => option.label).join(', ')}.`}
+            why="Not one of the buttons."
           />
         </div>
       ) : (
@@ -174,7 +175,7 @@ const FujiWhiteBalance = ({ values, onChange, notes, baseline }: FieldControlPro
               labelledBy={labelId}
               value={value}
               onChange={set}
-              takes="The list offers the camera's settings or a temperature in K."
+              why="Not a camera setting or a temperature in K."
             />
           </div>
         ) : (
@@ -196,7 +197,8 @@ const FujiWhiteBalance = ({ values, onChange, notes, baseline }: FieldControlPro
                 value={reading.kind === 'kelvin' ? String(reading.kelvin) : ''}
                 suffix="K"
                 invalid={reading.kind === 'kelvin' && !reading.usual}
-                description={`${KELVIN.min} to ${KELVIN.max} K, in steps of ${KELVIN.step}.`}
+                // The range only matters once a number is outside it.
+                errorMessage={`${KELVIN.min} to ${KELVIN.max} K, in steps of ${KELVIN.step}.`}
                 onValueChange={({ value: digits }) => {
                   setTypingKelvin(true);
                   set(kelvinText(digits));
@@ -274,7 +276,7 @@ const FujiWbShift = ({ values, onChange, notes, baseline }: FieldControlProps) =
                   labelledBy={`${labelId}-${axis}`}
                   value={text}
                   onChange={value => onChange(key, value)}
-                  takes={`The grid takes ${scaleText(WB_SHIFT)} in whole steps.`}
+                  why={`Not on the grid: ${scaleText(WB_SHIFT)} in whole steps.`}
                 />
               </div>
             ))}
@@ -330,9 +332,10 @@ const FujiWbShift = ({ values, onChange, notes, baseline }: FieldControlProps) =
             <span className={css.axisBottom} aria-hidden>
               B−
             </span>
-            <p id={`${labelId}-keys`} className={css.keys}>
+            {/* The axis names and colors show this; the keys are told only to assistive tech. */}
+            <VisuallyHidden id={`${labelId}-keys`}>
               Left and right change red, up and down change blue.
-            </p>
+            </VisuallyHidden>
           </div>
         )
       }
