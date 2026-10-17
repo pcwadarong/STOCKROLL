@@ -52,9 +52,11 @@ export const FUJI_WHITE_BALANCES = [
 ] as const;
 
 /**
- * The stops of Fujifilm's numeric settings: the form's sliders offer exactly these, and pasted
- * text outside them is pointed out. Bodies and firmware differ, so a value outside them is never
- * rejected or changed — the form keeps it as text and pasting flags it.
+ * The stops of Fujifilm's numeric settings, as the X-T50 menu offers them: the form's sliders and
+ * grid show exactly these, and pasting hands back a value off them instead of filling it in. The
+ * tone half steps and the ±9 shift were read off the X-T50 manual's pictures; the other X bodies
+ * checked have the same ranges or narrower. A value already stored off them is never changed —
+ * the form shows it as text.
  */
 export const FUJI_RANGES: Readonly<Record<string, Scale>> = {
   highlight: { min: -2, max: 4, step: 0.5 },

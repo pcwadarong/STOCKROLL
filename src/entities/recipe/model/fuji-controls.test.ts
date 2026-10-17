@@ -202,9 +202,10 @@ describe('Fujifilm form values', () => {
     }
   });
 
-  it('when a value is outside a slider, pasting must still flag it with the slider range', () => {
-    const { flags } = parseRecipeText('fujifilm', 'Color: +5');
-    expect(flags).toContainEqual({ key: 'color', kind: 'range', from: '-4 to +4', to: '+5' });
+  it('when a value is outside a slider, pasting must hand it back with the slider range instead of filling it in', () => {
+    const { settings, unread } = parseRecipeText('fujifilm', 'Color: +5');
+    expect(settings).toEqual({});
+    expect(unread).toEqual(['Color: +5 — outside -4 to +4']);
   });
 
   it('when the form is built, every Fujifilm slider must have its range', () => {

@@ -197,21 +197,68 @@ describe('parseRecipeText (guessing at misspellings)', () => {
     });
   });
 
-  it('when a number is outside the usual range, it must be kept as written and flagged', () => {
+  it('when a Fujifilm number is outside its range, it must not be filled in but handed back with the range', () => {
     expect(parseRecipeText('fujifilm', 'Highlight: -15\nColor: +3')).toEqual({
-      settings: { highlight: '-15', color: '+3' },
-      flags: [{ key: 'highlight', kind: 'range', from: '-2 to +4', to: '-15' }],
-      unread: [],
+      settings: { color: '+3' },
+      flags: [],
+      unread: ['Highlight tone: -15 — outside -2 to +4'],
     });
   });
 
-  it('when a number is off the step of its setting, it must be flagged, and a half step for tones must not', () => {
-    const { flags } = parseRecipeText('fujifilm', 'Color: +1.5\nShadow: -1.5\nWB Shift: R+10 B-9');
-    expect(flags.map(flag => flag.key)).toEqual(['color', 'wbShiftR']);
+  it('when a Fujifilm number is off its step, it must be handed back, and a half step for tones must be filled in', () => {
+    const { settings, unread } = parseRecipeText(
+      'fujifilm',
+      'Color: +1.5\nShadow: -1.5\nWB Shift: R+10 B-9',
+    );
+    expect(settings).toEqual({ shadow: '-1.5', wbShiftB: '-9' });
+    expect(unread).toEqual([
+      'Color: +1.5 — not in whole steps',
+      'WB shift R: +10 — outside -9 to +9',
+    ]);
   });
 
-  it('when a value is not a plain number, it must not be judged against a range', () => {
-    expect(parseRecipeText('fujifilm', 'Highlight: -1 to +1').flags).toEqual([]);
+  it('when a Fujifilm value is not a number, it must be handed back rather than filled in', () => {
+    expect(parseRecipeText('fujifilm', 'Highlight: -1 to +1')).toEqual({
+      settings: {},
+      flags: [],
+      unread: ['Highlight tone: -1 to +1 — not a number'],
+    });
+  });
+
+  it('when a refused value is followed by one the form can hold, it must fill in the later value', () => {
+    expect(parseRecipeText('fujifilm', 'Shadow: +5\nShadow: +1')).toEqual({
+      settings: { shadow: '+1' },
+      flags: [],
+      unread: ['Shadow tone: +5 — outside -2 to +4'],
+    });
+  });
+
+  it('when a line holds one setting the form can hold and one it cannot, it must fill the one and hand back the other', () => {
+    expect(parseRecipeText('fujifilm', 'Highlight: -1  Shadow: +5')).toEqual({
+      settings: { highlight: '-1' },
+      flags: [],
+      unread: ['Shadow tone: +5 — outside -2 to +4'],
+    });
+  });
+
+  it('when a white balance, temperature or dynamic range is not on the camera menu, it must be handed back', () => {
+    expect(
+      parseRecipeText('fujifilm', 'White balance: 12000K\nDynamic range: DR-P weak').unread,
+    ).toEqual([
+      'White balance: 12000K — outside 2500 to 10000 K',
+      'Dynamic range: DR-P weak — not one of Auto, DR100, DR200, DR400',
+    ]);
+    expect(parseRecipeText('fujifilm', 'White balance: 5655K').unread).toEqual([
+      'White balance: 5655K — not in 10 K steps',
+    ]);
+  });
+
+  it('when the system is not Fujifilm, it must fill in any number as written, as its form is free text', () => {
+    expect(parseRecipeText('ricoh', 'Saturation: +9')).toEqual({
+      settings: { saturation: '+9' },
+      flags: [],
+      unread: [],
+    });
   });
 
   it('when a setting is given again with another value, it must keep the first and report the other', () => {
@@ -349,14 +396,11 @@ describe('parseRecipeText (loose ways of writing)', () => {
     );
   });
 
-  it('when a number has a letter where a digit belongs, it must be kept and flagged, not fixed', () => {
+  it('when a number has a letter where a digit belongs, it must be handed back with the number it may be, not fixed', () => {
     expect(read('Highlight: -l\nColor: +O')).toEqual({
-      settings: { highlight: '-l', color: '+O' },
-      flags: [
-        { key: 'highlight', kind: 'number', from: '-1', to: '-l' },
-        { key: 'color', kind: 'number', from: '+0', to: '+O' },
-      ],
-      unread: [],
+      settings: {},
+      flags: [],
+      unread: ['Highlight tone: -l — may be -1', 'Color: +O — may be +0'],
     });
   });
 
