@@ -507,6 +507,16 @@ describe('cardExportScale', () => {
     expect(cardExportScale({ width: 1080, height: 1350, photos: [] })).toBe(1);
   });
 
+  it('when the device can draw more, the card must grow until its photos are pixel for pixel', () => {
+    expect(cardExportScale(card(8000), () => 300_000_000)).toBe(8);
+  });
+
+  it('when the device draws less than the card wants, the card must stop at the device limit', () => {
+    const scale = cardExportScale(card(8000), () => 25_000_000);
+    expect(1080 * scale * 1350 * scale).toBeLessThanOrEqual(25_000_000 + 1);
+    expect(scale).toBeGreaterThan(Math.sqrt(16_000_000 / (1080 * 1350)));
+  });
+
   it('when full detail would exceed what a browser can draw, the card must stop at that limit', () => {
     const scale = cardExportScale(card(8000));
     expect(scale).toBeLessThan(8);
