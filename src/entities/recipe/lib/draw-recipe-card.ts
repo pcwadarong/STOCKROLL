@@ -1,3 +1,5 @@
+import { devicePixelBudget } from '@/shared/lib/canvas-budget';
+
 import {
   CARD_TEXT,
   type CardAlign,
@@ -83,9 +85,10 @@ export const drawRecipeCard = (
     : recipeCardLayout(input);
 
   // Resizing clears the canvas and resets its state, so it comes before any drawing.
-  const scale = options.full ? cardExportScale(layout) : 1;
-  canvas.width = Math.round(layout.width * scale);
-  canvas.height = Math.round(layout.height * scale);
+  const scale = options.full ? cardExportScale(layout, devicePixelBudget) : 1;
+  // Rounded down, so a size measured right at the device's limit is not passed by a pixel.
+  canvas.width = Math.floor(layout.width * scale);
+  canvas.height = Math.floor(layout.height * scale);
   // Everything below is drawn in card units; the transform turns them into canvas pixels.
   context.setTransform(scale, 0, 0, scale, 0, 0);
   context.fillStyle = colors.background;

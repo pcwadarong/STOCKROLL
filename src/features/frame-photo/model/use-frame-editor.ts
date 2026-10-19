@@ -4,6 +4,7 @@ import { computeLayout, drawFrame } from '@/entities/frame';
 import { cameraCollection, filmCollection, lensCollection } from '@/entities/gear';
 import { markLines, useMark } from '@/entities/mark';
 import { recipeCollection } from '@/entities/recipe';
+import { devicePixelBudget } from '@/shared/lib/canvas-budget';
 import { ensureFont } from '@/shared/lib/canvas-fonts';
 import { downloadBlob } from '@/shared/lib/save-file';
 import { useCollection } from '@/shared/lib/use-collection';
@@ -186,7 +187,8 @@ export const useFrameEditor = () => {
     library,
     resolved,
     /** Pixel size of the file that export will write for the current photo at the current detail. */
-    outputSize: bitmap && spec ? computeLayout(bitmap, preset, detail, spec).canvas : null,
+    outputSize:
+      bitmap && spec ? computeLayout(bitmap, preset, detail, spec, devicePixelBudget).canvas : null,
     exportJpeg,
     savePhotos,
   };
