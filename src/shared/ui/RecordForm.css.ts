@@ -1,5 +1,5 @@
 import { vars } from '@seed-design/css/vars';
-import { style, styleVariants } from '@vanilla-extract/css';
+import { style } from '@vanilla-extract/css';
 
 // Extra room above a section heading separates it from the section before.
 export const heading = style({
@@ -17,11 +17,5 @@ export const root = style({
 // A field and the remark under it stay together, closer than two fields are.
 export const flagged = style({ display: 'grid', gap: vars.$dimension.x1_5 });
 
-// Colored, so the remark is not read past among the hints: red for a value that needs a second
-// look, green for one that was filled in.
-const noteBase = { margin: 0, fontSize: vars.$fontSize.t3, fontWeight: vars.$fontWeight.medium };
-
-export const note = styleVariants({
-  alert: { ...noteBase, color: vars.$color.fg.brand },
-  done: { ...noteBase, color: vars.$color.fg.positive },
-});
+// The same red and green remarks as under a picked setting.
+export { note } from './SettingField.css';

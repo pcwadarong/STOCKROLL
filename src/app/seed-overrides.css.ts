@@ -48,6 +48,12 @@ globalStyle(`html .seed-segmented-control__item${disabled}${checked}`, {
   background: 'transparent',
   color: beige,
 });
+// With nothing picked — a setting left unset — SEED still draws the indicator, one segment's
+// width to the left of the first, where it pokes out of the track. Nothing picked shows none.
+globalStyle(
+  `html .seed-segmented-control__root:not(:has(.seed-segmented-control__item${checked})) .seed-segmented-control__indicator`,
+  { visibility: 'hidden' },
+);
 // When every segment is off, the control fades as a whole, like a disabled button, instead of
 // graying each label on top of the fade.
 const allDisabled = `html .seed-segmented-control__root:not(:has(.seed-segmented-control__item${enabled}))`;
@@ -55,6 +61,10 @@ globalStyle(allDisabled, { opacity: 0.4 });
 globalStyle(`${allDisabled} .seed-segmented-control__item${disabled}:not(${checked})`, {
   color: vars.$color.fg.neutralSubtle,
 });
+
+// Slider for a setting that is not set yet: the thumb waits faded where a tap would put it, so it
+// does not read as a chosen zero. `RecordForm` marks the wrapper.
+globalStyle('html [data-unset] .seed-slider__thumb', { opacity: 0.35 });
 
 // Dropdown list and action menu: ruled like a card, with a soft shadow so they read as floating
 // above the page.

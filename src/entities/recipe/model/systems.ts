@@ -1,3 +1,4 @@
+import type { Scale } from '@/shared/lib/field-value';
 import type { RecordField } from '@/shared/lib/record-field';
 
 /** Which camera family a recipe is written for. Each has its own set of settings. */
@@ -34,11 +35,30 @@ export const FUJI_SIMULATIONS = [
 ] as const;
 
 /**
- * What Fujifilm's numeric settings usually accept, as the form's placeholders say. Bodies and
- * firmware differ, so this is for pointing out an unusual value, never for rejecting or changing
- * one.
+ * White balance presets as Fujifilm's manuals list them, written the way recipes store them. The
+ * form offers these (and the custom settings) to pick from; pasted text is tidied to them.
  */
-export const FUJI_RANGES: Readonly<Record<string, { min: number; max: number; step: number }>> = {
+export const FUJI_WHITE_BALANCES = [
+  'Auto',
+  'Auto White Priority',
+  'Auto Ambience Priority',
+  'Daylight',
+  'Shade',
+  'Fluorescent 1',
+  'Fluorescent 2',
+  'Fluorescent 3',
+  'Incandescent',
+  'Underwater',
+] as const;
+
+/**
+ * The stops of Fujifilm's numeric settings, as the X-T50 menu offers them: the form's sliders and
+ * grid show exactly these, and pasting hands back a value off them instead of filling it in. The
+ * tone half steps and the ±9 shift were read off the X-T50 manual's pictures; the other X bodies
+ * checked have the same ranges or narrower. A value already stored off them is never changed —
+ * the form shows it as text.
+ */
+export const FUJI_RANGES: Readonly<Record<string, Scale>> = {
   highlight: { min: -2, max: 4, step: 0.5 },
   shadow: { min: -2, max: 4, step: 0.5 },
   color: { min: -4, max: 4, step: 1 },
@@ -60,7 +80,8 @@ type SystemSpec = {
   fields: readonly RecordField[];
 };
 
-const LEVELS = ['Off', 'Weak', 'Strong'].map(value => ({ value, label: value }));
+const choices = (values: readonly string[]) => values.map(value => ({ value, label: value }));
+const LEVELS = choices(['Off', 'Weak', 'Strong']);
 /** Puts a run of fields under one heading, so a long settings list reads in sections. */
 const grouped = (group: string, fields: readonly RecordField[]): RecordField[] =>
   fields.map(field => ({ ...field, group }));
@@ -72,9 +93,18 @@ const text = (key: string, label: string, placeholder?: string): RecordField => 
   placeholder,
 });
 
-// Field sets mirror each camera's menu. Values stay free text so a menu that differs by model or
-// firmware can still be recorded as shown. Only the Fujifilm list was checked against a camera;
-// the others were written from memory, so correct the labels here if a menu disagrees.
+const scale = (key: string, label: string): RecordField => ({
+  key,
+  label,
+  type: 'scale',
+  scale: FUJI_RANGES[key],
+});
+
+// Field sets mirror each camera's menu. Only the Fujifilm list was checked against a camera, so
+// only Fujifilm picks its values the way the camera menu does (segments, sliders); every value is
+// still stored as text, and one the control cannot show stays text. The other systems were
+// written from memory and keep free text, so a menu that differs by model or firmware can still
+// be recorded as shown — correct the labels here if a menu disagrees.
 // Order matters for `systemOfCamera`: the first matching pattern wins.
 export const SYSTEMS: Record<RecipeSystem, SystemSpec> = {
   fujifilm: {
@@ -90,38 +120,51 @@ export const SYSTEMS: Record<RecipeSystem, SystemSpec> = {
           type: 'select',
           options: FUJI_SIMULATIONS.map(value => ({ value, label: value })),
         },
-        { key: 'grainStrength', label: 'Grain effect — strength', type: 'select', options: LEVELS },
+        // Drawn together as one setting (`FujiGrain`), as the camera's menu shows them.
+        {
+          key: 'grainStrength',
+          label: 'Grain effect — strength',
+          type: 'segmented',
+          options: LEVELS,
+        },
         {
           key: 'grainSize',
           label: 'Grain effect — size',
-          type: 'select',
-          options: ['Small', 'Large'].map(value => ({ value, label: value })),
+          type: 'segmented',
+          options: choices(['Small', 'Large']),
         },
-        { key: 'colorChrome', label: 'Color Chrome Effect', type: 'select', options: LEVELS },
+        { key: 'colorChrome', label: 'Color Chrome Effect', type: 'segmented', options: LEVELS },
         {
           key: 'colorChromeFxBlue',
           label: 'Color Chrome FX Blue',
-          type: 'select',
+          type: 'segmented',
           options: LEVELS,
         },
       ]),
+      // White balance is a preset or a color temperature (`FujiWhiteBalance`), and the shift is
+      // one grid for both axes (`FujiWbShift`).
       ...grouped('White balance', [
         text('whiteBalance', 'White balance', 'Auto, Daylight, 5600K…'),
-        text('wbShiftR', 'WB shift R', '-9 to +9'),
-        text('wbShiftB', 'WB shift B', '-9 to +9'),
+        scale('wbShiftR', 'WB shift R'),
+        scale('wbShiftB', 'WB shift B'),
       ]),
       ...grouped('Tone', [
-        text('dynamicRange', 'Dynamic range', 'Auto, DR100, DR200, DR400'),
+        {
+          key: 'dynamicRange',
+          label: 'Dynamic range',
+          type: 'segmented',
+          options: choices(['Auto', 'DR100', 'DR200', 'DR400']),
+        },
         text('toneCurve', 'Tone curve / D-Range Priority', 'DR-P…'),
-        text('highlight', 'Highlight tone', '-2 to +4'),
-        text('shadow', 'Shadow tone', '-2 to +4'),
+        scale('highlight', 'Highlight tone'),
+        scale('shadow', 'Shadow tone'),
       ]),
       ...grouped('Color and detail', [
-        text('color', 'Color', '-4 to +4'),
+        scale('color', 'Color'),
         text('monochromeColor', 'Monochromatic color', 'WC / MG'),
-        text('sharpness', 'Sharpness', '-4 to +4'),
-        text('noiseReduction', 'High ISO NR', '-4 to +4'),
-        text('clarity', 'Clarity', '-5 to +5'),
+        scale('sharpness', 'Sharpness'),
+        scale('noiseReduction', 'High ISO NR'),
+        scale('clarity', 'Clarity'),
       ]),
       ...grouped('In the camera', [
         text('exposureCompensation', 'Exposure compensation', '+1/3 EV'),

@@ -5,7 +5,6 @@ import {
   parseRecipeText,
   type PasteFlag,
   type RecipeSystem,
-  SYSTEMS,
 } from '@/entities/recipe';
 import { Button } from '@/shared/ui/Button';
 import { TextField, TextFieldTextarea } from 'seed-design/ui/text-field';
@@ -21,8 +20,6 @@ export const flagText = ({ kind, from, to }: PasteFlag) =>
   ({
     value: `“${from}” read as ${to}`,
     label: `Name was written “${from}”`,
-    range: `${to} is outside ${from}`,
-    number: `“${to}” may be ${from}`,
     repeat: `Also given as ${from}`,
   })[kind];
 
@@ -72,7 +69,6 @@ export const PasteSettings = ({ system, wipes, onFill }: PasteSettingsProps) => 
       <TextField
         label="Paste a recipe"
         indicator="Optional"
-        description={`Read as ${SYSTEMS[system].label} settings and filled into the fields below. On iPhone, press and hold text in a screenshot to copy it.`}
         value={text}
         onValueChange={({ value }) => setText(value)}
       >
@@ -88,7 +84,7 @@ export const PasteSettings = ({ system, wipes, onFill }: PasteSettingsProps) => 
       {/* What was filled is marked under each field below. Only what could not be used is
           listed here, and announced, because it shows up nowhere else. */}
       <div role="status" className={css.pasteResult}>
-        {result && filled === 0 && <p className={css.pasteCount}>Nothing recognized</p>}
+        {result && filled === 0 && <p className={css.pasteCount}>Nothing filled in</p>}
         {result && result.unread.length > 0 && (
           <section className={css.pasteGroup}>
             <h4 className={css.pasteCount}>Not used {result.unread.length}</h4>
