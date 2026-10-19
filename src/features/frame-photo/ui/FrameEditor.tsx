@@ -332,7 +332,7 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
                     <PickField
                       size="medium"
                       label={SYSTEMS[resolved.system].lookLabel}
-                      description="A label for your records. It does not change the photo's colors."
+                      description="Doesn't change the photo's colors."
                       value={resolved.lookValue || NONE}
                       options={[
                         NONE_OPTION,
@@ -434,10 +434,8 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
               <SegmentedControlItem value="optimized">Optimized</SegmentedControlItem>
               <SegmentedControlItem value="full">Full size</SegmentedControlItem>
             </SegmentedControl>
-            <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
-              {detail === 'full'
-                ? 'Keeps the photo at its own resolution, up to the largest image a browser can draw. Larger file.'
-                : 'Sized for posting. Smaller file, quick to upload.'}
+            <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle" aria-live="polite">
+              {detail === 'full' ? 'Larger file, up to 16 MP.' : 'Smaller file, for posting.'}
             </Text>
           </fieldset>
         </div>

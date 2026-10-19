@@ -144,7 +144,7 @@ export const MarkFields = ({ template, dated = true, place }: MarkFieldsProps) =
                 onChange={pickFrom(FONTS, font => update({ font }))}
               />
 
-              <Control label="Size" hint="Sizes the text and the image together.">
+              <Control label="Size" quietHint="Sizes the text and the image together.">
                 <Segments
                   label="Text size"
                   value={mark.size}
@@ -155,7 +155,7 @@ export const MarkFields = ({ template, dated = true, place }: MarkFieldsProps) =
 
               <Control
                 label="Color"
-                hint="Auto picks dark or light to suit what is behind the text."
+                quietHint="Auto picks dark or light to suit what is behind the text."
               >
                 <SwatchRow
                   label="Text color"

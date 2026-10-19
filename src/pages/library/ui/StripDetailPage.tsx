@@ -69,7 +69,7 @@ export const StripDetailPage = () => {
       <div className={page.detailHeader}>
         <PageHeader
           title={strip.name}
-          lead={`${filledSlots(slots)} / ${STRIP_SLOTS.length} filled · A plan kept here: set the camera by hand.`}
+          lead={`${filledSlots(slots)} / ${STRIP_SLOTS.length} filled`}
         />
         <ActionMenu
           label="Change"

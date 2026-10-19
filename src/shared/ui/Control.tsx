@@ -1,27 +1,55 @@
-import { Text } from '@seed-design/react';
-import { type ReactNode, useRef } from 'react';
+import { Text, VisuallyHidden } from '@seed-design/react';
+import { type ReactNode, useId, useRef } from 'react';
 
 import { Button } from './Button';
 
 import * as css from './Control.css';
 
-type ControlProps = { label: string; hint?: string; children: ReactNode };
+type ControlProps = {
+  label: string;
+  /** A line under the control, for what the screen does not already show. */
+  hint?: string;
+  /**
+   * What the preview shows the eye but a screen reader cannot get from a canvas: read to
+   * assistive tech only, and announced when it changes.
+   */
+  quietHint?: string;
+  children: ReactNode;
+};
 
 /**
  * One setting: its name, the control, and an optional line of explanation, spaced as a unit.
- * @param props the setting's name, an optional hint and the control itself
+ * The name and both hints are tied to the group, so assistive tech reads them on entering it.
+ * @param props the setting's name, an optional visible hint, an optional hint for assistive tech
+ *   only, and the control itself
  */
-export const Control = ({ label, hint, children }: ControlProps) => (
-  <div className={css.control}>
-    <span className={css.controlLabel}>{label}</span>
-    {children}
-    {hint && (
-      <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
-        {hint}
-      </Text>
-    )}
-  </div>
-);
+export const Control = ({ label, hint, quietHint, children }: ControlProps) => {
+  const id = useId();
+  const described = [hint && `${id}-hint`, quietHint && `${id}-quiet`].filter(Boolean).join(' ');
+  return (
+    <div
+      role="group"
+      aria-labelledby={`${id}-label`}
+      aria-describedby={described || undefined}
+      className={css.control}
+    >
+      <span id={`${id}-label`} className={css.controlLabel}>
+        {label}
+      </span>
+      {children}
+      {hint && (
+        <Text as="p" id={`${id}-hint`} textStyle="t3Regular" color="fg.neutralSubtle">
+          {hint}
+        </Text>
+      )}
+      {quietHint && (
+        <VisuallyHidden id={`${id}-quiet`} aria-live="polite">
+          {quietHint}
+        </VisuallyHidden>
+      )}
+    </div>
+  );
+};
 
 type SwatchRowProps = {
   label: string;

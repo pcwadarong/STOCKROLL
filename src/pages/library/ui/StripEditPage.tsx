@@ -121,9 +121,6 @@ const StripEditForm = ({
             onBlur={() => setTyping(false)}
           />
         </TextField>
-        <p className={page.note}>
-          A strip is a plan kept here. Saving it does not change the camera or the recipes.
-        </p>
       </Panel>
 
       <section
@@ -243,14 +240,7 @@ export const StripEditPage = () => {
       title={strip ? 'Edit strip' : 'New strip'}
       tabs={false}
     >
-      <PageHeader
-        title={strip?.name ?? 'New strip'}
-        lead={
-          original
-            ? `Starts from ${original.name}. That strip stays as it is.`
-            : 'A recipe for each of C1–C7, a film simulation for each of FS1–FS3.'
-        }
-      />
+      <PageHeader title={strip?.name ?? 'New strip'} />
 
       <SignInGate what="strips">
         {!ready || missing ? (

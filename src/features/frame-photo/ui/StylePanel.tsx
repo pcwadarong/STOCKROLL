@@ -42,7 +42,8 @@ export const StyleSection = ({ style, onChange }: SectionProps) => {
     <fieldset className={css.group}>
       <legend className={css.legend}>Style</legend>
       <div className={controls}>
-        <Control label="Template" hint={template?.hint}>
+        {/* The preview shows the layout; a screen reader cannot see the canvas, so it hears it. */}
+        <Control label="Template" quietHint={template?.hint}>
           <Chip.RadioRoot
             aria-label="Frame style"
             value={style.template}

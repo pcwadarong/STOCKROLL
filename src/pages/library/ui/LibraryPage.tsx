@@ -451,7 +451,7 @@ export const LibraryPage = ({ editing: editRoute = false }: { editing?: boolean 
       // A form ends with its own Save or Cancel.
       tabs={!editing}
     >
-      <PageHeader title="Gear log" lead="Your cameras, lenses and films." />
+      <PageHeader title="Gear log" />
 
       <nav className={css.tabs} aria-label="Gear type">
         {Object.entries(SECTIONS).map(([key, { title }], index) => (
