@@ -162,8 +162,13 @@ export const RecipeCardPage = () => {
                 label="Text and photos"
                 hint={
                   covered
-                    ? 'The photos fill the card, cut to fit, and the text sits over them.'
-                    : 'One photo is shown whole. Several are cut to fill a grid; with three, the text takes the fourth cell.'
+                    ? 'Photos are cut to fill the card.'
+                    : 'Two or more photos are cut to fit.'
+                }
+                quietHint={
+                  covered
+                    ? 'The text sits over the photos.'
+                    : 'One photo is shown whole. Several fill a grid; with three, the text takes the fourth cell.'
                 }
               >
                 <Segments
@@ -276,10 +281,12 @@ export const RecipeCardPage = () => {
               options={CARD_DETAILS}
               onChange={detail => update({ detail })}
             />
-            <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle">
+            {/* The preview is always the working size, so a larger file would otherwise look like no
+                change at all. */}
+            <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle" aria-live="polite">
               {style.detail === 'full'
-                ? 'Keeps the photos as sharp as they were opened, up to the largest image a browser can draw. Larger file. The preview does not change.'
-                : 'Sized for posting. Smaller file, quick to upload.'}
+                ? 'Larger file, full resolution. The preview stays the same.'
+                : 'Smaller file, for posting.'}
             </Text>
           </fieldset>
 
@@ -306,7 +313,7 @@ export const RecipeCardPage = () => {
               </Control>
               <Control
                 label="Settings"
-                hint="Auto picks dark or light to suit what is behind the text."
+                quietHint="Auto picks dark or light to suit what is behind the text."
               >
                 <SwatchRow
                   label="Color of the settings"

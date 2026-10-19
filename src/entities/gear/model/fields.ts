@@ -37,8 +37,7 @@ export const FORMAT = [
   { value: '120', label: '120' },
 ] as const;
 
-const NAME_HINT =
-  'A shorter name to print on the photo. Leave empty to print the model name as it is.';
+const NAME_HINT = 'Leave empty to use the model name.';
 
 export const CAMERA_FIELDS: readonly RecordField[] = [
   { key: 'name', label: 'Model name', type: 'text', required: true, placeholder: 'Fujifilm X-T50' },

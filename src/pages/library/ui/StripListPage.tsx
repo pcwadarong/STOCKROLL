@@ -64,10 +64,7 @@ export const StripListPage = () => {
 
   return (
     <PageShell wide title="Recipes">
-      <PageHeader
-        title="Strips"
-        lead="Recipes for C1–C7 and film simulations for the FS dial, planned here and set on the camera by hand."
-      />
+      <PageHeader title="Strips" lead="Planned here, set on the camera by hand." />
 
       <SignInGate what="strips">
         <RecipeTabs />
