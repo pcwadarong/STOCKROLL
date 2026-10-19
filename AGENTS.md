@@ -51,6 +51,8 @@ STOCKROLL은 Lightroom 보정 이후 단계를 맡는 **개인용 사진 프레�
 
 > **화면은 공통 부품으로 조립한다. 같은 모양을 페이지마다 다시 쓰지 않는다.** 틀은 `widgets/page-shell`, 제목은 `shared/ui/PageHeader`, 내용 상자는 `Panel`, 비어 있음·로딩·없음 안내는 `EmptyState`, 요약 줄은 `MetaList`, 버튼은 `Button`, 오류는 `ErrorText`(채운 박스 금지), 설정 한 칸은 `Control`(색은 `SwatchRow`, 내 이미지 고르기는 `ImagePick`), 선택은 `PickField`(폼은 기본 크기, 촘촘한 패널·필터는 `size="medium"`, 필터 줄은 `hideLabel`), 폼은 `RecordForm`(고르는 값은 `segmented`·`scale` 필드, 여러 칸을 한 컨트롤로 그리면 `controls` — 칸마다 `SettingField`가 이름·현재 값·Clear를 붙인다), 켜고 끄는 버튼은 `Button`의 `pressed`. 한 기록에 할 수 있는 일이 여럿이면 `ActionMenu`(버튼 하나 + 설명이 붙은 항목 목록). **장비·필름·레시피 목록은 `pages/library/ui/LibraryList`의 `ListFilters`(검색칸 + 드롭다운 + `★ Favorites`)와 `ItemList`(이름·사실 한 줄, 오른쪽 별표), 긴 목록을 잇는 `ListMore`로만 만든다** — 새 목록도 같은 모양이어야 한다. 스트립은 필터가 없어 `ListSearch`만 쓴다. 예외는 레시피를 예시 사진으로 보는 `RecipeGallery` 하나다(레시피 목록의 `Photos` 보기, 스트립의 레시피 고르기) — 같은 필터 아래에서 줄 대신 사진 칸으로 바꿔 보여 줄 뿐이고, 새 사진 격자를 따로 만들지 않는다. 좁히는 일은 DB가 하고(§3-36), 화면은 고른 값을 `shared/lib/pick-filter`의 `activePicks`로, 검색어를 `shared/lib/search`로 넘길 뿐이다. 메모는 `NoteText`로 줄바꿈까지 그대로 보여 준다(`MetaList` 줄에 넣으면 한 줄로 잘린다). 글자 목소리는 `label.css.ts`의 `displayText`·`labelText`·`labelTitle` 셋뿐이고 서체 상수를 직접 쓰지 않는다. 반복되는 문구는 `shared/config/messages.ts`, 미디어 쿼리는 `responsive.ts`에 둔다. 새 화면에서 이 중 맞는 게 없을 때만 새로 만들고, 두 번째로 필요해지면 `shared/ui`로 올린다.
 
+> **설명글은 화면이 못 하는 말만 한다.** 늘 떠 있는 설명은 잘 읽히지 않는다. 평소 동작은 모양(미리보기·칸 이름·컨트롤)이 말하고, 글은 예외가 생겼을 때(빈 목록, 담을 수 없는 값, 로그인 전, 조건이 맞지 않아 막힌 칸)와 규칙이 화면에 적으라고 한 자리(§3-1·3-7·3-20·3-26·3-28·3-31)에만 둔다. 제목·버튼·메뉴 설명이 이미 한 말을 머리말에서 반복하지 않고, 같은 안내를 화면마다 되풀이하지 않는다(스트립이 카메라에 써지지 않는다는 말은 목록 머리말에 한 번). 남기는 글은 고르는 데 필요한 차이 하나로 줄인다(`Smaller file, for posting.`). **미리보기에만 보이는 것을 글에서 뺄 때는 보조 기술용으로 남긴다** — 스크린리더는 캔버스를 보지 못한다(`Control`의 `quietHint`).
+
 > **캔버스는 CSS 토큰을 못 쓴다.** `entities/frame`이 그리는 출력물의 색·치수는 1080 폭 기준 상수와 `FrameStyle`로 관리한다. 글자색은 배경색에서 계산한다(`inkFor`). 이 영역의 숫자는 토큰 규칙의 예외다.
 
 ## 3. 도메인 규칙 — 조용히 틀리기 쉬운 자리
@@ -123,6 +125,7 @@ STOCKROLL은 Lightroom 보정 이후 단계를 맡는 **개인용 사진 프레�
 - 네이티브 요소·SEED 컴포넌트 우선, ARIA는 그다음.
 - 모든 인터랙티브 요소는 Tab/Enter/Space로 조작 가능. 포커스 아웃라인을 지우지 않는다.
 - 동적 상태 변화는 `aria-live`/`role="alert"`. 미리보기 `canvas`에는 `role="img"`와 `aria-label`.
+- 설정 한 칸(`shared/ui/Control`)은 이름과 설명을 그룹에 묶는다(`role="group"` + `aria-labelledby`·`aria-describedby`). 미리보기 캔버스가 눈으로 보여 주는 것(템플릿 배치, 카드의 사진 배치, Auto 색의 뜻)은 `quietHint`로 보조 기술에만 읽히고 바뀌면 알린다. 선택에 따라 바뀌는 설명 줄은 `aria-live="polite"`.
 - 캔버스에만 있고 DOM에는 없는 정보를 만들지 않는다 — 캡션 값은 입력 필드로도 읽을 수 있어야 한다.
 
 ## 7. 서브에이전트
