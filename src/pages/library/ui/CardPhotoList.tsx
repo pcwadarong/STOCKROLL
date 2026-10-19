@@ -91,7 +91,9 @@ export const CardPhotoList = ({ photos, onAdd, onRemove, onMove }: CardPhotoList
                   </Button>
                   <Button
                     variant="plain"
-                    aria-label={`Take ${name} off the card`}
+                    // Holds the visible "Remove", and says it only leaves the card: the example
+                    // photo stays on the recipe.
+                    aria-label={`Remove ${name} from the card`}
                     onClick={() => onRemove(photo.id)}
                   >
                     Remove
@@ -117,9 +119,9 @@ export const CardPhotoList = ({ photos, onAdd, onRemove, onMove }: CardPhotoList
       <Button size="small" disabled={full} onClick={() => inputRef.current?.click()}>
         Add photos
       </Button>
+      {/* Required on screen (AGENTS §3-31): added photos are held in memory only. */}
       <p className={css.note}>
-        {photos.length} of {MAX_CARD_PHOTOS}. Photos you add stay on this device and are forgotten
-        when you leave this screen. Removing the example photo only takes it off this card.
+        {photos.length} of {MAX_CARD_PHOTOS} · Added photos stay on this device until you leave.
       </p>
       {error && <ErrorText>{error}</ErrorText>}
     </div>
