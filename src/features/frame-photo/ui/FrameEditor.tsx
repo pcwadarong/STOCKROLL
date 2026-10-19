@@ -435,7 +435,7 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
               <SegmentedControlItem value="full">Full size</SegmentedControlItem>
             </SegmentedControl>
             <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle" aria-live="polite">
-              {detail === 'full' ? 'Larger file, full resolution.' : 'Smaller file, for posting.'}
+              {detail === 'full' ? 'Larger file, up to 16 MP.' : 'Smaller file, for posting.'}
             </Text>
           </fieldset>
         </div>

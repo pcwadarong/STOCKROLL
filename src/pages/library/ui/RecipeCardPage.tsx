@@ -285,7 +285,7 @@ export const RecipeCardPage = () => {
                 change at all. */}
             <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle" aria-live="polite">
               {style.detail === 'full'
-                ? 'Larger file, full resolution. The preview stays the same.'
+                ? 'Larger file, up to 16 MP. The preview stays the same.'
                 : 'Smaller file, for posting.'}
             </Text>
           </fieldset>
