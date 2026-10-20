@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CARD_TEXT,
   cardExportScale,
+  cardFileSizes,
   type MeasureText,
   photoAtCorner,
   photoCells,
@@ -521,5 +522,53 @@ describe('cardExportScale', () => {
     const scale = cardExportScale(card(8000));
     expect(scale).toBeLessThan(8);
     expect(1080 * scale * 1350 * scale).toBeLessThanOrEqual(16_000_000 + 1);
+  });
+});
+
+describe('cardFileSizes', () => {
+  const layout = (boxWidth: number, sourceWidth: number) => ({
+    width: 1080,
+    height: 1350,
+    photos: [
+      {
+        box: { x: 0, y: 0, width: boxWidth, height: boxWidth / 2 },
+        source: { x: 0, y: 0, width: sourceWidth, height: sourceWidth / 2 },
+      },
+    ],
+  });
+  const added = (shown: number, full: number) => ({
+    shown: { width: shown, height: shown / 2 },
+    full: { width: full, height: full / 2 },
+    example: false,
+  });
+
+  it('when For posting is the size, it must be the layout itself', () => {
+    expect(cardFileSizes(layout(1000, 2000), [added(2000, 8000)]).posting).toEqual({
+      width: 1080,
+      height: 1350,
+    });
+  });
+
+  it('when a photo is held reduced, Original must grow for its full size, not the reduced copy', () => {
+    // Shown at 2000 in a 1000-wide box: 2x. Opened at 8000: 8x.
+    const sizes = cardFileSizes(layout(1000, 2000), [added(2000, 8000)]);
+    expect(sizes.wanted).toEqual({ width: 8640, height: 10800 });
+    expect(sizes.original).toEqual(sizes.wanted);
+  });
+
+  it('when the device draws less than Original wants, it must report both sizes', () => {
+    const sizes = cardFileSizes(layout(1000, 2000), [added(2000, 8000)], () => 25_000_000);
+    expect(sizes.original.width * sizes.original.height).toBeLessThanOrEqual(25_000_000);
+    expect(sizes.wanted.width).toBe(8640);
+  });
+
+  it('when the example photo is the one the card grows for, it must say so', () => {
+    const example = {
+      shown: { width: 1200, height: 600 },
+      full: { width: 1200, height: 600 },
+      example: true,
+    };
+    expect(cardFileSizes(layout(1000, 1200), [example]).byExample).toBe(true);
+    expect(cardFileSizes(layout(1000, 2000), [added(2000, 8000)]).byExample).toBe(false);
   });
 });

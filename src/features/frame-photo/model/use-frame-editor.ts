@@ -186,9 +186,25 @@ export const useFrameEditor = () => {
     store,
     library,
     resolved,
-    /** Pixel size of the file that export will write for the current photo at the current detail. */
-    outputSize:
-      bitmap && spec ? computeLayout(bitmap, preset, detail, spec, devicePixelBudget).canvas : null,
+    /**
+     * Pixel sizes of the current photo's file: For posting, Original as saved here, and Original
+     * as it would be without this device's limit. Original asks the device how large it can draw
+     * only once it is chosen: asking means making a canvas that large.
+     */
+    fileSizes:
+      bitmap && spec
+        ? (() => {
+            const wanted = computeLayout(bitmap, preset, 'full', spec, () => Infinity).canvas;
+            return {
+              posting: computeLayout(bitmap, preset, 'optimized', spec).canvas,
+              wanted,
+              original:
+                detail === 'full'
+                  ? computeLayout(bitmap, preset, 'full', spec, devicePixelBudget).canvas
+                  : wanted,
+            };
+          })()
+        : null,
     exportJpeg,
     savePhotos,
   };

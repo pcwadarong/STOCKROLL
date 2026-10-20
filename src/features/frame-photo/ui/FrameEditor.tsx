@@ -4,6 +4,7 @@ import { type DragEvent, useRef, useState } from 'react';
 import { hasOwnPlace, OUTPUT_PRESETS, TEMPLATES, usesShootingInfo } from '@/entities/frame';
 import { MarkFields } from '@/entities/mark';
 import { systemOf, SYSTEMS } from '@/entities/recipe';
+import { fileSizeText } from '@/shared/lib/file-size-text';
 import { canShareFiles } from '@/shared/lib/save-file';
 import { Button } from '@/shared/ui/Button';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
@@ -58,7 +59,7 @@ const AddLink = ({ to, children }: { to: string; children: string }) => (
  * @param props `signedIn` enables the links to register gear and recipes, which need an account
  */
 export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
-  const { canvasRef, store, library, resolved, outputSize, exportJpeg, savePhotos } =
+  const { canvasRef, store, library, resolved, fileSizes, exportJpeg, savePhotos } =
     useFrameEditor();
   const { queue, current, bitmap, preset, style, focalMode, detail, error } = store;
   const { setPick, setPreset, updateStyle, setFocalMode, setDetail } = store;
@@ -420,7 +421,6 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
             </Chip.RadioRoot>
             <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle" aria-live="polite">
               {preset.hint}
-              {outputSize && ` · ${outputSize.width}×${outputSize.height}`}
             </Text>
           </fieldset>
 
@@ -431,14 +431,14 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
               value={detail}
               onValueChange={value => setDetail(value === 'full' ? 'full' : 'optimized')}
             >
-              <SegmentedControlItem value="optimized">Optimized</SegmentedControlItem>
-              <SegmentedControlItem value="full">Full size</SegmentedControlItem>
+              <SegmentedControlItem value="optimized">For posting</SegmentedControlItem>
+              <SegmentedControlItem value="full">Original</SegmentedControlItem>
             </SegmentedControl>
-            <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle" aria-live="polite">
-              {detail === 'full'
-                ? 'Larger file, as large as this device can draw.'
-                : 'Smaller file, for posting.'}
-            </Text>
+            {fileSizes && (
+              <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle" aria-live="polite">
+                {fileSizeText({ detail, ...fileSizes }, { own: "The photo's own size." })}
+              </Text>
+            )}
           </fieldset>
         </div>
 
