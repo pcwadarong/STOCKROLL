@@ -20,35 +20,84 @@ const listNames = (names: readonly string[]) => {
 export const savingProgressText = ({ current, total }: SaveProgress) =>
   `Saving ${current} of ${total}…`;
 
-/**
- * Explains the one failure "Save all" cannot detect: browsers hold back every automatic download
- * after the first until the user allows it, and tell the page nothing.
- */
-export const MULTIPLE_DOWNLOADS_HINT =
-  'Each photo downloads as its own file. If only one arrives, your browser is asking for permission to download multiple files: allow it, then save all again.';
+/** Where a finished batch went, as the summary says it. */
+export type SaveDestination =
+  { way: 'folder'; folder: string } | { way: 'zip'; name: string } | { way: 'share' };
 
 /**
- * Words the outcome of "Save all". A download started from a page gives no success signal, so
- * the sentence says how many photos were handed to the browser and never that they were saved.
- * @param result how many photos were handed to the browser, how many were in the batch, the
- * names of those that could not be exported, and whether the user stopped the run
- * @returns a sentence that claims no more than what the editor knows
+ * Names the ZIP a batch is saved in: the app, the day and how many photos, so a download folder
+ * shows what it is.
+ * @param count how many photos are in it
+ * @param when the day it is made
+ * @returns e.g. `stockroll-2026-10-20-12-photos.zip`
+ */
+export const zipName = (count: number, when: Date) => {
+  const two = (value: number) => String(value).padStart(2, '0');
+  const day = `${when.getFullYear()}-${two(when.getMonth() + 1)}-${two(when.getDate())}`;
+  return `stockroll-${day}-${count}-${count === 1 ? 'photo' : 'photos'}.zip`;
+};
+
+/**
+ * Says where a batch will go, for the line in the save dialog.
+ * @param way how this browser saves a batch
+ * @returns one line
+ */
+export const saveWayText = (way: SaveDestination['way']) =>
+  ({
+    folder: 'Each photo is saved as its own file in a folder you pick.',
+    share: 'When they are ready, pick where they go: your photos, your files or an app.',
+    zip: 'Saved as one ZIP file. Safari opens it as a folder.',
+  })[way];
+
+/**
+ * Words the outcome of "Save all", claiming no more than the editor knows. A file written to a
+ * picked folder is known to be saved; a download only to have been handed to the browser
+ * (AGENTS §3-26); a share only to have reached the share sheet.
+ * @param result how many photos were made, how many were in the batch, the names of those that
+ * could not be exported, whether the user stopped the run, and where the batch went
+ * @returns a sentence
  */
 export const saveSummaryText = ({
   sent,
   total,
   failed,
   stopped,
+  to,
 }: {
   sent: number;
   total: number;
   failed: readonly string[];
   stopped: boolean;
+  to: SaveDestination;
 }) => {
   const count = sent === total ? photos(total) : `${sent} of ${photos(total)}`;
-  const outcome = `${stopped ? 'Stopped. ' : ''}Sent ${count} to your browser's downloads.`;
-  return failed.length > 0 ? `${outcome} Could not export: ${listNames(failed)}.` : outcome;
+  const failures = failed.length > 0 ? ` Could not export: ${listNames(failed)}.` : '';
+  // A stopped ZIP or share is not made at all; photos written to a folder stay.
+  if (stopped && to.way !== 'folder')
+    return `Stopped. Nothing was ${to.way === 'zip' ? 'saved' : 'shared'}.`;
+  const outcome = {
+    folder: () => `Saved ${count} to “${(to as { folder: string }).folder}”.`,
+    zip: () => `Sent ${(to as { name: string }).name} to your browser's downloads.`,
+    share: () => `Handed ${count} to the share sheet.`,
+  }[to.way]();
+  return `${stopped ? 'Stopped. ' : ''}${outcome}${failures}`;
 };
+
+/**
+ * Words a ZIP or share run in which no photo could be made, so there is nothing to hand over.
+ * @param failed names of the photos that could not be exported
+ * @returns the message
+ */
+export const noneMadeText = (failed: readonly string[]) =>
+  `Nothing was saved. Could not export: ${listNames(failed)}.`;
+
+/**
+ * Words the moment a batch for the share sheet is made and waits for a tap: the browser opens
+ * the sheet only straight after one.
+ * @param count how many photos are ready
+ * @returns e.g. `12 photos ready.`
+ */
+export const shareReadyText = (count: number) => `${photos(count)} ready.`;
 
 /**
  * Words the error for a queued photo whose full-size decode failed, e.g. under memory pressure.

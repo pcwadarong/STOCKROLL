@@ -2,13 +2,16 @@ import IconXmarkLine from '@karrotmarket/react-monochrome-icon/IconXmarkLine';
 import { Checkbox, Dialog, Icon } from '@seed-design/react';
 import { useEffect, useRef, useState } from 'react';
 
+import type { BatchSaveWay } from '@/shared/lib/save-file';
 import { Button } from '@/shared/ui/Button';
 import { Checkmark } from 'seed-design/ui/checkbox';
 
-import { MULTIPLE_DOWNLOADS_HINT, type SaveProgress, savingProgressText } from '../lib/batch-text';
+import { type SaveProgress, saveWayText, savingProgressText } from '../lib/batch-text';
 import type { QueuedPhoto } from '../model/editor-store';
 
 import * as css from './SaveDialog.css';
+
+const count = (n: number) => `${n} ${n === 1 ? 'photo' : 'photos'}`;
 
 const Thumbnail = ({ photo }: { photo: QueuedPhoto }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -32,11 +35,25 @@ type SaveChoiceProps = {
   currentId: string | null;
   /** Progress of the run in flight, or null when none is running. */
   saving: SaveProgress | null;
-  onSave: (ids: readonly string[]) => void;
+  /** How this browser saves a batch. */
+  way: BatchSaveWay;
+  /** How many photos wait for a tap to open the share sheet, or 0. */
+  readyToShare: number;
+  onSave: (ids: readonly string[], way: BatchSaveWay) => void;
+  onShare: () => void;
   onStop: () => void;
 };
 
-const SaveChoice = ({ photos, currentId, saving, onSave, onStop }: SaveChoiceProps) => {
+const SaveChoice = ({
+  photos,
+  currentId,
+  saving,
+  way,
+  readyToShare,
+  onSave,
+  onShare,
+  onStop,
+}: SaveChoiceProps) => {
   const [checked, setChecked] = useState<ReadonlySet<string>>(
     () => new Set(currentId ? [currentId] : []),
   );
@@ -98,18 +115,29 @@ const SaveChoice = ({ photos, currentId, saving, onSave, onStop }: SaveChoicePro
             ))}
           </ul>
 
-          {ids.length > 1 && <p className={css.note}>{MULTIPLE_DOWNLOADS_HINT}</p>}
+          {!saving && readyToShare === 0 && <p className={css.note}>{saveWayText(way)}</p>}
+          {/* A folder is the better place on this browser; a ZIP is still there for sending on. */}
+          {!saving && readyToShare === 0 && way === 'folder' && (
+            <Button variant="plain" disabled={ids.length === 0} onClick={() => onSave(ids, 'zip')}>
+              Download as one ZIP instead
+            </Button>
+          )}
         </div>
       </Dialog.Body>
       <Dialog.Footer>
         <div className={css.footer}>
-          {/* One button for both states, so keyboard focus stays put when the run starts. */}
+          {/* One button for every state, so keyboard focus stays put as the run moves on. The
+              share sheet opens only straight after a tap, so a made batch waits for this one. */}
           <Button
             variant="primary"
-            disabled={!saving && ids.length === 0}
-            onClick={saving ? onStop : () => onSave(ids)}
+            disabled={!saving && readyToShare === 0 && ids.length === 0}
+            onClick={saving ? onStop : readyToShare > 0 ? onShare : () => onSave(ids, way)}
           >
-            {saving ? 'Stop saving' : `Save ${ids.length} ${ids.length === 1 ? 'photo' : 'photos'}`}
+            {saving
+              ? 'Stop saving'
+              : readyToShare > 0
+                ? `Share ${count(readyToShare)}`
+                : `Save ${count(ids.length)}`}
           </Button>
         </div>
       </Dialog.Footer>
