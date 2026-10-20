@@ -6,7 +6,7 @@ export {
   removeRecipePhoto,
   uploadRecipePhoto,
 } from './api/recipe-photo';
-export { drawRecipeCard } from './lib/draw-recipe-card';
+export { drawRecipeCard, drawRecipeCardOpening, type OpenedPhoto } from './lib/draw-recipe-card';
 export {
   CARD_ALIGNS,
   CARD_AUTO_RATIO,
@@ -70,7 +70,7 @@ export {
   versionSlots,
   versionsOf,
 } from './model/recipe';
-export { photoAtCorner } from './model/recipe-card';
+export { cardFileSizes, type CardPhotoSize, photoAtCorner } from './model/recipe-card';
 export { formatRecipeText, type RecipeLine, recipeLines } from './model/recipe-lines';
 export {
   assignSlot,

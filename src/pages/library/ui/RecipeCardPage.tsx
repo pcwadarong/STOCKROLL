@@ -20,6 +20,7 @@ import {
   versionsOf,
 } from '@/entities/recipe';
 import { SignInGate } from '@/features/auth';
+import { fileSizeText } from '@/shared/lib/file-size-text';
 import { Button } from '@/shared/ui/Button';
 import { Control, SwatchRow } from '@/shared/ui/Control';
 import { controls } from '@/shared/ui/Control.css';
@@ -72,8 +73,17 @@ export const RecipeCardPage = () => {
   const versionLabel = selected ? `v${selected.version}` : '';
   const { style, update } = useCardStyle();
   const folded = useFoldedStage();
-  const { canvasRef, loading, exampleFailed, photos, addPhotos, removePhoto, movePhoto, save } =
-    useRecipeCard(recipe, selected?.settings, style);
+  const {
+    canvasRef,
+    loading,
+    exampleFailed,
+    photos,
+    fileSizes,
+    addPhotos,
+    removePhoto,
+    movePhoto,
+    save,
+  } = useRecipeCard(recipe, selected?.settings, style);
   const output = cardOutputOf(style.ratio);
 
   if (!ready || !recipe || !selected)
@@ -269,7 +279,6 @@ export const RecipeCardPage = () => {
             />
             <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle" aria-live="polite">
               {output.hint}
-              {output.size && ` · ${output.size.width}×${output.size.height}`}
             </Text>
           </fieldset>
 
@@ -283,11 +292,14 @@ export const RecipeCardPage = () => {
             />
             {/* The preview is always the working size, so a larger file would otherwise look like no
                 change at all. */}
-            <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle" aria-live="polite">
-              {style.detail === 'full'
-                ? 'Larger file, up to 16 MP. The preview stays the same.'
-                : 'Smaller file, for posting.'}
-            </Text>
+            {fileSizes && (
+              <Text as="p" textStyle="t3Regular" color="fg.neutralSubtle" aria-live="polite">
+                {fileSizeText(
+                  { detail: style.detail, ...fileSizes },
+                  { own: 'The photos at their own detail.', after: 'The preview stays the same.' },
+                )}
+              </Text>
+            )}
           </fieldset>
 
           <fieldset className={bench.group}>

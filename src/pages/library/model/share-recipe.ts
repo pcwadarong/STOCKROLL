@@ -7,6 +7,7 @@ import {
   cardOwnSpot,
   type CardStyle,
   drawRecipeCard,
+  drawRecipeCardOpening,
   formatRecipeText,
   photoAtCorner,
   type Recipe,
@@ -83,25 +84,36 @@ export const loadRecipePhoto = async (path: string | null | undefined) => {
  * can show. It is held in memory for the card only and never uploaded. The caller closes the
  * bitmap when it is done with it.
  * @param file image file picked on this device
- * @returns the decoded photo
+ * @returns the decoded photo, and the size the file opens at
  * @throws when the file cannot be decoded
  */
 export const decodeCardPhoto = async (file: Blob) => {
   const full = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  // Upright, as the original will open again when the card is saved at its own detail.
+  const fullSize = { width: full.width, height: full.height };
   const size = fitWithin(full, ADDED_PHOTO_EDGE);
-  if (size.width === full.width) return full;
+  if (size.width === full.width) return { bitmap: full, fullSize };
   try {
-    return await createImageBitmap(full, {
+    const bitmap = await createImageBitmap(full, {
       resizeWidth: size.width,
       resizeHeight: size.height,
       resizeQuality: 'high',
     });
+    return { bitmap, fullSize };
   } finally {
     full.close();
   }
 };
 
-type OwnText = { mark: Mark; image: ImageBitmap | null };
+/**
+ * A photo as the card draws it: the copy held for the preview and, for a photo added from this
+ * device, the file it came from and its size, to open again at full size when the card is saved.
+ */
+export type CardPhotoSource = {
+  bitmap: ImageBitmap;
+  file?: Blob;
+  fullSize?: { width: number; height: number };
+};
 
 type Box = { x: number; y: number; width: number; height: number };
 const scaled = (box: Box, by: number): Box => ({
@@ -125,45 +137,59 @@ const scaled = (box: Box, by: number): Box => ({
  * @param full draws at the detail the photos have instead of the working size. For saving: the
  * preview stays at the working size
  */
-export const drawShareCard = (
-  canvas: HTMLCanvasElement,
+type OwnText = { mark: Mark; image: ImageBitmap | null };
+
+/** What `drawRecipeCard` is given for a recipe in a card style, and where the user's text goes. */
+const cardInput = (
   recipe: Recipe,
   settings: RecipeSettings,
-  photos: readonly ImageBitmap[],
   style: CardStyle,
   { mark, image }: OwnText,
-  full = false,
+  hasPhotos: boolean,
+  full: boolean,
 ) => {
   const system = systemOf(recipe);
-  const spot = cardOwnSpot(style.ownPlace, style.design, photos.length > 0);
+  const spot = cardOwnSpot(style.ownPlace, style.design, hasPhotos);
   // No photo here carries a shooting date the card could vouch for, so a date line prints nothing.
   const ownLines = markLines(mark);
-  const layout = drawRecipeCard(
-    canvas,
-    { name: recipe.name, sub: SYSTEMS[system].label, lines: recipeLines(system, settings) },
-    {
-      photos,
-      size: cardOutputOf(style.ratio).size,
-      // Text under the content gets room of its own, so it never lands on the settings.
-      footer: spot?.area === 'below' ? markRoom(mark.size, ownLines.length, image !== null) : 0,
-      padding: CARD_PADDING_UNITS[style.padding],
-      gap: CARD_GAP_UNITS[style.gap],
-      align: style.align,
-      textFirst: style.textFirst,
-      cover:
-        style.design === 'cover'
-          ? { place: style.textPlace, share: style.textSize / 100, dim: style.dim / 100 }
-          : undefined,
-      colors: {
-        background: style.background,
-        title: style.titleColor || undefined,
-        text: style.textColor || undefined,
-        fallback: inkFor(style.background).ink,
-      },
-      inkOver,
-      full,
+  const card = {
+    name: recipe.name,
+    sub: SYSTEMS[system].label,
+    lines: recipeLines(system, settings),
+  };
+  const options = {
+    size: cardOutputOf(style.ratio).size,
+    // Text under the content gets room of its own, so it never lands on the settings.
+    footer: spot?.area === 'below' ? markRoom(mark.size, ownLines.length, image !== null) : 0,
+    padding: CARD_PADDING_UNITS[style.padding],
+    gap: CARD_GAP_UNITS[style.gap],
+    align: style.align,
+    textFirst: style.textFirst,
+    cover:
+      style.design === 'cover'
+        ? { place: style.textPlace, share: style.textSize / 100, dim: style.dim / 100 }
+        : undefined,
+    colors: {
+      background: style.background,
+      title: style.titleColor || undefined,
+      text: style.textColor || undefined,
+      fallback: inkFor(style.background).ink,
     },
-  );
+    inkOver,
+    full,
+  };
+  return { card, options, spot, ownLines };
+};
+
+type Drawn = ReturnType<typeof drawRecipeCard>;
+
+/** Draws the user's own text where the card style puts it, over the finished card. */
+const drawOwnText = (
+  canvas: HTMLCanvasElement,
+  layout: Drawn,
+  { spot, ownLines }: Pick<ReturnType<typeof cardInput>, 'spot' | 'ownLines'>,
+  { mark, image }: OwnText,
+) => {
   const context = canvas.getContext('2d');
   if (!context || !spot) return;
   // The mark is placed in canvas pixels, so the card's boxes are scaled up to them.
@@ -188,12 +214,69 @@ export const drawShareCard = (
 };
 
 /**
+ * Draws a recipe as a card — its photos, name and settings — with the user's own text in the
+ * place the card style gives it, at the working size. This is the preview; saving at the
+ * photos' own detail goes through `drawShareCardAtFull`. The caller makes sure the text's font
+ * is loaded (`ensureFont`).
+ * @param canvas canvas to draw on; its size is replaced
+ * @param recipe recipe to render
+ * @param settings settings of the version on the card
+ * @param photos the photos on the card, in order
+ * @param style the card's design, size, spacing, colors and place for the user's text
+ * @param own the user's text settings and image
+ * @returns the card's layout, in card units
+ */
+export const drawShareCard = (
+  canvas: HTMLCanvasElement,
+  recipe: Recipe,
+  settings: RecipeSettings,
+  photos: readonly ImageBitmap[],
+  style: CardStyle,
+  own: OwnText,
+) => {
+  const input = cardInput(recipe, settings, style, own, photos.length > 0, false);
+  const layout = drawRecipeCard(canvas, input.card, { ...input.options, photos });
+  drawOwnText(canvas, layout, input, own);
+  return layout;
+};
+
+/**
+ * Draws the card for saving at the photos' own detail. A photo added from this device is opened
+ * again from its file at full size, drawn, and let go before the next, so the originals are never
+ * all in memory at once; the example photo is only ever a reduced copy and is drawn as it is.
+ */
+const drawShareCardAtFull = async (
+  canvas: HTMLCanvasElement,
+  recipe: Recipe,
+  settings: RecipeSettings,
+  photos: readonly CardPhotoSource[],
+  style: CardStyle,
+  own: OwnText,
+) => {
+  const input = cardInput(recipe, settings, style, own, photos.length > 0, true);
+  const sizes = photos.map(photo => photo.fullSize ?? photo.bitmap);
+  const layout = await drawRecipeCardOpening(
+    canvas,
+    input.card,
+    { ...input.options, photos: sizes },
+    async index => {
+      const photo = photos[index]!;
+      if (!photo.file) return { image: photo.bitmap, done: () => undefined };
+      const image = await createImageBitmap(photo.file, { imageOrientation: 'from-image' });
+      return { image, done: () => image.close() };
+    },
+  );
+  drawOwnText(canvas, layout, input, own);
+};
+
+/**
  * Renders a recipe card and hands it to the share sheet where the browser has one, otherwise to
  * the browser's downloads. It is drawn on a canvas of its own, apart from the preview, at the
  * file size the card style asks for. The image is made on the device; nothing is uploaded.
  * @param recipe recipe to render
  * @param settings settings of the version on the card
- * @param photos the photos on the card, already loaded, in order
+ * @param photos the photos on the card in order: the copies already loaded and, for photos added
+ * from this device, their files, opened again at full size when the style asks for Original
  * @param style the card's design, size, spacing, colors and place for the user's text
  * @returns `shared` when the share sheet took it, `downloaded` when it went to the browser's
  * downloads (which does not tell the page whether the file was written), `cancelled` when the
@@ -203,14 +286,24 @@ export const drawShareCard = (
 export const shareRecipeCard = async (
   recipe: Recipe,
   settings: RecipeSettings,
-  photos: readonly ImageBitmap[],
+  photos: readonly CardPhotoSource[],
   style: CardStyle,
 ): Promise<'shared' | 'downloaded' | 'cancelled'> => {
   const own = currentMark();
   // A canvas draws in the fallback face when the font file has not arrived yet.
   await ensureFont(own.mark.font);
   const canvas = document.createElement('canvas');
-  drawShareCard(canvas, recipe, settings, photos, style, own, style.detail === 'full');
+  if (style.detail === 'full')
+    await drawShareCardAtFull(canvas, recipe, settings, photos, style, own);
+  else
+    drawShareCard(
+      canvas,
+      recipe,
+      settings,
+      photos.map(photo => photo.bitmap),
+      style,
+      own,
+    );
   const blob = await canvasToJpeg(canvas, CARD_QUALITY);
   const filename = `${recipe.name.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'recipe'}.jpg`;
 

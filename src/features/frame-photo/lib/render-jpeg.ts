@@ -14,6 +14,7 @@ import {
   textScale,
 } from '@/entities/frame';
 import { drawMark, type Mark, markRoom, overlayArea } from '@/entities/mark';
+import { devicePixelBudget } from '@/shared/lib/canvas-budget';
 import { ensureFont } from '@/shared/lib/canvas-fonts';
 import { canvasToJpeg } from '@/shared/lib/save-file';
 
@@ -185,7 +186,8 @@ export const renderJpeg = async (
 ) => {
   const { preset, detail, block, style, own, lines } = settings;
   const spec = specOf(bitmap, style, block, own, lines);
-  const layout = computeLayout(bitmap, preset, detail, spec);
+  // As large as this device can draw: desktop browsers keep a camera's full resolution.
+  const layout = computeLayout(bitmap, preset, detail, spec, devicePixelBudget);
   await Promise.all(fontsOf(style, own).map(ensureFont));
   const canvas = document.createElement('canvas');
   canvas.width = layout.canvas.width;

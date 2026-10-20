@@ -1,3 +1,5 @@
+import { type PixelBudget, SAFE_CANVAS_PIXELS, safePixelBudget } from '@/shared/lib/canvas-budget';
+
 import type { RecipeLine } from './recipe-lines';
 
 // The card is drawn on a canvas, which cannot use CSS tokens: these are its own dimensions, for a
@@ -593,22 +595,75 @@ export const photoAtCorner = (
     .reduce((best, box) => (away(box) < away(best) ? box : best));
 };
 
-// Mobile Safari refuses canvases above roughly 16.7 million pixels and fails silently (the
-// frame's full-size export keeps to the same limit).
-const MAX_CANVAS_PIXELS = 16_000_000;
-
 /**
  * How much larger than its layout a card can be saved so its photos keep the detail they have:
  * the factor at which the most reduced photo is drawn pixel for pixel, never below 1 and never
- * past the largest canvas a browser can draw.
+ * past the largest canvas the device can draw.
  * @param layout the card's layout
- * @param maxPixels most pixels the saved image may have
+ * @param budget most pixels a canvas of a given size may have on this device. Defaults to the
+ *   size every target browser draws; saving passes the device's own (`devicePixelBudget`)
  * @returns the factor to scale the whole card by
  */
 export const cardExportScale = (
   { width, height, photos }: Pick<CardLayout, 'width' | 'height' | 'photos'>,
-  maxPixels = MAX_CANVAS_PIXELS,
+  budget: PixelBudget = safePixelBudget,
 ) => {
   const wanted = Math.max(1, ...photos.map(({ source, box }) => source.width / box.width));
-  return Math.max(1, Math.min(wanted, Math.sqrt(maxPixels / (width * height))));
+  const pixels = width * height * wanted * wanted;
+  // Every target browser draws this much, so the device is not asked.
+  if (pixels <= SAFE_CANVAS_PIXELS) return wanted;
+  const max = budget(width * wanted, height * wanted);
+  return Math.max(1, Math.min(wanted, Math.sqrt(max / (width * height))));
+};
+
+/** A photo on the card: the size it is held at for the preview, and the size it was opened at. */
+export type CardPhotoSize = {
+  shown: Size;
+  full: Size;
+  /** The recipe's example photo, which is only ever a reduced copy. */
+  example: boolean;
+};
+
+/**
+ * The sizes a card can be saved at, worked out from the layout its preview was drawn with.
+ * @param layout the card's layout, made from the photos at their `shown` size
+ * @param photos each photo's shown and full size, in the card's order
+ * @param budget the device's canvas budget, or nothing to report the size the photos ask for
+ * @returns `posting`, the working size; `original`, the size Original saves at; `wanted`, the
+ *   size it would have without the device's limit; and `byExample`, whether the example photo is
+ *   the one that sets the size
+ */
+export const cardFileSizes = (
+  layout: Pick<CardLayout, 'width' | 'height' | 'photos'>,
+  photos: readonly CardPhotoSize[],
+  budget?: PixelBudget,
+) => {
+  // The layout cuts the photos at their shown size; at full size the same cut has more pixels.
+  const detail = layout.photos.map((placed, index) => {
+    const photo = photos[index];
+    const by = photo ? photo.full.width / photo.shown.width : 1;
+    return { ...placed, source: { ...placed.source, width: placed.source.width * by } };
+  });
+  const atFull = { ...layout, photos: detail };
+  const wanted = cardExportScale(atFull, () => Infinity);
+  const scale = budget ? cardExportScale(atFull, budget) : wanted;
+  const at = (by: number) => ({
+    width: Math.floor(layout.width * by),
+    height: Math.floor(layout.height * by),
+  });
+  // The photo with the most detail to spare is the one the card grows for.
+  const setter = detail.reduce(
+    (best, placed, index) =>
+      placed.source.width / placed.box.width >
+      (detail[best]?.source.width ?? 0) / (detail[best]?.box.width ?? 1)
+        ? index
+        : best,
+    0,
+  );
+  return {
+    posting: at(1),
+    original: at(scale),
+    wanted: at(wanted),
+    byExample: photos[setter]?.example === true,
+  };
 };

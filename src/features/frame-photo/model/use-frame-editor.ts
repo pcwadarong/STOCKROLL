@@ -4,6 +4,7 @@ import { computeLayout, drawFrame } from '@/entities/frame';
 import { cameraCollection, filmCollection, lensCollection } from '@/entities/gear';
 import { markLines, useMark } from '@/entities/mark';
 import { recipeCollection } from '@/entities/recipe';
+import { devicePixelBudget } from '@/shared/lib/canvas-budget';
 import { ensureFont } from '@/shared/lib/canvas-fonts';
 import { downloadBlob } from '@/shared/lib/save-file';
 import { useCollection } from '@/shared/lib/use-collection';
@@ -185,8 +186,25 @@ export const useFrameEditor = () => {
     store,
     library,
     resolved,
-    /** Pixel size of the file that export will write for the current photo at the current detail. */
-    outputSize: bitmap && spec ? computeLayout(bitmap, preset, detail, spec).canvas : null,
+    /**
+     * Pixel sizes of the current photo's file: For posting, Original as saved here, and Original
+     * as it would be without this device's limit. Original asks the device how large it can draw
+     * only once it is chosen: asking means making a canvas that large.
+     */
+    fileSizes:
+      bitmap && spec
+        ? (() => {
+            const wanted = computeLayout(bitmap, preset, 'full', spec, () => Infinity).canvas;
+            return {
+              posting: computeLayout(bitmap, preset, 'optimized', spec).canvas,
+              wanted,
+              original:
+                detail === 'full'
+                  ? computeLayout(bitmap, preset, 'full', spec, devicePixelBudget).canvas
+                  : wanted,
+            };
+          })()
+        : null,
     exportJpeg,
     savePhotos,
   };
