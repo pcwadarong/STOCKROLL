@@ -6,10 +6,17 @@ import { markLines, useMark } from '@/entities/mark';
 import { recipeCollection } from '@/entities/recipe';
 import { devicePixelBudget, knownPixelBudget, pixelBudgetKnown } from '@/shared/lib/canvas-budget';
 import { ensureFont } from '@/shared/lib/canvas-fonts';
-import { downloadBlob } from '@/shared/lib/save-file';
+import { type BatchSaveWay, downloadBlob, pickFolder, writeToFolder } from '@/shared/lib/save-file';
 import { useCollection } from '@/shared/lib/use-collection';
+import { makeZip } from '@/shared/lib/zip';
 
-import { saveSummaryText } from '../lib/batch-text';
+import {
+  noneMadeText,
+  type SaveDestination,
+  saveSummaryText,
+  shareReadyText,
+  zipName,
+} from '../lib/batch-text';
 import { outputFilename, outputFilenames } from '../lib/output-filename';
 import {
   captionOf,
@@ -23,10 +30,6 @@ import {
 import { focalModeFor, resolveCaption } from '../lib/resolve-caption';
 
 import { type QueuedPhoto, useEditorStore } from './editor-store';
-
-// "Save all" waits this long after each download before it starts the next photo, then lets the
-// file go. The default hold would keep ten seconds' worth of encoded JPEGs alive at once.
-const BATCH_DOWNLOAD_HOLD_MS = 1_000;
 
 const NO_PICKS = {};
 const NO_EXIF = {};
@@ -140,17 +143,30 @@ export const useFrameEditor = () => {
     }
   };
 
+  // Photos made for the share sheet, waiting for the tap that may open it.
+  const [readyToShare, setReadyToShare] = useState<File[] | null>(null);
+
   /**
-   * Exports the chosen queued photos as JPEG, one after another, with the shared output settings and
-   * each photo's own caption. Only one photo is in memory at any moment: decode, draw, encode,
-   * close the bitmap, download, let the file go, then the next. A photo that fails to export is
-   * skipped and named in the summary. Whether the browser kept each download cannot be known.
+   * Exports the chosen queued photos as JPEG, one after another, with the shared output settings
+   * and each photo's own caption, and saves them the way this browser does best (`batchSaveWay`).
+   * Only one decoded photo is in memory at any moment: decode, draw, encode, close the bitmap.
+   * Into a folder each file is written and let go before the next; for a ZIP or the share sheet
+   * the encoded files are kept until the end. A photo that fails to export is skipped and named in
+   * the summary.
+   * @param ids the photos to save
+   * @param way how to save them; the folder picker opens straight away, while the click still counts
+   * @returns true when the photos wait for a tap to open the share sheet (`shareReady`)
    */
-  const savePhotos = async (ids: readonly string[]) => {
+  const savePhotos = async (ids: readonly string[], way: BatchSaveWay) => {
     const photos = queue.items.filter(photo => ids.includes(photo.id));
     if (photos.length === 0 || store.saving) return;
+    // First, before anything is awaited: the browser opens the picker only straight after a click.
+    const folder = way === 'folder' ? await pickFolder() : null;
+    if (way === 'folder' && !folder) return;
+    setReadyToShare(null);
     await store.startSaving(photos.length);
     const failed: string[] = [];
+    const made: { name: string; blob: Blob }[] = [];
     let sent = 0;
     let stopped = false;
     for (const [index, photo] of photos.entries()) {
@@ -169,16 +185,62 @@ export const useFrameEditor = () => {
           lines: ownLines,
         };
         const blob = await renderJpeg(decoded, settings).finally(() => decoded.close());
-        await downloadBlob(blob, filenameOf(photo), BATCH_DOWNLOAD_HOLD_MS);
+        if (folder) await writeToFolder(folder, filenameOf(photo), blob);
+        else made.push({ name: filenameOf(photo), blob });
         sent++;
       } catch {
         failed.push(photo.file.name);
       }
     }
     store.finishSaving();
-    const summary = saveSummaryText({ sent, total: photos.length, failed, stopped });
-    if (failed.length > 0) setError(summary);
-    else store.setMessage(summary);
+
+    const report = (to: SaveDestination) => {
+      const summary = saveSummaryText({ sent, total: photos.length, failed, stopped, to });
+      if (failed.length > 0) setError(summary);
+      else store.setMessage(summary);
+    };
+    if (folder) return report({ way: 'folder', folder: folder.name });
+    if (stopped) return report(way === 'share' ? { way } : { way: 'zip', name: '' });
+    if (made.length === 0) return setError(noneMadeText(failed));
+    const files = made.map(({ name, blob }) => new File([blob], name, { type: 'image/jpeg' }));
+    // A share sheet that cannot take this many files gets a ZIP instead of an error.
+    if (way === 'share' && navigator.canShare?.({ files })) {
+      setReadyToShare(files);
+      if (failed.length > 0)
+        setError(saveSummaryText({ sent, total: photos.length, failed, stopped, to: { way } }));
+      else store.setMessage(shareReadyText(files.length));
+      return true;
+    }
+    const name = zipName(made.length, new Date());
+    void downloadBlob(await makeZip(made), name);
+    report({ way: 'zip', name });
+  };
+
+  /**
+   * Opens the share sheet with the photos made for it. Called from the tap that asks for it.
+   * @returns true once the photos were handed over
+   */
+  const shareReady = async () => {
+    if (!readyToShare) return false;
+    try {
+      await navigator.share({ files: readyToShare });
+      store.setMessage(
+        saveSummaryText({
+          sent: readyToShare.length,
+          total: readyToShare.length,
+          failed: [],
+          stopped: false,
+          to: { way: 'share' },
+        }),
+      );
+      setReadyToShare(null);
+      return true;
+    } catch (cause) {
+      // Closing the sheet is not a failure: the photos stay ready for another try.
+      if (!(cause instanceof DOMException && cause.name === 'AbortError'))
+        setError('Could not open the share sheet. Try again.');
+      return false;
+    }
   };
 
   // The file sizes shown under the choice. Rendering only reads what is already known about the
@@ -227,5 +289,10 @@ export const useFrameEditor = () => {
     },
     exportJpeg,
     savePhotos,
+    /** How many photos wait for the share sheet, or 0. */
+    readyToShare: readyToShare?.length ?? 0,
+    shareReady,
+    /** Lets go of photos made for the share sheet without sharing them. */
+    dropReady: () => setReadyToShare(null),
   };
 };
