@@ -109,6 +109,14 @@ type EditorStore = {
   /** Ends the run and decodes the current photo for the preview again. */
   finishSaving: () => void;
   stopSaving: () => void;
+  /**
+   * Gives up the preview's bitmap while photos are made out of sight (the save dialog covers the
+   * preview), so only one full-size bitmap is ever held. Resolves once no preview decode is still
+   * in flight.
+   */
+  holdPreview: () => Promise<void>;
+  /** Decodes the current photo for the preview again after `holdPreview`. */
+  resumePreview: () => void;
 };
 
 const EditorContext = createContext<EditorStore | null>(null);
@@ -292,6 +300,15 @@ export const EditorStoreProvider = ({ children }: { children: ReactNode }) => {
       },
       stopSaving: () => {
         stopRequested.current = true;
+      },
+      holdPreview: () => {
+        previewReleased.current = true;
+        loadCurrent();
+        return decoding.current;
+      },
+      resumePreview: () => {
+        previewReleased.current = false;
+        loadCurrent();
       },
     };
   }, []);
