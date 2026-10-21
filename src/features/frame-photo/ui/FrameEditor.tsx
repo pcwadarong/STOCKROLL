@@ -71,9 +71,17 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
     shareRange,
     shareReady,
     dropReady,
+    prepare,
+    preparedCount,
   } = useFrameEditor();
   // What the browser can do does not change while the page is open.
   const [saveWay] = useState(batchSaveWayHere);
+  // However the save dialog closes — by the user, or once the photos are saved or handed over —
+  // the photos made for it are let go and the preview gets its bitmap back.
+  const closeSave = () => {
+    setAsking(null);
+    dropReady();
+  };
   const { queue, current, bitmap, preset, style, focalMode, detail, error } = store;
   const { setPick, setPreset, updateStyle, setFocalMode, setDetail } = store;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -506,26 +514,24 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
 
       <SaveDialog
         open={asking === 'save'}
-        onOpenChange={open => {
-          setAsking(open ? 'save' : null);
-          // Closed without sharing: the photos made for the sheet are let go.
-          if (!open) dropReady();
-        }}
+        onOpenChange={open => (open ? setAsking('save') : closeSave())}
         photos={photos}
         currentId={queue.currentId}
         saving={store.saving}
         way={saveWay}
         ready={shareRange}
+        preparedCount={preparedCount}
+        onChoose={prepare}
         // The dialog stays up to show the run's progress and closes when the run ends — or, for
         // the share sheet, once the photos are handed over.
         onSave={(ids, way) =>
           void savePhotos(ids, way).then(waiting => {
-            if (!waiting) setAsking(null);
+            if (!waiting) closeSave();
           })
         }
         onShare={() =>
           void shareReady().then(result => {
-            if (result === 'done') setAsking(null);
+            if (result === 'done') closeSave();
           })
         }
         onStop={store.stopSaving}

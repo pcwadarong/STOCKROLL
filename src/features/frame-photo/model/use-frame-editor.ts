@@ -199,13 +199,109 @@ export const useFrameEditor = () => {
     return 'more' as const;
   };
 
+  /** Makes one queued photo's file: decode, draw with its own caption, encode, let the bitmap go. */
+  const makeFile = async (photo: QueuedPhoto) => {
+    const decoded = await decodePhoto(photo.file);
+    // Caption and date line are the photo's own, not the previewed photo's.
+    const ownLines = markLines(mark, photo.exif.takenAt);
+    const settings = {
+      preset,
+      detail,
+      block: captionOf(style, infoOf(photo), own, ownLines),
+      style,
+      own,
+      lines: ownLines,
+    };
+    const blob = await renderJpeg(decoded, settings).finally(() => decoded.close());
+    return new File([blob], filenameOf(photo), { type: 'image/jpeg' });
+  };
+
+  /**
+   * Hands made files to the share sheet in the runs it takes at once, straight away when the tap
+   * that asked still counts, otherwise waiting for the next tap (`shareReady`).
+   * @param onTap true when called within the tap itself, nothing having been made since: the sheet
+   * is opened without asking whether the tap still counts (older browsers cannot say)
+   * @returns true when photos wait for a tap, false when they were handed over, null when the
+   * sheet takes none of them
+   */
+  const shareFiles = async (files: File[], asked: number, failed: string[], onTap = false) => {
+    // A phone's sheet may not take this many at once: it gets them in runs it does take, so a
+    // batch meant for Photos never turns into a ZIP in Files.
+    const ranges = splitToFit(
+      files.length,
+      range => navigator.canShare?.({ files: files.slice(range.start, range.end) }) ?? false,
+    );
+    if (ranges.length === 0) return null;
+    const batch = { files, ranges, asked, failed };
+    setWaiting(batch);
+    store.setMessage(shareReadyText({ ...ranges[0]!, total: files.length }));
+    if (onTap || navigator.userActivation?.isActive) return (await shareNext(batch)) !== 'done';
+    return true;
+  };
+
+  // Photos made ahead, while the user picks in the save dialog, so that tapping Save can open the
+  // share sheet at once: the sheet opens only straight after a tap, and making photos takes
+  // longer than that. One run at a time, each photo decoded only after the last is let go.
+  const prepared = useRef(new Map<string, File>());
+  const preparing = useRef(0);
+  const prepareChain = useRef(Promise.resolve());
+  const holdingPreview = useRef(false);
+  const [preparedCount, setPreparedCount] = useState<{ done: number; total: number } | null>(null);
+
+  /**
+   * Makes the chosen photos ahead, for the share sheet. A new choice calls off the run in flight
+   * after its current photo; photos no longer chosen are let go.
+   * @param ids the photos now chosen
+   */
+  const prepare = (ids: readonly string[]) => {
+    const run = ++preparing.current;
+    const chosen = queue.items.filter(photo => ids.includes(photo.id));
+    for (const id of prepared.current.keys()) if (!ids.includes(id)) prepared.current.delete(id);
+    const count = () => ({
+      done: chosen.filter(photo => prepared.current.has(photo.id)).length,
+      total: chosen.length,
+    });
+    setPreparedCount(count());
+    prepareChain.current = prepareChain.current.then(async () => {
+      if (run !== preparing.current) return;
+      // The dialog covers the preview: its full-size bitmap makes way for the photos made here.
+      if (!holdingPreview.current) {
+        holdingPreview.current = true;
+        await store.holdPreview();
+      }
+      for (const photo of chosen) {
+        if (run !== preparing.current) return;
+        if (prepared.current.has(photo.id)) continue;
+        try {
+          prepared.current.set(photo.id, await makeFile(photo));
+        } catch {
+          // Left out: the save run tries it again and names it if it fails there too.
+        }
+        if (run === preparing.current) setPreparedCount(count());
+      }
+    });
+  };
+
+  /** Calls off making ahead, lets the made photos go and gives the preview back its bitmap. */
+  const releasePrepared = () => {
+    preparing.current++;
+    prepared.current.clear();
+    setPreparedCount(null);
+    prepareChain.current = prepareChain.current.then(() => {
+      if (!holdingPreview.current) return;
+      holdingPreview.current = false;
+      store.resumePreview();
+    });
+  };
+
   /**
    * Exports the chosen queued photos as JPEG, one after another, with the shared output settings
    * and each photo's own caption, and saves them the way this browser does best (`batchSaveWay`).
    * Only one decoded photo is in memory at any moment: decode, draw, encode, close the bitmap.
    * Into a folder each file is written and let go before the next; for a ZIP or the share sheet
-   * the encoded files are kept until the end. A photo that fails to export is skipped and named in
-   * the summary.
+   * the encoded files are kept until the end. For the share sheet, photos already made ahead
+   * (`prepare`) are used as they are, and when all of them are, the sheet opens on this tap. A
+   * photo that fails to export is skipped and named in the summary.
    * @param ids the photos to save
    * @param way how to save them; the folder picker opens straight away, while the click still counts
    * @returns true when photos wait for a tap to open the share sheet (`shareReady`)
@@ -217,34 +313,38 @@ export const useFrameEditor = () => {
     const folder = way === 'folder' ? await pickFolder() : null;
     if (way === 'folder' && !folder) return false;
     setWaiting(null);
+
+    if (way === 'share') {
+      // All made ahead: nothing to wait for, so this very tap opens the sheet.
+      if (photos.every(photo => prepared.current.has(photo.id))) {
+        const files = photos.map(photo => prepared.current.get(photo.id)!);
+        const waits = await shareFiles(files, photos.length, [], true);
+        if (waits !== null) return waits;
+      }
+      // Not all yet: the run below makes the rest, after the one in flight lets its photo go.
+      preparing.current++;
+      await prepareChain.current;
+    }
+
     await store.startSaving(photos.length);
     const failed: string[] = [];
-    const made: { name: string; blob: Blob }[] = [];
+    const made: File[] = [];
     let sent = 0;
     let stopped = false;
     for (const [index, photo] of photos.entries()) {
       stopped = !store.advanceSaving(index + 1);
       if (stopped) break;
       try {
-        const decoded = await decodePhoto(photo.file);
-        // Caption and date line are the photo's own, not the previewed photo's.
-        const ownLines = markLines(mark, photo.exif.takenAt);
-        const settings = {
-          preset,
-          detail,
-          block: captionOf(style, infoOf(photo), own, ownLines),
-          style,
-          own,
-          lines: ownLines,
-        };
-        const blob = await renderJpeg(decoded, settings).finally(() => decoded.close());
-        if (folder) await writeToFolder(folder, filenameOf(photo), blob);
-        else made.push({ name: filenameOf(photo), blob });
+        const file = prepared.current.get(photo.id) ?? (await makeFile(photo));
+        if (folder) await writeToFolder(folder, file.name, file);
+        else made.push(file);
         sent++;
       } catch {
         failed.push(photo.file.name);
       }
     }
+    // The run gives the preview its bitmap back, which also ends any hold for making ahead.
+    holdingPreview.current = false;
     store.finishSaving();
 
     const report = (to: SaveDestination) => {
@@ -264,25 +364,12 @@ export const useFrameEditor = () => {
       setError(noneMadeText(failed));
       return false;
     }
-    const files = made.map(({ name, blob }) => new File([blob], name, { type: 'image/jpeg' }));
     if (way === 'share') {
-      // A phone's sheet may not take this many at once: it gets them in runs it does take, so a
-      // batch meant for Photos never turns into a ZIP in Files.
-      const ranges = splitToFit(
-        files.length,
-        range => navigator.canShare?.({ files: files.slice(range.start, range.end) }) ?? false,
-      );
-      if (ranges.length > 0) {
-        const batch = { files, ranges, asked: photos.length, failed };
-        setWaiting(batch);
-        store.setMessage(shareReadyText({ ...ranges[0]!, total: files.length }));
-        // Made quickly enough that the tap still counts: open the sheet without asking for another.
-        if (navigator.userActivation?.isActive) return (await shareNext(batch)) !== 'done';
-        return true;
-      }
+      const waits = await shareFiles(made, photos.length, failed);
+      if (waits !== null) return waits;
     }
     const name = zipName(made.length, new Date());
-    void downloadBlob(await makeZip(made), name);
+    void downloadBlob(await makeZip(made.map(file => ({ name: file.name, blob: file }))), name);
     report({ way: 'zip', name });
     return false;
   };
@@ -341,7 +428,13 @@ export const useFrameEditor = () => {
      * this one still does
      */
     shareReady: () => (waiting ? shareNext(waiting) : Promise.resolve('done' as const)),
-    /** Lets go of photos made for the share sheet without sharing them. */
-    dropReady: () => setWaiting(null),
+    /** Lets go of photos made for the share sheet without sharing them, and of those made ahead. */
+    dropReady: () => {
+      setWaiting(null);
+      releasePrepared();
+    },
+    prepare,
+    /** How many of the chosen photos are made ahead, or null when none are being made. */
+    preparedCount,
   };
 };

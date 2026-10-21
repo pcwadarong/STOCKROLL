@@ -4,6 +4,7 @@ import {
   decodeErrorText,
   editorStatusText,
   openErrorText,
+  preparingText,
   previewStateOf,
   queueFullText,
   saveSummaryText,
@@ -207,5 +208,15 @@ describe('shareButtonText', () => {
     expect(shareButtonText({ start: 0, end: 8, total: 13 })).toBe(
       'Choose where to save photos 1–8 of 13',
     );
+  });
+});
+
+describe('preparingText', () => {
+  it('when photos are still being made ahead, it must count them', () => {
+    expect(preparingText({ done: 9, total: 13 })).toBe('Getting 9 of 13 ready…');
+  });
+
+  it('when every chosen photo is made, it must say they are ready', () => {
+    expect(preparingText({ done: 13, total: 13 })).toBe('13 photos ready.');
   });
 });
