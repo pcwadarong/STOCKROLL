@@ -7,6 +7,7 @@ import { Button } from '@/shared/ui/Button';
 import { Checkmark } from 'seed-design/ui/checkbox';
 
 import {
+  preparingText,
   type SaveProgress,
   saveWayText,
   savingProgressText,
@@ -45,6 +46,10 @@ type SaveChoiceProps = {
   way: BatchSaveWay;
   /** The photos the next tap hands to the share sheet, and how many wait in all; or null. */
   ready: { start: number; end: number; total: number } | null;
+  /** How many of the chosen photos are made ahead for the share sheet, or null. */
+  preparedCount: { done: number; total: number } | null;
+  /** Called with the chosen photos whenever the choice changes, to make them ahead. */
+  onChoose: (ids: readonly string[]) => void;
   onSave: (ids: readonly string[], way: BatchSaveWay) => void;
   onShare: () => void;
   onStop: () => void;
@@ -56,6 +61,8 @@ const SaveChoice = ({
   saving,
   way,
   ready,
+  preparedCount,
+  onChoose,
   onSave,
   onShare,
   onStop,
@@ -64,6 +71,13 @@ const SaveChoice = ({
     () => new Set(currentId ? [currentId] : []),
   );
   const ids = photos.filter(photo => checked.has(photo.id)).map(photo => photo.id);
+  const chosen = ids.join(' ');
+  // Only the share sheet needs its photos made before the tap: the others can make them after.
+  useEffect(() => {
+    if (way === 'share') onChoose(chosen ? chosen.split(' ') : []);
+    // `onChoose` is a new function every render; the choice is what matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chosen, way]);
   const toggle = (id: string, on: boolean) => {
     const next = new Set(checked);
     if (on) next.add(id);
@@ -122,6 +136,10 @@ const SaveChoice = ({
           </ul>
 
           {!saving && !ready && <p className={css.note}>{saveWayText(way)}</p>}
+          {/* Quiet: counting up out loud would talk over the photo list. */}
+          {!saving && !ready && preparedCount && preparedCount.total > 0 && (
+            <p className={css.note}>{preparingText(preparedCount)}</p>
+          )}
           {ready && (
             <p className={css.note} role="status">
               {shareReadyText(ready)}

@@ -45,7 +45,7 @@ export const zipName = (count: number, when: Date) => {
 export const saveWayText = (way: SaveDestination['way']) =>
   ({
     folder: 'Each photo is saved as its own file in a folder you pick.',
-    share: 'When they are ready, pick where they go: your photos, your files or an app.',
+    share: 'Tap Save to pick where they go: your photos, your files or an app.',
     zip: 'Saved as one ZIP file. Safari opens it as a folder.',
   })[way];
 
@@ -90,6 +90,15 @@ export const saveSummaryText = ({
  */
 export const noneMadeText = (failed: readonly string[]) =>
   `Nothing was saved. Could not export: ${listNames(failed)}.`;
+
+/**
+ * Words how far making the chosen photos ahead has got, so it shows whether Save will open the
+ * save options at once.
+ * @param progress how many of the chosen photos are made, and how many there are
+ * @returns e.g. `Getting 9 of 13 ready…`, then `13 photos ready.`
+ */
+export const preparingText = ({ done, total }: { done: number; total: number }) =>
+  done < total ? `Getting ${done} of ${total} ready…` : `${photos(total)} ready.`;
 
 /** Names a run of photos within a batch: `Photos 1–8 of 13`, or `Photo 13 of 13` alone. */
 const which = (start: number, end: number, total: number) =>
