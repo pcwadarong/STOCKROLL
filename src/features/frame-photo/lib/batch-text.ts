@@ -91,13 +91,50 @@ export const saveSummaryText = ({
 export const noneMadeText = (failed: readonly string[]) =>
   `Nothing was saved. Could not export: ${listNames(failed)}.`;
 
+/** Names a run of photos within a batch: `Photos 1–8 of 13`, or `Photo 13 of 13` alone. */
+const which = (start: number, end: number, total: number) =>
+  end - start === 1 ? `Photo ${end} of ${total}` : `Photos ${start + 1}–${end} of ${total}`;
+
 /**
- * Words the moment a batch for the share sheet is made and waits for a tap: the browser opens
- * the sheet only straight after one.
- * @param count how many photos are ready
- * @returns e.g. `12 photos ready.`
+ * Words a batch made for the share sheet and waiting for a tap. The phone opens its save options
+ * (Photos, Files, apps) only straight after a tap, and making the photos takes longer than that.
+ * @param range the photos the next tap hands over, and how many there are in all
+ * @returns the line above the button
  */
-export const shareReadyText = (count: number) => `${photos(count)} ready.`;
+export const shareReadyText = ({
+  start,
+  end,
+  total,
+}: {
+  start: number;
+  end: number;
+  total: number;
+}) => {
+  const lead =
+    start === 0 && end === total
+      ? `${photos(total)} ${total === 1 ? 'is' : 'are'} ready.`
+      : `${which(start, end, total)} ${end - start === 1 ? 'is' : 'are'} next: your phone takes this many at a time.`;
+  return `${lead} Your phone opens its save options only right after a tap.`;
+};
+
+/**
+ * Names the button that opens the share sheet for the next photos. "Share" reads as sending to
+ * someone; this is where the photos get saved.
+ * @param range the photos the tap hands over, and how many there are in all
+ * @returns the button label
+ */
+export const shareButtonText = ({
+  start,
+  end,
+  total,
+}: {
+  start: number;
+  end: number;
+  total: number;
+}) =>
+  start === 0 && end === total
+    ? `Choose where to save ${photos(total)}`
+    : `Choose where to save ${which(start, end, total).toLowerCase()}`;
 
 /**
  * Words the error for a queued photo whose full-size decode failed, e.g. under memory pressure.

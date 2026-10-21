@@ -152,3 +152,33 @@ export const writeToFolder = async (folder: DirectoryHandle, name: string, blob:
   await writable.close();
   return written;
 };
+
+/** A run of files, from `start` up to but not including `end`. */
+export type FileRange = { start: number; end: number };
+
+/**
+ * Splits files into runs the share sheet takes at once, in order, each as long as it will take.
+ * A phone's sheet may refuse too many or too large a set without saying how many it would take,
+ * so each run is found by asking.
+ * @param total how many files there are
+ * @param fits whether the files from `start` up to `end` can be shared together
+ * @returns the runs, or an empty list when not even one file can be shared
+ */
+export const splitToFit = (total: number, fits: (range: FileRange) => boolean): FileRange[] => {
+  const ranges: FileRange[] = [];
+  let start = 0;
+  while (start < total) {
+    if (!fits({ start, end: start + 1 })) return [];
+    // The longest run from here that fits: at least one, at most what is left.
+    let low = start + 1;
+    let high = total;
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2);
+      if (fits({ start, end: middle })) low = middle;
+      else high = middle - 1;
+    }
+    ranges.push({ start, end: low });
+    start = low;
+  }
+  return ranges;
+};

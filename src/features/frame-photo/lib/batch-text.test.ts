@@ -8,6 +8,8 @@ import {
   queueFullText,
   saveSummaryText,
   savingProgressText,
+  shareButtonText,
+  shareReadyText,
   zipName,
 } from './batch-text';
 
@@ -173,5 +175,37 @@ describe('queueFullText', () => {
     expect(queueFullText(1, 50)).toContain('1 photo was not opened');
     expect(queueFullText(4, 50)).toContain('4 photos were not opened');
     expect(queueFullText(4, 50)).toContain('up to 50 photos');
+  });
+});
+
+describe('shareReadyText', () => {
+  it('when the whole batch waits for a tap, it must say they are ready and why a tap is needed', () => {
+    expect(shareReadyText({ start: 0, end: 13, total: 13 })).toBe(
+      '13 photos are ready. Your phone opens its save options only right after a tap.',
+    );
+  });
+
+  it('when the last part is one photo, it must name it alone', () => {
+    expect(shareReadyText({ start: 12, end: 13, total: 13 })).toMatch(/^Photo 13 of 13 is next/);
+    expect(shareButtonText({ start: 12, end: 13, total: 13 })).toBe(
+      'Choose where to save photo 13 of 13',
+    );
+  });
+
+  it('when the batch goes in parts, it must say which photos are next and why', () => {
+    expect(shareReadyText({ start: 8, end: 13, total: 13 })).toBe(
+      'Photos 9–13 of 13 are next: your phone takes this many at a time. Your phone opens its save options only right after a tap.',
+    );
+  });
+});
+
+describe('shareButtonText', () => {
+  it('when the button opens the save options, it must say saving rather than sharing', () => {
+    expect(shareButtonText({ start: 0, end: 13, total: 13 })).toBe(
+      'Choose where to save 13 photos',
+    );
+    expect(shareButtonText({ start: 0, end: 8, total: 13 })).toBe(
+      'Choose where to save photos 1–8 of 13',
+    );
   });
 });
