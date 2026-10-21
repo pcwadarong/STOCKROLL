@@ -6,7 +6,13 @@ import type { BatchSaveWay } from '@/shared/lib/save-file';
 import { Button } from '@/shared/ui/Button';
 import { Checkmark } from 'seed-design/ui/checkbox';
 
-import { type SaveProgress, saveWayText, savingProgressText } from '../lib/batch-text';
+import {
+  type SaveProgress,
+  saveWayText,
+  savingProgressText,
+  shareButtonText,
+  shareReadyText,
+} from '../lib/batch-text';
 import type { QueuedPhoto } from '../model/editor-store';
 
 import * as css from './SaveDialog.css';
@@ -37,8 +43,8 @@ type SaveChoiceProps = {
   saving: SaveProgress | null;
   /** How this browser saves a batch. */
   way: BatchSaveWay;
-  /** How many photos wait for a tap to open the share sheet, or 0. */
-  readyToShare: number;
+  /** The photos the next tap hands to the share sheet, and how many wait in all; or null. */
+  ready: { start: number; end: number; total: number } | null;
   onSave: (ids: readonly string[], way: BatchSaveWay) => void;
   onShare: () => void;
   onStop: () => void;
@@ -49,7 +55,7 @@ const SaveChoice = ({
   currentId,
   saving,
   way,
-  readyToShare,
+  ready,
   onSave,
   onShare,
   onStop,
@@ -115,9 +121,14 @@ const SaveChoice = ({
             ))}
           </ul>
 
-          {!saving && readyToShare === 0 && <p className={css.note}>{saveWayText(way)}</p>}
+          {!saving && !ready && <p className={css.note}>{saveWayText(way)}</p>}
+          {ready && (
+            <p className={css.note} role="status">
+              {shareReadyText(ready)}
+            </p>
+          )}
           {/* A folder is the better place on this browser; a ZIP is still there for sending on. */}
-          {!saving && readyToShare === 0 && way === 'folder' && (
+          {!saving && !ready && way === 'folder' && (
             <Button variant="plain" disabled={ids.length === 0} onClick={() => onSave(ids, 'zip')}>
               Download as one ZIP instead
             </Button>
@@ -130,14 +141,10 @@ const SaveChoice = ({
               share sheet opens only straight after a tap, so a made batch waits for this one. */}
           <Button
             variant="primary"
-            disabled={!saving && readyToShare === 0 && ids.length === 0}
-            onClick={saving ? onStop : readyToShare > 0 ? onShare : () => onSave(ids, way)}
+            disabled={!saving && !ready && ids.length === 0}
+            onClick={saving ? onStop : ready ? onShare : () => onSave(ids, way)}
           >
-            {saving
-              ? 'Stop saving'
-              : readyToShare > 0
-                ? `Share ${count(readyToShare)}`
-                : `Save ${count(ids.length)}`}
+            {saving ? 'Stop saving' : ready ? shareButtonText(ready) : `Save ${count(ids.length)}`}
           </Button>
         </div>
       </Dialog.Footer>

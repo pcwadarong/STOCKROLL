@@ -68,7 +68,7 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
     fileSizes,
     exportJpeg,
     savePhotos,
-    readyToShare,
+    shareRange,
     shareReady,
     dropReady,
   } = useFrameEditor();
@@ -515,7 +515,7 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
         currentId={queue.currentId}
         saving={store.saving}
         way={saveWay}
-        readyToShare={readyToShare}
+        ready={shareRange}
         // The dialog stays up to show the run's progress and closes when the run ends — or, for
         // the share sheet, once the photos are handed over.
         onSave={(ids, way) =>
@@ -524,8 +524,8 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
           })
         }
         onShare={() =>
-          void shareReady().then(done => {
-            if (done) setAsking(null);
+          void shareReady().then(result => {
+            if (result === 'done') setAsking(null);
           })
         }
         onStop={store.stopSaving}

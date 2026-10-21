@@ -6,7 +6,14 @@ import { markLines, useMark } from '@/entities/mark';
 import { recipeCollection } from '@/entities/recipe';
 import { devicePixelBudget, knownPixelBudget, pixelBudgetKnown } from '@/shared/lib/canvas-budget';
 import { ensureFont } from '@/shared/lib/canvas-fonts';
-import { type BatchSaveWay, downloadBlob, pickFolder, writeToFolder } from '@/shared/lib/save-file';
+import {
+  type BatchSaveWay,
+  downloadBlob,
+  type FileRange,
+  pickFolder,
+  splitToFit,
+  writeToFolder,
+} from '@/shared/lib/save-file';
 import { useCollection } from '@/shared/lib/use-collection';
 import { makeZip } from '@/shared/lib/zip';
 
@@ -143,8 +150,54 @@ export const useFrameEditor = () => {
     }
   };
 
-  // Photos made for the share sheet, waiting for the tap that may open it.
-  const [readyToShare, setReadyToShare] = useState<File[] | null>(null);
+  /**
+   * Photos made for the share sheet and waiting for the tap that opens it: all of them, the runs
+   * the sheet takes at once (the next one first), how many were asked for, and the names of those
+   * that could not be made.
+   */
+  const [waiting, setWaiting] = useState<{
+    files: File[];
+    ranges: FileRange[];
+    asked: number;
+    failed: string[];
+  } | null>(null);
+
+  /**
+   * Opens the share sheet with the next run of waiting photos. A sheet that was closed, or that the
+   * browser would not open without a fresh tap, leaves the run waiting.
+   * @returns `done` when every photo was handed over, `more` when another run waits, `wait` when
+   * this one still does
+   */
+  const shareNext = async (batch: NonNullable<typeof waiting>) => {
+    const [range, ...rest] = batch.ranges;
+    if (!range) return 'done' as const;
+    try {
+      await navigator.share({ files: batch.files.slice(range.start, range.end) });
+    } catch (cause) {
+      const quiet =
+        cause instanceof DOMException &&
+        (cause.name === 'AbortError' || cause.name === 'NotAllowedError');
+      if (!quiet) setError('Could not open the save options. Try again.');
+      return 'wait' as const;
+    }
+    if (rest.length === 0) {
+      setWaiting(null);
+      const summary = saveSummaryText({
+        sent: batch.files.length,
+        total: batch.asked,
+        failed: batch.failed,
+        stopped: false,
+        to: { way: 'share' },
+      });
+      if (batch.failed.length > 0) setError(summary);
+      else store.setMessage(summary);
+      return 'done' as const;
+    }
+    const next = { ...batch, ranges: rest };
+    setWaiting(next);
+    store.setMessage(shareReadyText({ ...rest[0]!, total: batch.files.length }));
+    return 'more' as const;
+  };
 
   /**
    * Exports the chosen queued photos as JPEG, one after another, with the shared output settings
@@ -155,15 +208,15 @@ export const useFrameEditor = () => {
    * the summary.
    * @param ids the photos to save
    * @param way how to save them; the folder picker opens straight away, while the click still counts
-   * @returns true when the photos wait for a tap to open the share sheet (`shareReady`)
+   * @returns true when photos wait for a tap to open the share sheet (`shareReady`)
    */
   const savePhotos = async (ids: readonly string[], way: BatchSaveWay) => {
     const photos = queue.items.filter(photo => ids.includes(photo.id));
-    if (photos.length === 0 || store.saving) return;
+    if (photos.length === 0 || store.saving) return false;
     // First, before anything is awaited: the browser opens the picker only straight after a click.
     const folder = way === 'folder' ? await pickFolder() : null;
-    if (way === 'folder' && !folder) return;
-    setReadyToShare(null);
+    if (way === 'folder' && !folder) return false;
+    setWaiting(null);
     await store.startSaving(photos.length);
     const failed: string[] = [];
     const made: { name: string; blob: Blob }[] = [];
@@ -199,48 +252,39 @@ export const useFrameEditor = () => {
       if (failed.length > 0) setError(summary);
       else store.setMessage(summary);
     };
-    if (folder) return report({ way: 'folder', folder: folder.name });
-    if (stopped) return report(way === 'share' ? { way } : { way: 'zip', name: '' });
-    if (made.length === 0) return setError(noneMadeText(failed));
+    if (folder) {
+      report({ way: 'folder', folder: folder.name });
+      return false;
+    }
+    if (stopped) {
+      report(way === 'share' ? { way } : { way: 'zip', name: '' });
+      return false;
+    }
+    if (made.length === 0) {
+      setError(noneMadeText(failed));
+      return false;
+    }
     const files = made.map(({ name, blob }) => new File([blob], name, { type: 'image/jpeg' }));
-    // A share sheet that cannot take this many files gets a ZIP instead of an error.
-    if (way === 'share' && navigator.canShare?.({ files })) {
-      setReadyToShare(files);
-      if (failed.length > 0)
-        setError(saveSummaryText({ sent, total: photos.length, failed, stopped, to: { way } }));
-      else store.setMessage(shareReadyText(files.length));
-      return true;
+    if (way === 'share') {
+      // A phone's sheet may not take this many at once: it gets them in runs it does take, so a
+      // batch meant for Photos never turns into a ZIP in Files.
+      const ranges = splitToFit(
+        files.length,
+        range => navigator.canShare?.({ files: files.slice(range.start, range.end) }) ?? false,
+      );
+      if (ranges.length > 0) {
+        const batch = { files, ranges, asked: photos.length, failed };
+        setWaiting(batch);
+        store.setMessage(shareReadyText({ ...ranges[0]!, total: files.length }));
+        // Made quickly enough that the tap still counts: open the sheet without asking for another.
+        if (navigator.userActivation?.isActive) return (await shareNext(batch)) !== 'done';
+        return true;
+      }
     }
     const name = zipName(made.length, new Date());
     void downloadBlob(await makeZip(made), name);
     report({ way: 'zip', name });
-  };
-
-  /**
-   * Opens the share sheet with the photos made for it. Called from the tap that asks for it.
-   * @returns true once the photos were handed over
-   */
-  const shareReady = async () => {
-    if (!readyToShare) return false;
-    try {
-      await navigator.share({ files: readyToShare });
-      store.setMessage(
-        saveSummaryText({
-          sent: readyToShare.length,
-          total: readyToShare.length,
-          failed: [],
-          stopped: false,
-          to: { way: 'share' },
-        }),
-      );
-      setReadyToShare(null);
-      return true;
-    } catch (cause) {
-      // Closing the sheet is not a failure: the photos stay ready for another try.
-      if (!(cause instanceof DOMException && cause.name === 'AbortError'))
-        setError('Could not open the share sheet. Try again.');
-      return false;
-    }
+    return false;
   };
 
   // The file sizes shown under the choice. Rendering only reads what is already known about the
@@ -289,10 +333,15 @@ export const useFrameEditor = () => {
     },
     exportJpeg,
     savePhotos,
-    /** How many photos wait for the share sheet, or 0. */
-    readyToShare: readyToShare?.length ?? 0,
-    shareReady,
+    /** The photos the next tap hands to the share sheet, and how many wait in all; or null. */
+    shareRange: waiting ? { ...waiting.ranges[0]!, total: waiting.files.length } : null,
+    /**
+     * Opens the share sheet with the next waiting photos. Called from the tap that asks for it.
+     * @returns `done` when every photo was handed over, `more` when another run waits, `wait` when
+     * this one still does
+     */
+    shareReady: () => (waiting ? shareNext(waiting) : Promise.resolve('done' as const)),
     /** Lets go of photos made for the share sheet without sharing them. */
-    dropReady: () => setReadyToShare(null),
+    dropReady: () => setWaiting(null),
   };
 };
