@@ -343,9 +343,15 @@ export const useFrameEditor = () => {
         failed.push(photo.file.name);
       }
     }
-    // The run gives the preview its bitmap back, which also ends any hold for making ahead.
-    holdingPreview.current = false;
-    store.finishSaving();
+    // Ends the run: the dialog and editor come back, and the preview gets its bitmap back (which
+    // also ends any hold for making ahead). A ZIP is still being put together after the photos
+    // are made, so its run ends only once the ZIP is handed over.
+    let finished = false;
+    const finish = () => {
+      finished = true;
+      holdingPreview.current = false;
+      store.finishSaving();
+    };
 
     const report = (to: SaveDestination) => {
       const summary = saveSummaryText({ sent, total: photos.length, failed, stopped, to });
@@ -353,23 +359,33 @@ export const useFrameEditor = () => {
       else store.setMessage(summary);
     };
     if (folder) {
+      finish();
       report({ way: 'folder', folder: folder.name });
       return false;
     }
     if (stopped) {
+      finish();
       report(way === 'share' ? { way } : { way: 'zip', name: '' });
       return false;
     }
     if (made.length === 0) {
+      finish();
       setError(noneMadeText(failed));
       return false;
     }
     if (way === 'share') {
+      // The photos wait for the tap that opens the sheet with the dialog usable again.
+      finish();
       const waits = await shareFiles(made, photos.length, failed);
       if (waits !== null) return waits;
     }
     const name = zipName(made.length, new Date());
-    void downloadBlob(await makeZip(made.map(file => ({ name: file.name, blob: file }))), name);
+    try {
+      void downloadBlob(await makeZip(made.map(file => ({ name: file.name, blob: file }))), name);
+    } finally {
+      // A share sheet that took none of them has finished the run already.
+      if (!finished) finish();
+    }
     report({ way: 'zip', name });
     return false;
   };
