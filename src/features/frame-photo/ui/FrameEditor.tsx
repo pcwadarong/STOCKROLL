@@ -5,6 +5,7 @@ import { hasOwnPlace, OUTPUT_PRESETS, TEMPLATES, usesShootingInfo } from '@/enti
 import { MarkFields } from '@/entities/mark';
 import { systemOf, SYSTEMS } from '@/entities/recipe';
 import { fileSizeText } from '@/shared/lib/file-size-text';
+import { batchSaveWayHere } from '@/shared/lib/save-file';
 import { canShareFiles } from '@/shared/lib/save-file';
 import { Button } from '@/shared/ui/Button';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
@@ -59,8 +60,28 @@ const AddLink = ({ to, children }: { to: string; children: string }) => (
  * @param props `signedIn` enables the links to register gear and recipes, which need an account
  */
 export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
-  const { canvasRef, store, library, resolved, fileSizes, exportJpeg, savePhotos } =
-    useFrameEditor();
+  const {
+    canvasRef,
+    store,
+    library,
+    resolved,
+    fileSizes,
+    exportJpeg,
+    savePhotos,
+    shareRange,
+    shareReady,
+    dropReady,
+    prepare,
+    preparedCount,
+  } = useFrameEditor();
+  // What the browser can do does not change while the page is open.
+  const [saveWay] = useState(batchSaveWayHere);
+  // However the save dialog closes — by the user, or once the photos are saved or handed over —
+  // the photos made for it are let go and the preview gets its bitmap back.
+  const closeSave = () => {
+    setAsking(null);
+    dropReady();
+  };
   const { queue, current, bitmap, preset, style, focalMode, detail, error } = store;
   const { setPick, setPreset, updateStyle, setFocalMode, setDetail } = store;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -493,12 +514,26 @@ export const FrameEditor = ({ signedIn }: { signedIn: boolean }) => {
 
       <SaveDialog
         open={asking === 'save'}
-        onOpenChange={open => setAsking(open ? 'save' : null)}
+        onOpenChange={open => (open ? setAsking('save') : closeSave())}
         photos={photos}
         currentId={queue.currentId}
         saving={store.saving}
-        // The dialog stays up to show the run's progress and closes when the run ends.
-        onSave={ids => void savePhotos(ids).then(() => setAsking(null))}
+        way={saveWay}
+        ready={shareRange}
+        preparedCount={preparedCount}
+        onChoose={prepare}
+        // The dialog stays up to show the run's progress and closes when the run ends — or, for
+        // the share sheet, once the photos are handed over.
+        onSave={(ids, way) =>
+          void savePhotos(ids, way).then(waiting => {
+            if (!waiting) closeSave();
+          })
+        }
+        onShare={() =>
+          void shareReady().then(result => {
+            if (result === 'done') closeSave();
+          })
+        }
         onStop={store.stopSaving}
       />
 

@@ -4,10 +4,14 @@ import {
   decodeErrorText,
   editorStatusText,
   openErrorText,
+  preparingText,
   previewStateOf,
   queueFullText,
   saveSummaryText,
   savingProgressText,
+  shareButtonText,
+  shareReadyText,
+  zipName,
 } from './batch-text';
 
 describe('savingProgressText', () => {
@@ -17,35 +21,66 @@ describe('savingProgressText', () => {
 });
 
 describe('saveSummaryText', () => {
-  it('when every photo was handed to the browser, it must say they were sent, not that they were saved', () => {
-    const summary = saveSummaryText({ sent: 12, total: 12, failed: [], stopped: false });
-    expect(summary).toBe("Sent 12 photos to your browser's downloads.");
+  const zip = { way: 'zip', name: 'stockroll-2026-10-20-12-photos.zip' } as const;
+  const folder = { way: 'folder', folder: 'Exports' } as const;
+
+  it('when a ZIP was handed to the browser, it must say it was sent, not that it was saved', () => {
+    const summary = saveSummaryText({ sent: 12, total: 12, failed: [], stopped: false, to: zip });
+    expect(summary).toBe("Sent stockroll-2026-10-20-12-photos.zip to your browser's downloads.");
     expect(summary).not.toMatch(/saved/i);
   });
 
+  it('when photos were written to a picked folder, it must say they were saved there', () => {
+    expect(saveSummaryText({ sent: 12, total: 12, failed: [], stopped: false, to: folder })).toBe(
+      'Saved 12 photos to “Exports”.',
+    );
+  });
+
   it('when the batch is a single photo, it must use the singular', () => {
-    expect(saveSummaryText({ sent: 1, total: 1, failed: [], stopped: false })).toBe(
-      "Sent 1 photo to your browser's downloads.",
+    expect(saveSummaryText({ sent: 1, total: 1, failed: [], stopped: false, to: folder })).toBe(
+      'Saved 1 photo to “Exports”.',
     );
   });
 
-  it('when some photos could not be exported, it must count only the sent ones and name the failures', () => {
-    expect(saveSummaryText({ sent: 2, total: 3, failed: ['b.jpg'], stopped: false })).toBe(
-      "Sent 2 of 3 photos to your browser's downloads. Could not export: b.jpg.",
+  it('when some photos could not be exported, it must count only the made ones and name the failures', () => {
+    expect(
+      saveSummaryText({ sent: 2, total: 3, failed: ['b.jpg'], stopped: false, to: folder }),
+    ).toBe('Saved 2 of 3 photos to “Exports”. Could not export: b.jpg.');
+  });
+
+  it('when the user stopped a folder run, it must count the photos already written', () => {
+    expect(saveSummaryText({ sent: 5, total: 12, failed: [], stopped: true, to: folder })).toBe(
+      'Stopped. Saved 5 of 12 photos to “Exports”.',
     );
   });
 
-  it('when the user stopped the run, it must say so and count what was sent before', () => {
-    expect(saveSummaryText({ sent: 5, total: 12, failed: [], stopped: true })).toBe(
-      "Stopped. Sent 5 of 12 photos to your browser's downloads.",
+  it('when the user stopped a ZIP or a share, it must say nothing was made', () => {
+    expect(saveSummaryText({ sent: 5, total: 12, failed: [], stopped: true, to: zip })).toBe(
+      'Stopped. Nothing was saved.',
     );
+    expect(
+      saveSummaryText({ sent: 5, total: 12, failed: [], stopped: true, to: { way: 'share' } }),
+    ).toBe('Stopped. Nothing was shared.');
+  });
+
+  it('when photos reached the share sheet, it must say they were handed over, not saved', () => {
+    expect(
+      saveSummaryText({ sent: 3, total: 3, failed: [], stopped: false, to: { way: 'share' } }),
+    ).toBe('Handed 3 photos to the share sheet.');
   });
 
   it('when more than three photos failed, it must name three and count the rest', () => {
     const failed = ['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg', 'e.jpg'];
-    expect(saveSummaryText({ sent: 0, total: 5, failed, stopped: false })).toBe(
-      "Sent 0 of 5 photos to your browser's downloads. Could not export: a.jpg, b.jpg, c.jpg and 2 more.",
+    expect(saveSummaryText({ sent: 0, total: 5, failed, stopped: false, to: folder })).toBe(
+      'Saved 0 of 5 photos to “Exports”. Could not export: a.jpg, b.jpg, c.jpg and 2 more.',
     );
+  });
+});
+
+describe('zipName', () => {
+  it('when a batch is zipped, it must be named for the app, the day and the count', () => {
+    expect(zipName(12, new Date(2026, 9, 20))).toBe('stockroll-2026-10-20-12-photos.zip');
+    expect(zipName(1, new Date(2026, 0, 5))).toBe('stockroll-2026-01-05-1-photo.zip');
   });
 });
 
@@ -141,5 +176,47 @@ describe('queueFullText', () => {
     expect(queueFullText(1, 50)).toContain('1 photo was not opened');
     expect(queueFullText(4, 50)).toContain('4 photos were not opened');
     expect(queueFullText(4, 50)).toContain('up to 50 photos');
+  });
+});
+
+describe('shareReadyText', () => {
+  it('when the whole batch waits for a tap, it must say they are ready and why a tap is needed', () => {
+    expect(shareReadyText({ start: 0, end: 13, total: 13 })).toBe(
+      '13 photos are ready. Your phone opens its save options only right after a tap.',
+    );
+  });
+
+  it('when the last part is one photo, it must name it alone', () => {
+    expect(shareReadyText({ start: 12, end: 13, total: 13 })).toMatch(/^Photo 13 of 13 is next/);
+    expect(shareButtonText({ start: 12, end: 13, total: 13 })).toBe(
+      'Choose where to save photo 13 of 13',
+    );
+  });
+
+  it('when the batch goes in parts, it must say which photos are next and why', () => {
+    expect(shareReadyText({ start: 8, end: 13, total: 13 })).toBe(
+      'Photos 9–13 of 13 are next: your phone takes this many at a time. Your phone opens its save options only right after a tap.',
+    );
+  });
+});
+
+describe('shareButtonText', () => {
+  it('when the button opens the save options, it must say saving rather than sharing', () => {
+    expect(shareButtonText({ start: 0, end: 13, total: 13 })).toBe(
+      'Choose where to save 13 photos',
+    );
+    expect(shareButtonText({ start: 0, end: 8, total: 13 })).toBe(
+      'Choose where to save photos 1–8 of 13',
+    );
+  });
+});
+
+describe('preparingText', () => {
+  it('when photos are still being made ahead, it must count them', () => {
+    expect(preparingText({ done: 9, total: 13 })).toBe('Getting 9 of 13 ready…');
+  });
+
+  it('when every chosen photo is made, it must say they are ready', () => {
+    expect(preparingText({ done: 13, total: 13 })).toBe('13 photos ready.');
   });
 });
