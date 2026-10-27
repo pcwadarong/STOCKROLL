@@ -247,7 +247,8 @@ const fitPixelBudget = (layout: FrameLayout, budget: PixelBudget): FrameLayout =
   if (width * height <= max) return layout;
   // The canvas is the size the budget was measured at, rounded down, so it cannot pass it.
   const canvas = sizeForPixels(width, height, max);
-  const factor = canvas.width / width;
+  // Both sides are rounded down on their own, so the smaller ratio keeps everything inside.
+  const factor = Math.min(canvas.width / width, canvas.height / height);
   return {
     canvas,
     photo: scaleRect(layout.photo, factor),

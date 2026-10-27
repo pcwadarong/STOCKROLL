@@ -8,7 +8,7 @@ import {
   type Recipe,
   type RecipeSettings,
 } from '@/entities/recipe';
-import { devicePixelBudget } from '@/shared/lib/canvas-budget';
+import { devicePixelBudget, knownPixelBudget, pixelBudgetKnown } from '@/shared/lib/canvas-budget';
 import { ensureFont } from '@/shared/lib/canvas-fonts';
 
 import { decodeCardPhoto, drawShareCard, loadRecipePhoto, shareRecipeCard } from './share-recipe';
@@ -166,19 +166,39 @@ export const useRecipeCard = (
     }
   };
 
-  // Original asks the device how large it can draw only once it is chosen: asking means making a
-  // canvas that large.
+  // The file sizes shown under the choice, from the layout the preview was drawn with. Rendering
+  // only reads what is already known about the device: finding out makes a canvas that large, so
+  // it waits until Original is chosen and the screen is drawn, then draws again with the answer.
+  const photoSizes = photos.map(photo => ({
+    shown: photo.bitmap,
+    full: photo.fullSize ?? photo.bitmap,
+    example: photo.example,
+  }));
+  const current = drawn && drawn.photos.length === photos.length ? drawn : null;
+  const wanted = current && cardFileSizes(current, photoSizes).wanted;
+  const wantedWidth = wanted?.width ?? 0;
+  const wantedHeight = wanted?.height ?? 0;
+  const [, setLearned] = useState(0);
+  useEffect(() => {
+    if (style.detail !== 'full' || wantedWidth === 0) return;
+    if (pixelBudgetKnown(wantedWidth, wantedHeight)) return;
+    // After the screen has shown "Checking…", not while it is being drawn.
+    const later = setTimeout(() => {
+      devicePixelBudget(wantedWidth, wantedHeight);
+      setLearned(count => count + 1);
+    });
+    return () => clearTimeout(later);
+  }, [style.detail, wantedWidth, wantedHeight]);
   const fileSizes =
-    drawn && drawn.photos.length === photos.length
-      ? cardFileSizes(
-          drawn,
-          photos.map(photo => ({
-            shown: photo.bitmap,
-            full: photo.fullSize ?? photo.bitmap,
-            example: photo.example,
-          })),
-          style.detail === 'full' ? devicePixelBudget : undefined,
-        )
+    current && wanted
+      ? {
+          ...cardFileSizes(
+            current,
+            photoSizes,
+            style.detail === 'full' ? knownPixelBudget : undefined,
+          ),
+          checking: style.detail === 'full' && !pixelBudgetKnown(wanted.width, wanted.height),
+        }
       : null;
 
   return {

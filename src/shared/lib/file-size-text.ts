@@ -19,11 +19,14 @@ export const fileSizeText = (
     original: Size;
     wanted: Size;
     byExample?: boolean;
+    /** Original is chosen and the device has not yet been asked how large it can draw. */
+    checking?: boolean;
   },
   words: { own: string; after?: string },
 ) => {
-  const { detail, posting, original, wanted, byExample } = sizes;
+  const { detail, posting, original, wanted, byExample, checking } = sizes;
   if (detail === 'optimized') return `${dimensions(posting)} · Smaller file, for posting.`;
+  if (checking) return 'Checking how large this device can save…';
   if (original.width * original.height < wanted.width * wanted.height)
     return `Saved at ${dimensions(original)}, not ${dimensions(wanted)}: this browser can't draw larger. Save on a computer for the full size.`;
   const after = words.after ? ` ${words.after}` : '';

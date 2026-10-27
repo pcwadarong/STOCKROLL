@@ -19,6 +19,15 @@ describe('fileSizeText', () => {
     ).toBe("7728×9660 · The photo's own size.");
   });
 
+  it('when the device has not been asked yet, it must say it is checking rather than give a size', () => {
+    expect(
+      fileSizeText(
+        { detail: 'full', posting: POSTING, original: POSTING, wanted: FULL, checking: true },
+        WORDS,
+      ),
+    ).toBe('Checking how large this device can save…');
+  });
+
   it('when the browser holds Original back, it must give both sizes, the reason and the way out', () => {
     const text = fileSizeText(
       { detail: 'full', posting: POSTING, original: { width: 3578, height: 4472 }, wanted: FULL },

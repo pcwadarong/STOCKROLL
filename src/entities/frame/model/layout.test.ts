@@ -98,6 +98,23 @@ describe('computeLayout', () => {
     expect(layout.photo.height).toBe(5152);
   });
 
+  it('when a canvas is shrunk to the budget, the photo must stay inside it on both sides', () => {
+    // Rounding each side down on its own could leave the photo a pixel taller than the canvas.
+    for (let width = 4000; width <= 6000; width += 37) {
+      const tall = { width, height: Math.floor(width * 1.5) };
+      // No margin and no caption: the photo is the whole canvas, so a pixel too many shows.
+      const bare = {
+        ...defaultSpec(tall),
+        margin: 0,
+        captionHeight: 0,
+        captionPlacement: 'over' as const,
+      };
+      const layout = computeLayout(tall, preset('original'), 'full', bare, () => 16_000_000);
+      expect(layout.photo.x + layout.photo.width).toBeLessThanOrEqual(layout.canvas.width);
+      expect(layout.photo.y + layout.photo.height).toBeLessThanOrEqual(layout.canvas.height);
+    }
+  });
+
   it('when the device draws less than the full resolution, the canvas must stay within its budget', () => {
     const xt50 = { width: 7728, height: 5152 };
     const asked: number[] = [];
