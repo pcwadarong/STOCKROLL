@@ -1,2 +1,6 @@
 User-agent: *
 Allow: /
+# Signed-in pages: a crawler only ever sees the sign-in gate here.
+Disallow: /library
+Disallow: /recipes
+Disallow: /me
