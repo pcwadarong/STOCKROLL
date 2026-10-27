@@ -1,3 +1,10 @@
+import {
+  type PixelBudget,
+  SAFE_CANVAS_PIXELS,
+  safePixelBudget,
+  sizeForPixels,
+} from '@/shared/lib/canvas-budget';
+
 import type { OutputPreset } from './presets';
 import type { FramePosition } from './style';
 
@@ -224,9 +231,6 @@ const layoutFixed = (
   return assemble(canvas, spec, unit, m, origin, drawn);
 };
 
-// Mobile Safari refuses canvases above roughly 16.7 million pixels and fails silently.
-const MAX_CANVAS_PIXELS = 16_000_000;
-
 const scaleRect = (rect: Rect, factor: number): Rect => ({
   x: Math.round(rect.x * factor),
   y: Math.round(rect.y * factor),
@@ -234,16 +238,19 @@ const scaleRect = (rect: Rect, factor: number): Rect => ({
   height: Math.round(rect.height * factor),
 });
 
-/** Shrinks a layout uniformly when its canvas would exceed what browsers can allocate. */
-const fitPixelBudget = (layout: FrameLayout): FrameLayout => {
-  const pixels = layout.canvas.width * layout.canvas.height;
-  if (pixels <= MAX_CANVAS_PIXELS) return layout;
-  const factor = Math.sqrt(MAX_CANVAS_PIXELS / pixels);
+/** Shrinks a layout uniformly when its canvas would exceed what the browser can draw. */
+const fitPixelBudget = (layout: FrameLayout, budget: PixelBudget): FrameLayout => {
+  const { width, height } = layout.canvas;
+  // Every target browser draws this much, so the device is not asked.
+  if (width * height <= SAFE_CANVAS_PIXELS) return layout;
+  const max = budget(width, height);
+  if (width * height <= max) return layout;
+  // The canvas is the size the budget was measured at, rounded down, so it cannot pass it.
+  const canvas = sizeForPixels(width, height, max);
+  // Both sides are rounded down on their own, so the smaller ratio keeps everything inside.
+  const factor = Math.min(canvas.width / width, canvas.height / height);
   return {
-    canvas: {
-      width: Math.round(layout.canvas.width * factor),
-      height: Math.round(layout.canvas.height * factor),
-    },
+    canvas,
     photo: scaleRect(layout.photo, factor),
     // The source is in photo pixels, not canvas pixels: it does not shrink with the canvas.
     source: layout.source,
@@ -265,6 +272,8 @@ const fitPixelBudget = (layout: FrameLayout): FrameLayout => {
  * @param preset output preset
  * @param detail `optimized` uses the preset's working size; `full` keeps the photo's own resolution
  * @param spec margin, placement, crop and caption room. Defaults to the classic look
+ * @param budget most pixels a canvas of a given size may have on this device. Defaults to the
+ *   size every target browser draws; export passes the device's own (`devicePixelBudget`)
  * @returns canvas size and the rectangles for the photo, its strips and its caption
  */
 export const computeLayout = (
@@ -272,10 +281,11 @@ export const computeLayout = (
   preset: OutputPreset,
   detail: 'optimized' | 'full' = 'optimized',
   spec: FrameSpec = defaultSpec(photo),
+  budget: PixelBudget = safePixelBudget,
 ): FrameLayout => {
   if (preset.kind === 'original') {
     const layout = layoutOriginal(spec, detail === 'full' ? Infinity : preset.longEdge);
-    return fitPixelBudget(layout);
+    return fitPixelBudget(layout, budget);
   }
 
   const base = layoutFixed(spec, preset.width, preset.height);
@@ -285,5 +295,8 @@ export const computeLayout = (
   // The canvas never goes below the preset size, and a photo smaller than that is placed at its
   // own size rather than enlarged — "full" means no resampling up.
   const factor = Math.max(1, spec.source.width / base.photo.width);
-  return fitPixelBudget(layoutFixed(spec, preset.width * factor, preset.height * factor, 1));
+  return fitPixelBudget(
+    layoutFixed(spec, preset.width * factor, preset.height * factor, 1),
+    budget,
+  );
 };

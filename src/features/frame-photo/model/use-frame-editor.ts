@@ -4,6 +4,7 @@ import { computeLayout, drawFrame } from '@/entities/frame';
 import { cameraCollection, filmCollection, lensCollection } from '@/entities/gear';
 import { markLines, useMark } from '@/entities/mark';
 import { recipeCollection } from '@/entities/recipe';
+import { devicePixelBudget, knownPixelBudget, pixelBudgetKnown } from '@/shared/lib/canvas-budget';
 import { ensureFont } from '@/shared/lib/canvas-fonts';
 import { downloadBlob } from '@/shared/lib/save-file';
 import { useCollection } from '@/shared/lib/use-collection';
@@ -180,13 +181,50 @@ export const useFrameEditor = () => {
     else store.setMessage(summary);
   };
 
+  // The file sizes shown under the choice. Rendering only reads what is already known about the
+  // device: finding out makes a canvas that large, so it waits until Original is chosen and the
+  // screen is drawn, then draws again with the answer.
+  const sizes = useMemo(
+    () =>
+      bitmap && spec
+        ? {
+            posting: computeLayout(bitmap, preset, 'optimized', spec).canvas,
+            wanted: computeLayout(bitmap, preset, 'full', spec, () => Infinity).canvas,
+          }
+        : null,
+    [bitmap, preset, spec],
+  );
+  const [, setLearned] = useState(0);
+  useEffect(() => {
+    if (detail !== 'full' || !sizes) return;
+    const { width, height } = sizes.wanted;
+    if (pixelBudgetKnown(width, height)) return;
+    // After the screen has shown "Checking…", not while it is being drawn.
+    const later = setTimeout(() => {
+      devicePixelBudget(width, height);
+      setLearned(count => count + 1);
+    });
+    return () => clearTimeout(later);
+  }, [detail, sizes]);
+
   return {
     canvasRef,
     store,
     library,
     resolved,
-    /** Pixel size of the file that export will write for the current photo at the current detail. */
-    outputSize: bitmap && spec ? computeLayout(bitmap, preset, detail, spec).canvas : null,
+    /**
+     * Pixel sizes of the current photo's file: For posting, Original as saved here, and Original
+     * as it would be without this device's limit. Original asks the device how large it can draw
+     * only once it is chosen: asking means making a canvas that large.
+     */
+    fileSizes: sizes && {
+      ...sizes,
+      original:
+        detail === 'full' && bitmap && spec
+          ? computeLayout(bitmap, preset, 'full', spec, knownPixelBudget).canvas
+          : sizes.wanted,
+      checking: detail === 'full' && !pixelBudgetKnown(sizes.wanted.width, sizes.wanted.height),
+    },
     exportJpeg,
     savePhotos,
   };

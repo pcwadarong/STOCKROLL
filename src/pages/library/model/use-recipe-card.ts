@@ -2,17 +2,29 @@ import { useEffect, useRef, useState } from 'react';
 
 import { useMark } from '@/entities/mark';
 import {
+  cardFileSizes,
   type CardStyle,
   MAX_CARD_PHOTOS,
   type Recipe,
   type RecipeSettings,
 } from '@/entities/recipe';
+import { devicePixelBudget, knownPixelBudget, pixelBudgetKnown } from '@/shared/lib/canvas-budget';
 import { ensureFont } from '@/shared/lib/canvas-fonts';
 
 import { decodeCardPhoto, drawShareCard, loadRecipePhoto, shareRecipeCard } from './share-recipe';
 
-/** A photo on the card. `example` marks the recipe's own example photo. */
-export type CardPhotoItem = { id: string; bitmap: ImageBitmap; example: boolean };
+/**
+ * A photo on the card. `example` marks the recipe's own example photo. A photo added from this
+ * device keeps its file and full size, to be opened again at full size when the card is saved
+ * as Original; only the reduced `bitmap` is held in memory.
+ */
+export type CardPhotoItem = {
+  id: string;
+  bitmap: ImageBitmap;
+  example: boolean;
+  file?: File;
+  fullSize?: { width: number; height: number };
+};
 
 type Loaded = { path: string | null; failed: boolean };
 
@@ -27,7 +39,8 @@ type Loaded = { path: string | null; failed: boolean };
  * @param style the card's design, size, spacing, colors and place for the user's text
  * @returns the ref for the preview canvas, whether the card is still `loading`, whether the
  * example photo failed to load, the photos with `addPhotos` (resolves to how many files could
- * not be used), `removePhoto` and `movePhoto`, and `save` to share or download the card
+ * not be used), `removePhoto` and `movePhoto`, `fileSizes` (what each file size saves at, once
+ * the preview is drawn) and `save` to share or download the card
  */
 export const useRecipeCard = (
   recipe: Recipe | undefined,
@@ -38,6 +51,8 @@ export const useRecipeCard = (
   const { mark, image } = useMark();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [photos, setPhotos] = useState<readonly CardPhotoItem[]>([]);
+  // The layout the preview was last drawn with: the file sizes are worked out from it.
+  const [drawn, setDrawn] = useState<ReturnType<typeof drawShareCard> | null>(null);
   // Every bitmap made here that is still open. A decoded photo is about 12MB, and a phone's
   // browser kills the tab without a word once memory runs out, so one taken off the card is
   // closed as soon as nothing can still be drawing it.
@@ -101,7 +116,8 @@ export const useRecipeCard = (
     const bitmaps = photos.map(photo => photo.bitmap);
     // A canvas draws in the fallback face when the font file has not arrived yet.
     void ensureFont(mark.font).then(() => {
-      if (active) drawShareCard(canvas, recipe, settings, bitmaps, style, { mark, image });
+      if (active)
+        setDrawn(drawShareCard(canvas, recipe, settings, bitmaps, style, { mark, image }));
     });
     return () => {
       active = false;
@@ -111,10 +127,15 @@ export const useRecipeCard = (
   const addPhotos = async (files: readonly File[]) => {
     const room = MAX_CARD_PHOTOS - photos.length;
     const decoded = await Promise.all(
-      files.slice(0, room).map(file => decodeCardPhoto(file).catch(() => null)),
+      files.slice(0, room).map(file =>
+        decodeCardPhoto(file).then(
+          photo => ({ ...photo, file }),
+          () => null,
+        ),
+      ),
     );
-    const added = decoded.flatMap(bitmap =>
-      bitmap ? [{ id: crypto.randomUUID(), bitmap, example: false }] : [],
+    const added = decoded.flatMap(photo =>
+      photo ? [{ id: crypto.randomUUID(), example: false, ...photo }] : [],
     );
     made.current.push(...added.map(photo => photo.bitmap));
     setPhotos(current => [...current, ...added].slice(0, MAX_CARD_PHOTOS));
@@ -138,20 +159,51 @@ export const useRecipeCard = (
     if (!ready || !recipe || !settings) throw new Error('The card is not ready');
     saves.current += 1;
     try {
-      return await shareRecipeCard(
-        recipe,
-        settings,
-        photos.map(photo => photo.bitmap),
-        style,
-      );
+      return await shareRecipeCard(recipe, settings, photos, style);
     } finally {
       saves.current -= 1;
       release();
     }
   };
 
+  // The file sizes shown under the choice, from the layout the preview was drawn with. Rendering
+  // only reads what is already known about the device: finding out makes a canvas that large, so
+  // it waits until Original is chosen and the screen is drawn, then draws again with the answer.
+  const photoSizes = photos.map(photo => ({
+    shown: photo.bitmap,
+    full: photo.fullSize ?? photo.bitmap,
+    example: photo.example,
+  }));
+  const current = drawn && drawn.photos.length === photos.length ? drawn : null;
+  const wanted = current && cardFileSizes(current, photoSizes).wanted;
+  const wantedWidth = wanted?.width ?? 0;
+  const wantedHeight = wanted?.height ?? 0;
+  const [, setLearned] = useState(0);
+  useEffect(() => {
+    if (style.detail !== 'full' || wantedWidth === 0) return;
+    if (pixelBudgetKnown(wantedWidth, wantedHeight)) return;
+    // After the screen has shown "Checking…", not while it is being drawn.
+    const later = setTimeout(() => {
+      devicePixelBudget(wantedWidth, wantedHeight);
+      setLearned(count => count + 1);
+    });
+    return () => clearTimeout(later);
+  }, [style.detail, wantedWidth, wantedHeight]);
+  const fileSizes =
+    current && wanted
+      ? {
+          ...cardFileSizes(
+            current,
+            photoSizes,
+            style.detail === 'full' ? knownPixelBudget : undefined,
+          ),
+          checking: style.detail === 'full' && !pixelBudgetKnown(wanted.width, wanted.height),
+        }
+      : null;
+
   return {
     canvasRef,
+    fileSizes,
     loading: !ready,
     exampleFailed: loaded?.path === path && loaded.failed,
     photos,

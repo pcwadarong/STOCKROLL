@@ -63,8 +63,8 @@ export const CARD_DESIGNS = [
 ] as const satisfies readonly { value: CardDesign; label: string }[];
 
 export const CARD_DETAILS = [
-  { value: 'optimized', label: 'Optimized' },
-  { value: 'full', label: 'Full size' },
+  { value: 'optimized', label: 'For posting' },
+  { value: 'full', label: 'Original' },
 ] as const satisfies readonly { value: CardDetail; label: string }[];
 
 export const CARD_ALIGNS = [

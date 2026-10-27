@@ -89,6 +89,56 @@ describe('computeLayout', () => {
     expect(layout.photo.x + layout.photo.width).toBeLessThanOrEqual(layout.canvas.width);
   });
 
+  it('when the device can draw the full resolution, the photo must be drawn at its own size', () => {
+    const xt50 = { width: 7728, height: 5152 };
+    const roomy = () => 300_000_000;
+    const layout = computeLayout(xt50, preset('original'), 'full', undefined, roomy);
+
+    expect(layout.photo.width).toBe(7728);
+    expect(layout.photo.height).toBe(5152);
+  });
+
+  it('when a canvas is shrunk to the budget, the photo must stay inside it on both sides', () => {
+    // Rounding each side down on its own could leave the photo a pixel taller than the canvas.
+    for (let width = 4000; width <= 6000; width += 37) {
+      const tall = { width, height: Math.floor(width * 1.5) };
+      // No margin and no caption: the photo is the whole canvas, so a pixel too many shows.
+      const bare = {
+        ...defaultSpec(tall),
+        margin: 0,
+        captionHeight: 0,
+        captionPlacement: 'over' as const,
+      };
+      const layout = computeLayout(tall, preset('original'), 'full', bare, () => 16_000_000);
+      expect(layout.photo.x + layout.photo.width).toBeLessThanOrEqual(layout.canvas.width);
+      expect(layout.photo.y + layout.photo.height).toBeLessThanOrEqual(layout.canvas.height);
+    }
+  });
+
+  it('when the device draws less than the full resolution, the canvas must stay within its budget', () => {
+    const xt50 = { width: 7728, height: 5152 };
+    const asked: number[] = [];
+    const budget = (width: number, height: number) => {
+      asked.push(width * height);
+      return 25_000_000;
+    };
+    const layout = computeLayout(xt50, preset('original'), 'full', undefined, budget);
+
+    expect(layout.canvas.width * layout.canvas.height).toBeLessThanOrEqual(25_000_000);
+    expect(layout.canvas.width * layout.canvas.height).toBeGreaterThan(16_000_000);
+    expect(asked).toHaveLength(1);
+  });
+
+  it('when a canvas is within the size every browser draws, the device must not be asked', () => {
+    const asked: number[] = [];
+    computeLayout({ width: 3000, height: 2000 }, preset('original'), 'full', undefined, () => {
+      asked.push(1);
+      return 0;
+    });
+
+    expect(asked).toEqual([]);
+  });
+
   it('when full detail is chosen for the original preset, the long edge must not be capped at 2048', () => {
     const layout = computeLayout({ width: 3000, height: 2000 }, preset('original'), 'full');
 
