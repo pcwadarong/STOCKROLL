@@ -10,6 +10,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>STOCKROLL</title>
     <meta
@@ -30,6 +31,15 @@
     <meta property="og:image:height" content="800" />
     <meta property="og:image:alt" content="STOCKROLL wordmark in cream on red" />
     <meta name="twitter:card" content="summary_large_image" />
+    <!-- Site name for search results. Without it Google may label the site after the vercel.app host. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "STOCKROLL",
+        "url": "https://stockroll.vercel.app/"
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
