@@ -1,1 +1,1 @@
-export { UpdateNotice } from './ui/UpdateNotice';
+export { AppUpdate } from './ui/AppUpdate';

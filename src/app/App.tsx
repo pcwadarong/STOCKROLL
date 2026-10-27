@@ -1,8 +1,8 @@
 import { Snackbar } from '@seed-design/react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 
-import { UpdateNotice } from '@/features/app-update';
-import { EditorStoreProvider } from '@/features/frame-photo';
+import { AppUpdate } from '@/features/app-update';
+import { EditorStoreProvider, useHasOpenPhotos } from '@/features/frame-photo';
 import { EditorPage } from '@/pages/editor';
 import { LandingPage } from '@/pages/landing';
 import { PrivacyPage, TermsPage } from '@/pages/legal';
@@ -17,6 +17,9 @@ import {
   StripListPage,
 } from '@/pages/library';
 import { MePage } from '@/pages/me';
+
+// A reload would drop the photos open in the editor, so the update waits for them.
+const Updates = () => <AppUpdate holdReload={useHasOpenPhotos()} />;
 
 /**
  * App root. The editor store sits above the routes so an opened photo survives a trip to a
@@ -48,9 +51,9 @@ export const App = () => (
           <Route path="/terms" element={<TermsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <Updates />
       </EditorStoreProvider>
     </BrowserRouter>
-    <UpdateNotice />
     <Snackbar.Region>
       <Snackbar.Renderer />
     </Snackbar.Region>
