@@ -3,7 +3,7 @@ import IconCameraFill from '@karrotmarket/react-monochrome-icon/IconCameraFill';
 import IconHouseFill from '@karrotmarket/react-monochrome-icon/IconHouseFill';
 import IconPersonFill from '@karrotmarket/react-monochrome-icon/IconPersonFill';
 import IconPictureFill from '@karrotmarket/react-monochrome-icon/IconPictureFill';
-import { Icon } from '@seed-design/react';
+import { Icon, Snackbar } from '@seed-design/react';
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router';
 
@@ -46,24 +46,27 @@ export const TabBar = () => {
   }, [current]);
 
   return (
-    <nav className={css.bar} aria-label="Main">
-      <div className={css.tabs}>
-        {TABS.map(({ to, label, icon, end }) => (
-          <NavLink key={to} to={to} end={end} className={css.tab}>
-            <Icon svg={icon} size="x6" />
-            {label}
-          </NavLink>
-        ))}
-        <span
-          className={css.indicator}
-          aria-hidden="true"
-          style={{
-            width: `${100 / TABS.length}%`,
-            transform: `translateX(${Math.max(shown, 0) * 100}%)`,
-            opacity: current === -1 ? 0 : 1,
-          }}
-        />
-      </div>
-    </nav>
+    // Keeps a notice above the bar instead of over the tabs.
+    <Snackbar.AvoidOverlap>
+      <nav className={css.bar} aria-label="Main">
+        <div className={css.tabs}>
+          {TABS.map(({ to, label, icon, end }) => (
+            <NavLink key={to} to={to} end={end} className={css.tab}>
+              <Icon svg={icon} size="x6" />
+              {label}
+            </NavLink>
+          ))}
+          <span
+            className={css.indicator}
+            aria-hidden="true"
+            style={{
+              width: `${100 / TABS.length}%`,
+              transform: `translateX(${Math.max(shown, 0) * 100}%)`,
+              opacity: current === -1 ? 0 : 1,
+            }}
+          />
+        </div>
+      </nav>
+    </Snackbar.AvoidOverlap>
   );
 };

@@ -378,3 +378,12 @@ export const useEditorStore = () => {
   if (!store) throw new Error('useEditorStore must be used inside EditorStoreProvider');
   return store;
 };
+
+/**
+ * Whether the editor holds photos that a page reload would throw away. They live only in memory.
+ * @returns true while any photo is open or still being read
+ */
+export const useHasOpenPhotos = () => {
+  const { queue, reading } = useEditorStore();
+  return queue.items.length > 0 || reading > 0;
+};

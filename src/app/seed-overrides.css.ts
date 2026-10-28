@@ -99,3 +99,7 @@ globalStyle('html .seed-alert-dialog__footer', {
   gap: vars.$dimension.x2,
 });
 globalStyle('html .seed-alert-dialog__footer > *', { flex: '1 1 auto' });
+
+// Snackbar action: SEED colors it with the brand red, which on the charcoal snackbar is about
+// 2:1 against the background. Cream, as on other dark surfaces; bold already sets it apart.
+globalStyle('html .seed-snackbar__actionButton', { color: beige });
