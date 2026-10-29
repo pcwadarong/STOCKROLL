@@ -51,8 +51,9 @@ test-results/
 supabase/.temp/
 supabase/.branches/
 
-# Vercel
-.vercel/
+# Cloudflare (wrangler dev state, local Worker secrets)
+.wrangler/
+.dev.vars*
 
 # Husky generated
 .husky/_/
