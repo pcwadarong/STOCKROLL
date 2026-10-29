@@ -49,7 +49,7 @@ const PRIVACY: LegalDocument = {
     {
       heading: 'How data is stored',
       body: [
-        'Account data, records and recipe example photos are stored with Supabase. Access rules limit every record and photo to the account that created it; example photos are kept in private storage with no public link. The app is served by Vercel.',
+        'Account data, records and recipe example photos are stored with Supabase. Access rules limit every record and photo to the account that created it; example photos are kept in private storage with no public link. The app is served by Cloudflare.',
         'We do not sell or share your data with third parties beyond these service providers.',
       ],
     },
