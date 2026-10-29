@@ -1,0 +1,16 @@
+# Cloudflare static asset headers. Not served as a file.
+# Only files that exist get these; worker/index.ts sets headers for everything else.
+
+# Hashed build output never changes under the same name.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# A cached service worker or manifest keeps installed apps on an old deploy.
+/sw.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+
+# /index.html redirects here.
+/
+  Cache-Control: no-cache

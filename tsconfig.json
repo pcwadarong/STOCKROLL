@@ -18,5 +18,5 @@
       "seed-design/*": ["./seed-design/*"]
     }
   },
-  "include": ["src", "seed-design", "vite.config.ts"]
+  "include": ["src", "seed-design", "worker", "vite.config.ts"]
 }
