@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "stockroll",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-26",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // No "single-page-application" handling: it answers browser navigations itself, so a missing
+    // /assets file opened in the address bar would get the page with the /assets cache header.
+    // Every path without a file goes to worker/index.ts instead.
+  },
+  "workers_dev": true,
+  "preview_urls": true,
+  // Required for Worker Previews (one per pull request). Empty: previews use the top-level settings.
+  "previews": {},
+}

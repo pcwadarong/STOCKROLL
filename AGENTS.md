@@ -2,21 +2,22 @@
 
 이 저장소에서 일하는 모든 에이전트의 **단일 출처**다. 아키텍처, 스타일, 도메인 규칙, 테스트, 워크플로우, 접근성 기준이 여기 있다. 스킬(`.claude/skills/`)은 이 문서를 참조만 하고 규칙을 복제하지 않는다. 결정의 배경은 [docs/architecture.md](docs/architecture.md)에 있다.
 
-STOCKROLL은 Lightroom 보정 이후 단계를 맡는 **개인용 사진 프레임 PWA**다. Vite + React SPA, SEED Design, vanilla-extract, Supabase, Vercel.
+STOCKROLL은 Lightroom 보정 이후 단계를 맡는 **개인용 사진 프레임 PWA**다. Vite + React SPA, SEED Design, vanilla-extract, Supabase, Cloudflare Workers(정적 자산 호스팅).
 
 ## 1. 아키텍처: Feature-Sliced Design
 
 도메인과 UX 단위로 묶는다. 기술 종류(components/hooks/utils)로 묶지 않는다.
 
-| 레이어          | 역할                                     | 지금 있는 것                                                                                                                                                                                                                                                  |
-| --------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/app/`      | 진입점·프로바이더·전역 스타일. 로직 없음 | `main.tsx`, `App.tsx`, `global.css.ts`, `theme.css.ts`(SEED 색 덮어쓰기), `seed-overrides.css.ts`(SEED 모양 덮어쓰기)                                                                                                                                         |
-| `src/pages/`    | 화면 조립                                | `landing/`(`/`), `editor/`(`/frame`), `me/`(`/me`, 계정·약관), `library/`(장비·필름 `/library/*`, 레시피 `/recipes/*`, 레시피 카드 `/recipes/:id/card`, 스트립 `/recipes/strips/*`, 공용 목록 `LibraryList`), `legal/`                                        |
-| `src/widgets/`  | 여러 화면이 공유하는 독립 UI 블록        | `app-bar/`, `tab-bar/`(폰 주 메뉴), `site-footer/`, `page-shell/`                                                                                                                                                                                             |
-| `src/features/` | 사용자 상호작용·상태 단위                | `frame-photo/`(사진 큐·캡션·내보내기), `auth/`(`SignInGate`, `AccountMenu`·`AccountPanel`, 세션), `app-update/`(새 배포 반영 — 다음 화면 이동 때 새로고침, 편집기에 사진이 열려 있으면 Reload 스낵바)                                                         |
-| `src/entities/` | 도메인 모델과 순수 계산                  | `frame/`, `photo/`(EXIF), `gear/`(카메라·렌즈·필름), `recipe/`, `mark/`(내 텍스트·이미지 — 프레임과 레시피 카드 공용)                                                                                                                                         |
-| `src/shared/`   | 도메인을 모르는 범용 코드                | `api/`(Supabase, `createCollection`), `lib/`(`pick-filter`, `search`, `use-collection-page`, `record-field`, `field-value`, `resize-image`, `save-file`, `canvas-fonts`), `ui/`(아래 공통 부품), `config/`(`palette`, `responsive`, `messages`, `typography`) |
-| `seed-design/`  | SEED CLI가 내려받는 스니펫               | `ui/*` — **직접 고치지 않는다**                                                                                                                                                                                                                               |
+| 레이어          | 역할                                                    | 지금 있는 것                                                                                                                                                                                                                                                  |
+| --------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app/`      | 진입점·프로바이더·전역 스타일. 로직 없음                | `main.tsx`, `App.tsx`, `global.css.ts`, `theme.css.ts`(SEED 색 덮어쓰기), `seed-overrides.css.ts`(SEED 모양 덮어쓰기)                                                                                                                                         |
+| `src/pages/`    | 화면 조립                                               | `landing/`(`/`), `editor/`(`/frame`), `me/`(`/me`, 계정·약관), `library/`(장비·필름 `/library/*`, 레시피 `/recipes/*`, 레시피 카드 `/recipes/:id/card`, 스트립 `/recipes/strips/*`, 공용 목록 `LibraryList`), `legal/`                                        |
+| `src/widgets/`  | 여러 화면이 공유하는 독립 UI 블록                       | `app-bar/`, `tab-bar/`(폰 주 메뉴), `site-footer/`, `page-shell/`                                                                                                                                                                                             |
+| `src/features/` | 사용자 상호작용·상태 단위                               | `frame-photo/`(사진 큐·캡션·내보내기), `auth/`(`SignInGate`, `AccountMenu`·`AccountPanel`, 세션), `app-update/`(새 배포 반영 — 다음 화면 이동 때 새로고침, 편집기에 사진이 열려 있으면 Reload 스낵바)                                                         |
+| `src/entities/` | 도메인 모델과 순수 계산                                 | `frame/`, `photo/`(EXIF), `gear/`(카메라·렌즈·필름), `recipe/`, `mark/`(내 텍스트·이미지 — 프레임과 레시피 카드 공용)                                                                                                                                         |
+| `src/shared/`   | 도메인을 모르는 범용 코드                               | `api/`(Supabase, `createCollection`), `lib/`(`pick-filter`, `search`, `use-collection-page`, `record-field`, `field-value`, `resize-image`, `save-file`, `canvas-fonts`), `ui/`(아래 공통 부품), `config/`(`palette`, `responsive`, `messages`, `typography`) |
+| `seed-design/`  | SEED CLI가 내려받는 스니펫                              | `ui/*` — **직접 고치지 않는다**                                                                                                                                                                                                                               |
+| `worker/`       | Cloudflare Worker. 앱 번들 밖, `src/`를 import하지 않음 | `index.ts` — 파일이 없는 요청만 받는다: 파일 경로는 404, 화면 경로는 앱 셸. 설정은 `wrangler.jsonc`, 캐시 헤더는 `public/_headers`                                                                                                                            |
 
 - **의존 방향**: `app → pages → widgets → features → entities → shared`. 역방향 import 금지.
 - **공개 API**: 다른 슬라이스는 `index.ts`로만 import한다(`@/entities/frame`). 내부 파일을 직접 뚫지 않는다.
