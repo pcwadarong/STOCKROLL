@@ -215,3 +215,29 @@ fi
 | "사진 찍기" 안내 문구가 실제로 뜨는지                | 미확인(파일 수정 시각이 방금으로 오는지에 달렸다)                                                                                    |
 | 여러 파일 다운로드 허용 창, 디스크에 실제로 쓰임     | 미확인                                                                                                                               |
 | 링크 미리보기(카카오톡·iMessage)                     | 미확인. 이미지·태그가 프로덕션에 있는 것까지만 확인                                                                                  |
+
+## 6. 호스팅 응답 확인하기
+
+SPA 폴백과 캐시 헤더는 에러 없이 틀린다. 없는 청크에 HTML이 200으로 오거나 `sw.js`가 캐시돼도 화면은 그대로 뜬다. 응답 헤더로 확인한다.
+
+```bash
+pnpm build && pnpm exec wrangler dev   # http://localhost:8787. 실제 배포면 BASE만 바꾼다
+
+BASE=http://localhost:8787
+JS=$(ls dist/assets | grep -E '^index-.*\.js$' | head -1)
+h() { echo "### $*"; curl -sI "$@" | grep -i -E '^HTTP|^content-type|^cache-control|^location'; }
+
+h $BASE/                                                       # 200 html, no-cache
+h -H 'Sec-Fetch-Mode: navigate' $BASE/recipes/abc              # 200 html, no-cache (새로고침)
+h $BASE/recipes/abc                                            # 200 html, no-cache (크롤러)
+h $BASE/assets/nope.js                                         # 404
+h -H 'Sec-Fetch-Mode: no-cors' -H 'Sec-Fetch-Dest: script' $BASE/assets/nope.js   # 404
+h -H 'Sec-Fetch-Mode: navigate' $BASE/assets/nope.js           # 404 (주소창으로 열어도)
+h $BASE/sw.js                                                  # 200, no-cache
+h $BASE/manifest.webmanifest                                   # 200, no-cache
+h $BASE/assets/$JS                                             # 200, max-age=31536000, immutable
+```
+
+실제 배포에서는 `JS`를 `curl -s $BASE/ | grep -o 'assets/index-[^"]*\.js'`로 구한다. 로컬 `dist`의 해시는 배포된 것과 다를 수 있다.
+
+> 새 배포 흐름(#32)을 로컬에서 보려면 브라우저로 `wrangler dev`를 연다. 그다음 `src/app/main.tsx`에 `document.documentElement.dataset.build = 'B'` 같은 표시를 **임시로** 넣고 `pnpm exec vite build`로 다시 빌드한다. `wrangler dev`는 바뀐 `dist`를 재시작 없이 내보낸다. 이제 앱 안에서 화면을 옮겨 `<html data-build>`가 바뀌는지 본다. 표시는 커밋 전에 지운다. 표시 없이 다시 빌드하면 해시가 같아 새 배포로 보이지 않는다.
